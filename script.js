@@ -95,48 +95,43 @@ function cleanSignal(value) {
   return String(value || "HOLD").replace(/[^\w\s()%/-]+/g, "").trim() || "HOLD";
 }
 
-function csvUrl(sheetName) {
-  const sheet = encodeURIComponent(sheetName);
-  return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${sheet}`;
-}
-
-function parseCsv(text) {
-  const rows = [];
-  let row = [];
-  let cell = "";
-  let quoted = false;
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index];
-    const next = text[index + 1];
-    if (char === '"' && quoted && next === '"') {
-      cell += '"';
-      index += 1;
-    } else if (char === '"') {
-      quoted = !quoted;
-    } else if (char === "," && !quoted) {
-      row.push(cell);
-      cell = "";
-    } else if ((char === "\n" || char === "\r") && !quoted) {
-      if (char === "\r" && next === "\n") index += 1;
-      row.push(cell);
-      if (row.some(item => item !== "")) rows.push(row);
-      row = [];
-      cell = "";
-    } else {
-      cell += char;
-    }
-  }
-  row.push(cell);
-  if (row.some(item => item !== "")) rows.push(row);
-  return rows;
-}
-
 async function fetchSheet(sheetName) {
-  const response = await fetch(`${csvUrl(sheetName)}&cacheBust=${Date.now()}`, { cache: "no-store" });
-  if (!response.ok) throw new Error(`Cannot load ${sheetName}`);
-  const text = await response.text();
-  if (/^<!doctype html|<html/i.test(text.trim())) throw new Error(`${sheetName} is not published`);
-  return parseCsv(text);
+  return new Promise((resolve, reject) => {
+    const callback = `sheetCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const script = document.createElement("script");
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error(`Cannot load ${sheetName}`));
+    }, 12000);
+    function cleanup() {
+      window.clearTimeout(timeout);
+      delete window[callback];
+      script.remove();
+    }
+    window[callback] = payload => {
+      cleanup();
+      if (!payload || payload.status === "error") {
+        reject(new Error(`Google Sheet returned no data for ${sheetName}`));
+        return;
+      }
+      const table = payload.table || {};
+      const headers = (table.cols || []).map((col, index) => col.label || `Column_${index + 1}`);
+      const body = (table.rows || []).map(row => (row.c || []).map(cell => {
+        if (!cell) return "";
+        if (cell.f != null) return cell.f;
+        if (cell.v != null) return String(cell.v);
+        return "";
+      }));
+      resolve([headers, ...body]);
+    };
+    const sheet = encodeURIComponent(sheetName);
+    script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${sheet}&headers=1&tqx=responseHandler:${callback}&cacheBust=${Date.now()}`;
+    script.onerror = () => {
+      cleanup();
+      reject(new Error(`Cannot load ${sheetName}`));
+    };
+    document.head.appendChild(script);
+  });
 }
 
 function rowsToObjects(rows) {
@@ -146,7 +141,7 @@ function rowsToObjects(rows) {
 
 function kpiValue(rows, metric, fallback = "") {
   const found = rows.find(row => row.Metric === metric);
-  return found ? found.Value : fallback;
+  return found && found.Value ? found.Value : fallback;
 }
 
 function pathFromPoints(points) {
