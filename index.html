@@ -99,19 +99,27 @@
             <strong id="investedValue">THB 0.00</strong>
             <small id="cashValue">Cash THB 0.00</small>
           </article>
-          <article class="card stat-card danger">
+          <article class="card stat-card">
             <span>Daily Profit</span>
             <strong id="dailyProfitLabel">THB 0.00</strong>
             <small id="dailyChangeLabel">0.00%</small>
           </article>
-          <article class="card split-card">
+          <article class="card risk-card">
             <div>
               <span>IRR</span>
               <strong id="irrLabel">0.00%</strong>
             </div>
             <div>
-              <span>Return</span>
-              <strong id="returnValue">0.00%</strong>
+              <span>Volatility (Daily)</span>
+              <strong id="volatilityLabel">0.00%</strong>
+            </div>
+            <div>
+              <span>Sharpe Ratio</span>
+              <strong id="sharpeLabel">0.00</strong>
+            </div>
+            <div>
+              <span>Max Drawdown</span>
+              <strong id="drawdownLabel" class="negative">0.00%</strong>
             </div>
           </article>
         </section>
@@ -152,6 +160,16 @@
             </div>
             <strong class="performance-number" id="performanceNumber">0.00%</strong>
             <svg id="navChart" class="line-chart" viewBox="0 0 740 300" role="img" aria-label="Portfolio NAV chart"></svg>
+            <div class="benchmark-strip">
+              <div>
+                <span>vs S&amp;P500 (SPY)</span>
+                <strong id="spyBenchmark">0.00%</strong>
+              </div>
+              <div>
+                <span>vs NASDAQ (QQQ)</span>
+                <strong id="qqqBenchmark">0.00%</strong>
+              </div>
+            </div>
           </article>
 
           <article class="card indicators-card">
@@ -192,6 +210,16 @@
               <div id="healthMetrics" class="health-metrics"></div>
             </div>
           </article>
+
+          <article class="card quick-alerts-card">
+            <div class="section-head">
+              <div>
+                <span class="eyebrow">Alerts</span>
+                <h2>Risk watch</h2>
+              </div>
+            </div>
+            <div id="quickAlertsList" class="alert-list compact-alert-list"></div>
+          </article>
         </section>
 
         <section class="card holdings-card" id="portfolio">
@@ -204,6 +232,7 @@
               <button class="active" data-filter="All" type="button">All</button>
               <button data-filter="Core" type="button">Core</button>
               <button data-filter="Growth" type="button">Growth</button>
+              <button data-filter="Income" type="button">Income</button>
               <button data-filter="Safe" type="button">Safe</button>
               <button data-filter="Alpha" type="button">Alpha</button>
             </div>
@@ -270,6 +299,6 @@
     <button data-jump="alerts" type="button"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg><span>Alerts</span></button>
   </nav>
 
-  <script src="./script.js?v=20260511"></script>
+  <script src="./script.js?v=20260511b"></script>
 </body>
 </html>
