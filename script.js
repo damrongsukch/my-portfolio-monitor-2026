@@ -16,7 +16,7 @@ let holdings = [
   { ticker: "GOOGL", layer: "Growth", shares: "0.0317128", price: "$400.71", value: 409.22, valueText: "THB 409.22", pl: "37.08%", weight: 7.70, signal: "STRONG BUY" },
   { ticker: "PLTR", layer: "Growth", shares: "0.1481048", price: "$137.80", value: 657.23, valueText: "THB 657.23", pl: "-3.74%", weight: 12.37, signal: "HOLD" },
   { ticker: "TSM", layer: "Growth", shares: "0.0414339", price: "$411.68", value: 549.30, valueText: "THB 549.30", pl: "18.29%", weight: 10.34, signal: "BUY" },
-  { ticker: "QQQI", layer: "Safe", shares: "0.2030812", price: "$56.50", value: 369.50, valueText: "THB 369.50", pl: "7.94%", weight: 6.96, signal: "HOLD" },
+  { ticker: "QQQI", layer: "Income", shares: "0.2030812", price: "$56.50", value: 369.50, valueText: "THB 369.50", pl: "7.94%", weight: 6.96, signal: "HOLD" },
   { ticker: "IAUI", layer: "Safe", shares: "0.2208413", price: "$57.23", value: 407.01, valueText: "THB 407.01", pl: "1.35%", weight: 7.66, signal: "HOLD" },
   { ticker: "IDVO", layer: "Safe", shares: "0.2626505", price: "$42.80", value: 362.01, valueText: "THB 362.01", pl: "2.29%", weight: 6.82, signal: "HOLD" },
   { ticker: "RKLB", layer: "Alpha", shares: "0.1307652", price: "$105.55", value: 444.47, valueText: "THB 444.47", pl: "44.54%", weight: 8.37, signal: "HOLD" }
@@ -41,6 +41,16 @@ let kpis = {
   profit: "THB 611.25",
   totalReturn: "13.01%",
   irr: "361.54%",
+  volatility: "3.41%",
+  sharpe: "4.93",
+  maxDrawdown: "-1.69%",
+  benchmarkSpy: "3.63%",
+  benchmarkQqq: "1.79%",
+  vix: "17.28",
+  greedFear: "68",
+  sp500Trend: "Above EMA200",
+  marketBreadth: "62%",
+  bondYield: "4.28%",
   dailyProfit: "THB 161.75",
   dailyChange: "2.955%",
   cash: "THB 0.00",
@@ -71,7 +81,7 @@ function numberFrom(value) {
 function moneyText(value) {
   const text = String(value || "").trim();
   if (!text) return "THB 0.00";
-  return text.replace("฿", "THB ");
+  return text.replace("฿", "THB ").replace("à¸¿", "THB ");
 }
 
 function percentText(value) {
@@ -96,6 +106,26 @@ function rowsToObjects(rows) {
 function kpiValue(rows, metric, fallback = "") {
   const found = rows.find(row => row.Metric === metric);
   return found && found.Value ? found.Value : fallback;
+}
+
+function kpiAny(rows, metrics, fallback = "") {
+  const names = Array.isArray(metrics) ? metrics : [metrics];
+  const normalized = names.map(name => String(name).toLowerCase());
+  const found = rows.find(row => {
+    const metric = String(row.Metric || "").toLowerCase();
+    return normalized.some(name => metric === name || metric.includes(name));
+  });
+  return found && found.Value ? found.Value : fallback;
+}
+
+function signedClass(value) {
+  const text = String(value || "").trim();
+  return text.startsWith("-") || numberFrom(text) < 0 ? "negative" : "positive";
+}
+
+function normalizeLayer(ticker, layer) {
+  if (String(ticker || "").toUpperCase() === "QQQI") return "Income";
+  return String(layer || "Core").trim() || "Core";
 }
 
 function fetchSheet(sheetName) {
@@ -178,17 +208,24 @@ function renderKpis() {
   const totalReturn = plusText(kpis.totalReturn, percentText);
   const dailyProfit = plusText(kpis.dailyProfit, moneyText);
   const dailyChange = plusText(kpis.dailyChange, percentText);
-  const profitIsNegative = profit.includes("-");
-  const dailyIsNegative = dailyProfit.includes("-") || dailyChange.includes("-");
+  const profitTone = signedClass(profit);
+  const dailyTone = dailyProfit.includes("-") || dailyChange.includes("-") ? "negative" : "positive";
+  const spyTone = signedClass(kpis.benchmarkSpy);
+  const qqqTone = signedClass(kpis.benchmarkQqq);
+  const drawdownTone = signedClass(kpis.maxDrawdown);
 
   setText("portfolioValue", kpis.portfolioValue);
   setText("investedValue", kpis.invested);
   setText("profitLabel", `${profit} (${totalReturn})`);
   setText("dailyProfitLabel", dailyProfit);
   setText("dailyChangeLabel", dailyChange);
-  setText("returnValue", totalReturn);
   setText("performanceNumber", totalReturn);
   setText("irrLabel", percentText(kpis.irr));
+  setText("volatilityLabel", percentText(kpis.volatility));
+  setText("sharpeLabel", String(kpis.sharpe || "0.00"));
+  setText("drawdownLabel", percentText(kpis.maxDrawdown));
+  setText("spyBenchmark", plusText(kpis.benchmarkSpy, percentText));
+  setText("qqqBenchmark", plusText(kpis.benchmarkQqq, percentText));
   setText("cashValue", `Cash ${kpis.cash}`);
   setText("tableTotalValue", kpis.portfolioValue);
   setText("tableTotalReturn", totalReturn);
@@ -196,8 +233,12 @@ function renderKpis() {
   setText("sideMode", kpis.marketMode);
   setText("sideModeHint", kpis.marketMode.includes("A") ? "Risk on" : "Risk control");
 
-  document.getElementById("profitLabel").className = profitIsNegative ? "negative" : "positive";
-  document.getElementById("dailyProfitLabel").className = dailyIsNegative ? "negative" : "";
+  document.getElementById("profitLabel").className = profitTone;
+  document.getElementById("dailyProfitLabel").className = dailyTone;
+  document.getElementById("dailyChangeLabel").className = dailyTone;
+  document.getElementById("spyBenchmark").className = spyTone;
+  document.getElementById("qqqBenchmark").className = qqqTone;
+  document.getElementById("drawdownLabel").className = drawdownTone;
 }
 
 function renderNavChart() {
@@ -362,10 +403,16 @@ function renderHoldings(filter = activeFilter, query = document.getElementById("
 }
 
 function renderSignals() {
-  setHtml("signalsList", signals.slice(0, 6).map(signal => {
-    const cls = signal.tone === "caution" ? "caution" : signal.tone === "positive" || signal.tone === "bullish" ? "positive" : "neutral";
-    return `<div class="indicator-row"><span>${signal.title}</span><strong class="${cls === "caution" ? "warning" : cls}">${signal.status}</strong></div>`;
-  }).join(""));
+  const indicators = [
+    ["VIX", kpis.vix, numberFrom(kpis.vix) <= 20 ? "positive" : "warning"],
+    ["Greed & Fear", kpis.greedFear, numberFrom(kpis.greedFear) >= 65 ? "warning" : "neutral"],
+    ["S&P500 Trend", kpis.sp500Trend, /above|bull|up/i.test(kpis.sp500Trend) ? "positive" : "warning"],
+    ["Market Breadth", kpis.marketBreadth, numberFrom(kpis.marketBreadth) >= 55 ? "positive" : "warning"],
+    ["10Y Bond Yield", kpis.bondYield, "neutral"]
+  ];
+  setHtml("signalsList", indicators.map(([label, value, tone]) =>
+    `<div class="indicator-row"><span>${label}</span><strong class="${tone}">${value}</strong></div>`
+  ).join(""));
 }
 
 function renderSmartDca() {
@@ -407,7 +454,10 @@ function renderAlerts() {
     if (r > 25) rows.push({ title: `${item.ticker} is extended`, text: `Gain/loss ${item.pl}. Avoid chasing if price is stretched.`, tone: "caution" });
     if (r < -5) rows.push({ title: `${item.ticker} drawdown watch`, text: `Position return ${item.pl}. Review thesis and allocation gap.`, tone: "caution" });
   });
-  setHtml("alertsList", rows.slice(0, 4).map(row => `<div class="alert-row"><div><strong>${row.title}</strong><p>${row.text}</p></div><span class="badge ${row.tone}">${row.tone}</span></div>`).join("") || `<div class="empty">No major alerts from current sheet snapshot.</div>`);
+  const html = rows.slice(0, 4).map(row => `<div class="alert-row"><div><strong>${row.title}</strong><p>${row.text}</p></div><span class="badge ${row.tone}">${row.tone}</span></div>`).join("") || `<div class="empty">No major alerts from current sheet snapshot.</div>`;
+  const compactHtml = rows.slice(0, 2).map(row => `<div class="alert-row"><div><strong>${row.title}</strong><p>${row.text}</p></div><span class="badge ${row.tone}">${row.tone}</span></div>`).join("") || `<div class="empty">No major alerts.</div>`;
+  setHtml("alertsList", html);
+  setHtml("quickAlertsList", compactHtml);
 }
 
 function signalRank(signal) {
@@ -427,6 +477,16 @@ function applyLiveData(datasets) {
     profit: moneyText(kpiValue(kpiRows, "Total Profit THB", kpis.profit)),
     totalReturn: percentText(kpiValue(kpiRows, "Total Return %", kpis.totalReturn)),
     irr: percentText(kpiValue(kpiRows, "IRR", kpis.irr)),
+    volatility: percentText(kpiAny(kpiRows, ["Volatility (Daily)", "Daily Volatility", "Volatility"], kpis.volatility)),
+    sharpe: kpiAny(kpiRows, ["Sharpe Ratio", "Sharpe"], kpis.sharpe),
+    maxDrawdown: percentText(kpiAny(kpiRows, ["Max Drawdown", "Maximum Drawdown"], kpis.maxDrawdown)),
+    benchmarkSpy: percentText(kpiAny(kpiRows, ["vs S&P500", "SPY", "S&P500"], kpis.benchmarkSpy)),
+    benchmarkQqq: percentText(kpiAny(kpiRows, ["vs NASDAQ", "QQQ", "NASDAQ"], kpis.benchmarkQqq)),
+    vix: kpiAny(kpiRows, "VIX", kpis.vix),
+    greedFear: kpiAny(kpiRows, ["Greed & Fear", "Fear & Greed", "Fear Greed"], kpis.greedFear),
+    sp500Trend: kpiAny(kpiRows, ["S&P500 Trend", "S&P 500 Trend", "SP500 Trend"], kpis.sp500Trend),
+    marketBreadth: percentText(kpiAny(kpiRows, ["Market Breadth", "Breadth"], kpis.marketBreadth)),
+    bondYield: percentText(kpiAny(kpiRows, ["10Y Bond Yield", "10Y Yield", "Bond Yield"], kpis.bondYield)),
     dailyProfit: moneyText(kpiValue(kpiRows, "Daily Profit THB", kpis.dailyProfit)),
     dailyChange: percentText(kpiValue(kpiRows, "Daily Change %", kpis.dailyChange)),
     cash: kpis.cash,
@@ -436,7 +496,7 @@ function applyLiveData(datasets) {
 
   holdings = rowsToObjects(datasets.holdings).map(row => ({
     ticker: row.Ticker || "N/A",
-    layer: row.Asset_Layer || "Core",
+    layer: normalizeLayer(row.Ticker, row.Asset_Layer),
     shares: row.Total_Shares || "0",
     price: `$${row.Current_Price_USD || "0.00"}`,
     value: numberFrom(row.Market_Value_THB),
@@ -538,7 +598,11 @@ function bindInteractions() {
   document.getElementById("refreshButton").addEventListener("click", loadLiveData);
   document.querySelectorAll("[data-jump]").forEach(button => {
     button.addEventListener("click", () => {
-      document.getElementById(button.dataset.jump)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (button.dataset.jump === "overview") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        document.getElementById(button.dataset.jump)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
       document.querySelectorAll("[data-jump]").forEach(item => item.classList.toggle("active", item.dataset.jump === button.dataset.jump));
     });
   });
