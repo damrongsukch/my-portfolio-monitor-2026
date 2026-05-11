@@ -16,7 +16,7 @@ let holdings = [
   { ticker: "GOOGL", layer: "Growth", shares: "0.0317128", price: "$400.71", value: 409.22, valueText: "THB 409.22", pl: "37.08%", weight: 7.70, signal: "STRONG BUY" },
   { ticker: "PLTR", layer: "Growth", shares: "0.1481048", price: "$137.80", value: 657.23, valueText: "THB 657.23", pl: "-3.74%", weight: 12.37, signal: "HOLD" },
   { ticker: "TSM", layer: "Growth", shares: "0.0414339", price: "$411.68", value: 549.30, valueText: "THB 549.30", pl: "18.29%", weight: 10.34, signal: "BUY" },
-  { ticker: "QQQI", layer: "Income", shares: "0.2030812", price: "$56.50", value: 369.50, valueText: "THB 369.50", pl: "7.94%", weight: 6.96, signal: "HOLD" },
+  { ticker: "QQQI", layer: "Safe", shares: "0.2030812", price: "$56.50", value: 369.50, valueText: "THB 369.50", pl: "7.94%", weight: 6.96, signal: "HOLD" },
   { ticker: "IAUI", layer: "Safe", shares: "0.2208413", price: "$57.23", value: 407.01, valueText: "THB 407.01", pl: "1.35%", weight: 7.66, signal: "HOLD" },
   { ticker: "IDVO", layer: "Safe", shares: "0.2626505", price: "$42.80", value: 362.01, valueText: "THB 362.01", pl: "2.29%", weight: 6.82, signal: "HOLD" },
   { ticker: "RKLB", layer: "Alpha", shares: "0.1307652", price: "$105.55", value: 444.47, valueText: "THB 444.47", pl: "44.54%", weight: 8.37, signal: "HOLD" }
@@ -129,7 +129,7 @@ function signedClass(value) {
 }
 
 function normalizeLayer(ticker, layer) {
-  if (String(ticker || "").toUpperCase() === "QQQI") return "Income";
+  if (String(ticker || "").toUpperCase() === "QQQI") return "Safe";
   return String(layer || "Core").trim() || "Core";
 }
 
@@ -460,9 +460,7 @@ function renderAlerts() {
     if (r < -5) rows.push({ title: `${item.ticker} drawdown watch`, text: `Position return ${item.pl}. Review thesis and allocation gap.`, tone: "caution" });
   });
   const html = rows.slice(0, 4).map(row => `<div class="alert-row"><div><strong>${row.title}</strong><p>${row.text}</p></div><span class="badge ${row.tone}">${row.tone}</span></div>`).join("") || `<div class="empty">No major alerts from current sheet snapshot.</div>`;
-  const compactHtml = rows.slice(0, 2).map(row => `<div class="alert-row"><div><strong>${row.title}</strong><p>${row.text}</p></div><span class="badge ${row.tone}">${row.tone}</span></div>`).join("") || `<div class="empty">No major alerts.</div>`;
   setHtml("alertsList", html);
-  setHtml("quickAlertsList", compactHtml);
 }
 
 function signalRank(signal) {
