@@ -89,6 +89,11 @@ function percentText(value) {
   return text || "0.00%";
 }
 
+function decimalText(value, digits = 2) {
+  const parsed = numberFrom(value);
+  return Number.isFinite(parsed) ? parsed.toFixed(digits) : String(value || "0.00");
+}
+
 function plusText(value, formatter) {
   const text = formatter(value);
   return text.startsWith("-") || text.startsWith("+") ? text : `+${text}`;
@@ -222,7 +227,7 @@ function renderKpis() {
   setText("performanceNumber", totalReturn);
   setText("irrLabel", percentText(kpis.irr));
   setText("volatilityLabel", percentText(kpis.volatility));
-  setText("sharpeLabel", String(kpis.sharpe || "0.00"));
+  setText("sharpeLabel", decimalText(kpis.sharpe));
   setText("drawdownLabel", percentText(kpis.maxDrawdown));
   setText("spyBenchmark", plusText(kpis.benchmarkSpy, percentText));
   setText("qqqBenchmark", plusText(kpis.benchmarkQqq, percentText));
