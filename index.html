@@ -6,7 +6,7 @@
   <title>My Portfolio Monitor 2026</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
-<body>
+<body data-theme="dark">
   <div class="app-shell">
     <aside class="sidebar" aria-label="Main navigation">
       <div class="brand-lockup">
@@ -79,6 +79,9 @@
           </label>
           <button class="icon-button alert-dot" type="button" aria-label="Notifications">
             <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
+          </button>
+          <button class="icon-button" id="themeToggle" type="button" aria-label="Toggle theme">
+            <svg viewBox="0 0 24 24"><path d="M12 3v2m0 14v2M5.64 5.64l1.41 1.41m9.9 9.9 1.41 1.41M3 12h2m14 0h2M5.64 18.36l1.41-1.41m9.9-9.9 1.41-1.41"/><circle cx="12" cy="12" r="4"/></svg>
           </button>
           <button class="icon-button" id="refreshButton" type="button" aria-label="Refresh data">
             <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.4 6.4M3 12A9 9 0 0 1 18.4 5.6"/><path d="M21 4v6h-6M3 20v-6h6"/></svg>
@@ -200,6 +203,14 @@
                 <h2>Top candidates</h2>
               </div>
             </div>
+            <div class="dca-simulator">
+              <label for="dcaBudgetInput">Budget today</label>
+              <div class="dca-input-row">
+                <input id="dcaBudgetInput" type="text" inputmode="decimal" placeholder="$10 or 1,200 THB">
+                <button id="useCashButton" type="button">Cash</button>
+              </div>
+              <p id="dcaBudgetSummary">Enter budget to simulate sizing.</p>
+            </div>
             <div id="smartDcaList" class="mini-list"></div>
           </article>
 
@@ -289,6 +300,6 @@
     <button data-jump="alerts" type="button"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg><span>Alerts</span></button>
   </nav>
 
-  <script src="./script.js?v=20260511e"></script>
+  <script src="./script.js?v=20260511f"></script>
 </body>
 </html>
