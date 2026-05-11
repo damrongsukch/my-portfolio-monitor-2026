@@ -473,6 +473,18 @@ function formatThb(value) {
   return `THB ${Math.round(Number(value || 0)).toLocaleString("en-US")}`;
 }
 
+function signedThb(value) {
+  const amount = Number(value || 0);
+  const sign = amount < 0 ? "-" : "";
+  return `${sign}THB ${Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function signedPercent(value, digits = 3) {
+  const amount = Number(value || 0);
+  const sign = amount < 0 ? "-" : "";
+  return `${sign}${Math.abs(amount).toFixed(digits)}%`;
+}
+
 function dcaMultiplier(item) {
   const signal = String(item.signal || "").toUpperCase();
   const rsi7 = numberFrom(item.rsi7);
@@ -686,6 +698,17 @@ function applyLiveData(datasets) {
     numberFrom(row.Daily_Change_Percent) / 100,
     numberFrom(row.Drawdown_Percent) / 100
   ]).filter(row => row[2] > 0);
+
+  if (navRows.length >= 2) {
+    const latest = navRows[navRows.length - 1];
+    const previous = navRows[navRows.length - 2];
+    const previousNav = numberFrom(previous[2]);
+    const latestNav = numberFrom(latest[2]);
+    const cashFlowToday = numberFrom(latest[1]);
+    const marketProfitToday = latestNav - previousNav - cashFlowToday;
+    kpis.dailyProfit = signedThb(marketProfitToday);
+    kpis.dailyChange = signedPercent(previousNav ? (marketProfitToday / previousNav) * 100 : 0);
+  }
 
   monthly = rowsToObjects(datasets.monthly).map(row => {
     const date = new Date(Number(row.Year), Number(row.Month) - 1, 1);
