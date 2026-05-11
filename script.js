@@ -458,11 +458,12 @@ function fxRate() {
 function parseBudgetInput(value, fx = fxRate()) {
   const text = String(value || "").trim().toLowerCase();
   const amount = numberFrom(text);
-  if (!amount) return { input: text, usd: 0, thb: 0, currency: "THB" };
+  if (!amount) return { input: text, usd: 0, thb: 0, currency: "USD" };
   const isUsd = text.includes("$") || text.includes("usd") || text.includes("ดอลลาร์");
   const isThb = text.includes("฿") || text.includes("thb") || text.includes("บาท");
   if (isUsd && !isThb) return { input: text, usd: amount, thb: amount * fx, currency: "USD" };
-  return { input: text, usd: amount / fx, thb: amount, currency: "THB" };
+  if (isThb && !isUsd) return { input: text, usd: amount / fx, thb: amount, currency: "THB" };
+  return { input: text, usd: amount, thb: amount * fx, currency: "USD" };
 }
 
 function formatUsd(value) {
@@ -571,7 +572,11 @@ function buildDcaPlan(budgetUsd) {
     .slice(0, 3);
 
   const picks = candidates.map(item => ({ ...item, amountUsd: 0 }));
-  let remaining = Number(budgetUsd || 0);
+  const requestedUsd = Number(budgetUsd || 0);
+  const averageMultiplier = picks.length ? picks.reduce((sum, item) => sum + item.multiplier, 0) / picks.length : 0;
+  const deployRatio = Math.min(0.22, Math.max(0.05, averageMultiplier * 0.2));
+  const deployBudgetUsd = requestedUsd >= 25 ? requestedUsd * deployRatio : requestedUsd;
+  let remaining = deployBudgetUsd;
   let open = picks;
   for (let round = 0; round < 3 && remaining > 0.01 && open.length; round += 1) {
     const totalWeight = open.reduce((sum, item) => sum + item.multiplier, 0);
@@ -581,11 +586,12 @@ function buildDcaPlan(budgetUsd) {
       item.amountUsd += Math.min(room, planned);
     });
     const used = picks.reduce((sum, item) => sum + item.amountUsd, 0);
-    remaining = Math.max(0, Number(budgetUsd || 0) - used);
+    remaining = Math.max(0, deployBudgetUsd - used);
     open = picks.filter(item => item.smartDcaUsd - item.amountUsd > 0.01);
   }
   return {
     fx,
+    deployRatio,
     picks: picks.map(item => ({
       ...item,
       amountUsd: Math.round(item.amountUsd * 100) / 100,
@@ -593,7 +599,7 @@ function buildDcaPlan(budgetUsd) {
       belowMin: item.amountUsd > 0 && item.amountUsd < MIN_ORDER_USD
     })),
     usedUsd: Math.round(picks.reduce((sum, item) => sum + item.amountUsd, 0) * 100) / 100,
-    leftoverUsd: Math.round(Math.max(0, remaining) * 100) / 100
+    leftoverUsd: Math.round(Math.max(0, requestedUsd - picks.reduce((sum, item) => sum + item.amountUsd, 0)) * 100) / 100
   };
 }
 
@@ -603,13 +609,13 @@ function renderSmartDca() {
   const plan = buildDcaPlan(budget.usd);
   const rows = budget.usd > 0 ? plan.picks.filter(item => item.amountUsd > 0) : plan.picks;
   const summary = budget.usd > 0
-    ? `Budget ${formatUsd(budget.usd)} (${formatThb(budget.thb)}), deploy ${formatUsd(plan.usedUsd)}, cash left ${formatUsd(plan.leftoverUsd)}`
+    ? `Budget ${formatUsd(budget.usd)}, recommended deploy ${formatUsd(plan.usedUsd)}, keep cash ${formatUsd(plan.leftoverUsd)}. Sizing cap ${(plan.deployRatio * 100).toFixed(0)}% by RSI/EMA opportunity.`
     : `Enter budget or press Cash. Signal is RSI/EMA based, not allocation target only.`;
   setText("dcaBudgetSummary", summary);
 
   setHtml("smartDcaList", rows.map((item, index) => `<div class="mini-row dca-plan-row">
     <span>${index + 1}. <strong>${item.ticker}</strong><small>${item.multiplier}x · RSI ${numberFrom(item.rsi7).toFixed(1)}/${numberFrom(item.rsi14).toFixed(1)} · ${item.reason}${item.belowMin ? " · below DIME minimum" : ""}</small></span>
-    <strong>${budget.usd > 0 ? `${formatUsd(item.amountUsd)}<br><small>${formatThb(item.amountThb)}</small>` : `${item.multiplier}x`}</strong>
+    <strong>${budget.usd > 0 ? formatUsd(item.amountUsd) : `${item.multiplier}x`}</strong>
   </div>`).join("") || `<div class="empty">No RSI-based buy setup today. Keep cash.</div>`);
 
   const best = rows[0];
@@ -764,8 +770,9 @@ function applyLiveData(datasets) {
     const latestNav = numberFrom(latest[2]);
     const cashFlowToday = numberFrom(latest[1]);
     const navBasedProfitToday = latestNav - previousNav - cashFlowToday;
-    const marketProfitToday = cashValueThb > 0 && Math.abs(sheetDailyProfitThb) > cashValueThb * 0.5
-      ? sheetDailyProfitThb - cashValueThb
+    const cashAdjustedDailyProfit = sheetDailyProfitThb - cashValueThb;
+    const marketProfitToday = cashValueThb > 0 && Math.abs(sheetDailyProfitThb) > cashValueThb * 0.5 && !(cashAdjustedDailyProfit < 0 && sheetDailyProfitThb > 0)
+      ? cashAdjustedDailyProfit
       : sheetDailyProfitThb || navBasedProfitToday;
     kpis.dailyProfit = signedThb(marketProfitToday);
     kpis.dailyChange = signedPercent(previousNav ? (marketProfitToday / previousNav) * 100 : 0);
