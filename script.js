@@ -408,15 +408,19 @@ function renderHoldings(filter = activeFilter, query = document.getElementById("
 }
 
 function renderSignals() {
+  const vixValue = numberFrom(kpis.vix);
+  const fearGreedValue = numberFrom(kpis.greedFear);
+  const vixState = vixValue <= 20 ? "LOW" : "HIGH";
+  const fearGreedState = fearGreedValue >= 55 ? "GREED" : fearGreedValue <= 45 ? "FEAR" : "NEUTRAL";
   const indicators = [
-    ["VIX", kpis.vix, numberFrom(kpis.vix) <= 20 ? "positive" : "warning"],
-    ["Greed & Fear", kpis.greedFear, numberFrom(kpis.greedFear) >= 65 ? "warning" : "neutral"],
+    ["VIX", kpis.vix, vixValue <= 20 ? "positive" : "warning", vixState, vixState.toLowerCase()],
+    ["Fear & Greed Index", kpis.greedFear, fearGreedState === "GREED" ? "warning" : fearGreedState === "FEAR" ? "negative" : "neutral", fearGreedState, fearGreedState.toLowerCase()],
     ["S&P500 Trend", kpis.sp500Trend, /above|bull|up/i.test(kpis.sp500Trend) ? "positive" : "warning"],
     ["Market Breadth", kpis.marketBreadth, numberFrom(kpis.marketBreadth) >= 55 ? "positive" : "warning"],
     ["10Y Bond Yield", kpis.bondYield, "neutral"]
   ];
-  setHtml("signalsList", indicators.map(([label, value, tone]) =>
-    `<div class="indicator-row"><span>${label}</span><strong class="${tone}">${value}</strong></div>`
+  setHtml("signalsList", indicators.map(([label, value, tone, badge, badgeTone]) =>
+    `<div class="indicator-row"><span>${label}</span><span class="indicator-value"><strong class="${tone}">${value}</strong>${badge ? `<i class="status-pill ${badgeTone}">${badge}</i>` : ""}</span></div>`
   ).join(""));
 }
 
