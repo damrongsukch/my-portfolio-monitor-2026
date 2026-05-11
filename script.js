@@ -736,6 +736,7 @@ function applyLiveData(datasets) {
   const cashValueThb = cash ? cash.value : numberFrom(kpis.cash);
   const portfolioValueThb = numberFrom(kpis.portfolioValue);
   const investedValueThb = numberFrom(kpis.invested);
+  const sheetDailyProfitThb = numberFrom(kpis.dailyProfit);
   const marketValueExCash = holdings
     .filter(item => String(item.ticker).toUpperCase() !== "CASH")
     .reduce((sum, item) => sum + numberFrom(item.value), 0);
@@ -762,14 +763,16 @@ function applyLiveData(datasets) {
     const previousNav = numberFrom(previous[2]);
     const latestNav = numberFrom(latest[2]);
     const cashFlowToday = numberFrom(latest[1]);
-    const cashBudgetThb = cashFlowToday ? 0 : cashValueThb;
-    const marketProfitToday = latestNav - previousNav - cashFlowToday - cashBudgetThb;
+    const navBasedProfitToday = latestNav - previousNav - cashFlowToday;
+    const marketProfitToday = cashValueThb > 0 && Math.abs(sheetDailyProfitThb) > cashValueThb * 0.5
+      ? sheetDailyProfitThb - cashValueThb
+      : sheetDailyProfitThb || navBasedProfitToday;
     kpis.dailyProfit = signedThb(marketProfitToday);
     kpis.dailyChange = signedPercent(previousNav ? (marketProfitToday / previousNav) * 100 : 0);
 
     const firstDate = sheetDate(navRows[0][0]);
     const latestDate = sheetDate(latest[0]);
-    const days = Math.max(1, (latestDate - firstDate) / 86400000);
+    const days = Math.max(30, (latestDate - firstDate) / 86400000);
     if (cashNeutralReturn !== null && cashNeutralReturn > -0.99 && days >= 7) {
       const annualizedReturn = ((1 + cashNeutralReturn) ** (365 / days)) - 1;
       kpis.irr = signedPercent(annualizedReturn * 100, 2);
