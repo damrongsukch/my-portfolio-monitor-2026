@@ -705,7 +705,8 @@ function applyLiveData(datasets) {
     const previousNav = numberFrom(previous[2]);
     const latestNav = numberFrom(latest[2]);
     const cashFlowToday = numberFrom(latest[1]);
-    const marketProfitToday = latestNav - previousNav - cashFlowToday;
+    const cashBudgetThb = cashFlowToday ? 0 : numberFrom(kpis.cash);
+    const marketProfitToday = latestNav - previousNav - cashFlowToday - cashBudgetThb;
     kpis.dailyProfit = signedThb(marketProfitToday);
     kpis.dailyChange = signedPercent(previousNav ? (marketProfitToday / previousNav) * 100 : 0);
   }
