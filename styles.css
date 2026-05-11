@@ -507,7 +507,7 @@ select {
 .allocation-card,
 .performance-card,
 .indicators-card {
-  min-height: 330px;
+  min-height: 270px;
 }
 
 .performance-card {
@@ -516,14 +516,14 @@ select {
 
 .allocation-body {
   display: grid;
-  grid-template-columns: 188px 1fr;
-  gap: 16px;
+  grid-template-columns: 150px 1fr;
+  gap: 14px;
   align-items: center;
 }
 
 .donut-wrap {
   position: relative;
-  width: 188px;
+  width: 150px;
   max-width: 100%;
 }
 
@@ -535,12 +535,12 @@ select {
   place-items: center;
 }
 
-.donut-center strong { font-size: 28px; }
+.donut-center strong { font-size: 24px; }
 .donut-center span { color: var(--muted); font-size: 12px; }
 
 .legend-list {
   display: grid;
-  gap: 11px;
+  gap: 8px;
 }
 
 .allocation-row {
@@ -593,7 +593,7 @@ select {
   display: block;
   margin-bottom: 6px;
   color: var(--green);
-  font-size: 38px;
+  font-size: 32px;
 }
 
 .benchmark-strip {
@@ -629,7 +629,11 @@ select {
 .bar-chart {
   width: 100%;
   height: auto;
-  min-height: 210px;
+  min-height: 170px;
+}
+
+.performance-card .line-chart {
+  max-height: 190px;
 }
 
 .chart-grid { stroke: rgba(148, 163, 184, 0.16); stroke-width: 1; }
@@ -676,8 +680,7 @@ select {
 
 .signal-card,
 .dca-card,
-.health-card,
-.quick-alerts-card {
+.health-card {
   min-height: 188px;
 }
 
@@ -888,23 +891,6 @@ tfoot td {
 
 .alerts-card {
   min-height: 310px;
-}
-
-.quick-alerts-card .section-head {
-  margin-bottom: 6px;
-}
-
-.compact-alert-list {
-  gap: 6px;
-}
-
-.compact-alert-list .alert-row {
-  min-height: 42px;
-  padding: 8px 0;
-}
-
-.compact-alert-list .alert-row p {
-  display: none;
 }
 
 .alert-row {
