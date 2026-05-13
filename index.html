@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>My Portfolio Monitor 2026</title>
-  <link rel="stylesheet" href="./styles.css?v=20260513a">
+  <link rel="stylesheet" href="./styles.css?v=20260513b">
   <style>
     .layer-text {
       display: inline-block;
@@ -23,6 +23,108 @@
     .layer-text.INCOME { color: #4aa3ff; }
     .layer-text.Alpha,
     .layer-text.ALPHA { color: #ff5148; }
+    .sync-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 12px 14px 0;
+      padding: 10px 14px;
+      border: 1px solid rgba(166, 189, 213, 0.14);
+      border-radius: 8px;
+      background: rgba(13, 20, 27, 0.72);
+      color: #cbd5e1;
+      font-size: 13px;
+    }
+    .sync-banner::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      flex: 0 0 auto;
+      border-radius: 999px;
+      background: #f6c21a;
+      box-shadow: 0 0 0 4px rgba(246, 194, 26, 0.1);
+    }
+    .sync-banner[data-state="live"]::before {
+      background: #25e05d;
+      box-shadow: 0 0 0 4px rgba(37, 224, 93, 0.12);
+    }
+    .sync-banner[data-state="saved"]::before {
+      background: #ff5148;
+      box-shadow: 0 0 0 4px rgba(255, 81, 72, 0.12);
+    }
+    .sync-banner strong {
+      margin-left: auto;
+      color: #94a3b8;
+      font-size: 12px;
+    }
+    .mobile-summary {
+      display: none;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .mobile-summary div {
+      min-height: 66px;
+      display: grid;
+      gap: 5px;
+      padding: 12px;
+      border: 1px solid rgba(166, 189, 213, 0.14);
+      border-radius: 8px;
+      background: rgba(13, 20, 27, 0.72);
+    }
+    .mobile-summary span {
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .mobile-summary strong {
+      color: #f4f8fc;
+      font-size: 15px;
+      overflow-wrap: anywhere;
+    }
+    .dca-figures {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .dca-figures b {
+      min-height: 34px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(148, 163, 184, 0.13);
+      border-radius: 8px;
+      background: rgba(148, 163, 184, 0.07);
+      color: #f4f8fc;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    body[data-theme="light"] .sync-banner,
+    body[data-theme="light"] .mobile-summary div {
+      background: rgba(255, 255, 255, 0.86);
+      color: #475569;
+    }
+    body[data-theme="light"] .mobile-summary strong,
+    body[data-theme="light"] .dca-figures b {
+      color: #111827;
+    }
+    @media (max-width: 820px) {
+      .sync-banner {
+        margin: 10px 12px 0;
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .sync-banner strong {
+        margin-left: 0;
+      }
+      .mobile-summary {
+        display: grid;
+      }
+      .dca-figures {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
   </style>
 </head>
 <body data-theme="dark">
@@ -108,6 +210,11 @@
         </div>
       </header>
 
+      <section class="sync-banner" id="syncBanner" aria-live="polite">
+        <span id="syncStatusText">Connecting to Google Sheet...</span>
+        <strong id="syncStatusMeta">Live portfolio data</strong>
+      </section>
+
       <section class="content">
         <section class="hero-grid">
           <article class="card hero-card">
@@ -145,6 +252,8 @@
             </div>
           </article>
         </section>
+
+        <section class="mobile-summary" id="mobileSummary" aria-label="Portfolio quick summary"></section>
 
         <section class="dashboard-grid" id="analysis">
           <article class="card allocation-card">
@@ -321,7 +430,7 @@
     <button data-jump="alerts" type="button"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg><span>Alerts</span></button>
   </nav>
 
-  <script src="./script.js?v=20260513a"></script>
+  <script src="./script.js?v=20260513b"></script>
   <script>
     (() => {
       const normalizeLayerName = (value) => {
@@ -359,6 +468,87 @@
       });
       document.addEventListener("click", () => setTimeout(normalizeLayerCells, 50));
       document.addEventListener("input", normalizeLayerCells);
+
+      const moneyToNumber = (value) => Number(String(value || "").replace(/[^0-9.-]/g, "")) || 0;
+      const formatUsdPatch = (value) => `$${Number(value || 0).toFixed(2)}`;
+      const updateSyncBanner = () => {
+        const banner = document.getElementById("syncBanner");
+        const textNode = document.getElementById("syncStatusText");
+        const metaNode = document.getElementById("syncStatusMeta");
+        const updated = document.getElementById("updatedAt")?.textContent || "";
+        const live = /updated/i.test(updated);
+        const saved = /saved|check/i.test(updated);
+        if (!banner || !textNode || !metaNode) return;
+        banner.dataset.state = live ? "live" : saved ? "saved" : "loading";
+        textNode.textContent = live ? "Google Sheet synced" : saved ? "Using saved data" : "Connecting to Google Sheet...";
+        metaNode.textContent = live ? updated : saved ? "Check Google Sheet publish access" : "Realtime sync in progress";
+      };
+
+      const cleanDcaReason = (item, multiplier) => {
+        const signal = typeof cleanSignal === "function" ? cleanSignal(item.signal) : item.signal || "HOLD";
+        const rsi7 = moneyToNumber(item.rsi7);
+        const rsi14 = moneyToNumber(item.rsi14);
+        if (!multiplier) return `Skip: ${signal}; RSI ${rsi7.toFixed(1)}/${rsi14.toFixed(1)} is not a clean buy setup`;
+        if (multiplier === 1) return "1.0x: RSI dip or BUY DIP signal; best opportunity tier today";
+        if (multiplier === 0.75) return "0.75x: accumulation signal is good, but not a full-size entry";
+        if (multiplier === 0.5) return "0.5x: bullish follow; use medium size to avoid chasing price";
+        return "0.25x: weaker setup; use only a small starter size";
+      };
+
+      const renderSmartDcaPatch = () => {
+        if (typeof buildDcaPlan !== "function" || typeof parseBudgetInput !== "function") return;
+        const input = document.getElementById("dcaBudgetInput");
+        const budget = parseBudgetInput(input?.value || "");
+        const plan = buildDcaPlan(budget.usd);
+        const rows = budget.usd > 0 ? plan.picks.filter((item) => item.amountUsd > 0) : plan.picks;
+        const summary = document.getElementById("dcaBudgetSummary");
+        const list = document.getElementById("smartDcaList");
+        if (summary) {
+          summary.innerHTML = budget.usd > 0
+            ? `<span>Recommended use is ${formatUsdPatch(plan.usedUsd)} from ${formatUsdPatch(budget.usd)}. Keep ${formatUsdPatch(plan.leftoverUsd)} in cash unless a stronger setup appears.</span><span class="dca-figures"><b>Budget ${formatUsdPatch(budget.usd)}</b><b>Use ${formatUsdPatch(plan.usedUsd)}</b><b>Cash left ${formatUsdPatch(plan.leftoverUsd)}</b><b>Cap ${(plan.deployRatio * 100).toFixed(0)}%</b></span>`
+            : "Enter budget or press Cash. Signal is RSI/EMA based, not allocation target only.";
+        }
+        if (list) {
+          list.innerHTML = rows.map((item, index) => {
+            const reason = cleanDcaReason(item, item.multiplier);
+            const dime = item.belowMin ? " - below DIME minimum" : "";
+            return `<div class="mini-row dca-plan-row"><span>${index + 1}. <strong>${item.ticker}</strong><small>${item.multiplier}x - RSI ${moneyToNumber(item.rsi7).toFixed(1)}/${moneyToNumber(item.rsi14).toFixed(1)} - ${reason}${dime}</small></span><strong>${budget.usd > 0 ? formatUsdPatch(item.amountUsd) : `${item.multiplier}x`}</strong></div>`;
+          }).join("") || `<div class="empty">No RSI-based buy setup today. Keep cash.</div>`;
+        }
+      };
+
+      const renderMobileSummaryPatch = () => {
+        const el = document.getElementById("mobileSummary");
+        if (!el || typeof kpis === "undefined") return;
+        const source = typeof signalBoard !== "undefined" ? signalBoard : [];
+        const top = source
+          .filter((item) => item.ticker && item.ticker !== "CASH")
+          .map((item) => ({ ...item, multiplier: typeof dcaMultiplier === "function" ? dcaMultiplier(item) : 0 }))
+          .filter((item) => item.multiplier > 0)
+          .sort((a, b) => b.multiplier - a.multiplier || moneyToNumber(a.priority || 99) - moneyToNumber(b.priority || 99))[0];
+        el.innerHTML = [
+          ["Value", kpis.portfolioValue],
+          ["Return", kpis.totalReturn],
+          ["Cash", kpis.cash],
+          ["Top Buy", top ? `${top.ticker} ${top.multiplier}x` : "Wait"]
+        ].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
+      };
+
+      const applyUiPatch = () => {
+        normalizeLayerCells();
+        updateSyncBanner();
+        renderSmartDcaPatch();
+        renderMobileSummaryPatch();
+      };
+
+      window.addEventListener("load", () => {
+        applyUiPatch();
+        setTimeout(applyUiPatch, 1800);
+        setTimeout(applyUiPatch, 5000);
+      });
+      document.addEventListener("input", () => setTimeout(applyUiPatch, 30));
+      document.addEventListener("click", () => setTimeout(applyUiPatch, 80));
+      setInterval(applyUiPatch, 3000);
     })();
   </script>
 </body>
