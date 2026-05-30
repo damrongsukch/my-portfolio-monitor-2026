@@ -1,4 +1,4 @@
-let navRows = [
+﻿let navRows = [
   [46098, 66.25, 65.55, 0, 0],
   [46105, 227.75, 711.88, 0.002, 0],
   [46112, 291.42, 1853.86, -0.005, 0],
@@ -98,6 +98,24 @@ function signedCurrencyFromThb(valueThb) { const amount = numberFrom(valueThb); 
 function formatCurrencyFromUsd(valueUsd) { const amount = numberFrom(valueUsd); if (currencyMode === "USD") return `$${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; return formatThb(amount * fxRate()); }
 function holdingGainThb(item) { const pct = numberFrom(item.pl) / 100; if (Number.isFinite(numberFrom(item.costBasisUsd)) && numberFrom(item.costBasisUsd) > 0) return (numberFrom(item.valueUsd) - numberFrom(item.costBasisUsd)) * fxRate(); return pct > -0.99 ? numberFrom(item.value) - (numberFrom(item.value) / (1 + pct)) : 0; }
 function assetKind(ticker) { return /SPMO|QQQI|IAUI/i.test(ticker) ? "ETF" : "US stock"; }
+function activeTargetKey() { return /MODE\s*B|MODE_B|\bB\b/i.test(kpis.marketMode) ? "targetB" : "targetA"; }
+function targetWeight(item) { const preferred = numberFrom(item[activeTargetKey()]); const fallback = numberFrom(item.targetWeight); return preferred || fallback || 0; }
+function targetGap(item) { const target = targetWeight(item); return target ? target - numberFrom(item.weight) : 0; }
+function targetStatus(item) {
+  const target = targetWeight(item);
+  if (!target) return { label: "Set target", tone: "neutral", gap: 0 };
+  const gap = targetGap(item);
+  if (gap >= 1) return { label: "Underweight", tone: "positive", gap };
+  if (gap <= -1) return { label: "Overweight", tone: "caution", gap };
+  return { label: "On target", tone: "neutral", gap };
+}
+function targetCell(item) {
+  const target = targetWeight(item);
+  const status = targetStatus(item);
+  if (!target) return `<span class="target-cell neutral"><strong>Set target</strong><small>${kpis.marketMode}</small></span>`;
+  const sign = status.gap > 0 ? "+" : "";
+  return `<span class="target-cell ${status.tone}"><strong>${target.toFixed(1)}%</strong><small>${status.label} ${sign}${status.gap.toFixed(1)}%</small></span>`;
+}
 function setCurrencyMode(mode) { currencyMode = mode === "USD" ? "USD" : "THB"; const button = document.getElementById("currencyToggle"); if (button) button.textContent = currencyMode; try { localStorage.setItem("portfolioCurrency", currencyMode); } catch (error) { console.warn(error); } renderAll(); }
 function initCurrency() { try { currencyMode = localStorage.getItem("portfolioCurrency") === "USD" ? "USD" : "THB"; } catch (error) { currencyMode = "THB"; } const button = document.getElementById("currencyToggle"); if (button) button.textContent = currencyMode; }
 
@@ -164,8 +182,8 @@ function renderHoldings(filter = activeFilter, query = document.getElementById("
     const matchesSearch = !search || `${item.ticker} ${item.layer} ${item.signal}`.toLowerCase().includes(search);
     return matchesLayer && matchesSearch && item.ticker !== "CASH";
   });
-  setHtml("holdingsBody", rows.map((item) => { const plClass = String(item.pl).startsWith("-") ? "negative" : item.pl === "-" ? "neutral" : "positive"; const layer = layerClass(item.layer); const gain = signedCurrencyFromThb(holdingGainThb(item)); return `<tr class="holding-row ${plClass}"><td><span class="ticker-cell">${tickerLogo(item.ticker)}<span><strong>${item.ticker}</strong><small>${assetKind(item.ticker)} <b>${Number(item.weight || 0).toFixed(1)}%</b></small></span></span></td><td class="mono">${numberFrom(item.shares).toFixed(7)}</td><td>${formatCurrencyFromUsd(item.avgCostUsd)}</td><td>${formatCurrencyFromUsd(item.currentPriceUsd || item.price)}</td><td class="value-cell">${formatCurrencyFromThb(item.value)}</td><td class="${plClass}"><strong>${gain}</strong><small>${item.pl}</small></td><td>${signalBadge(item.signal)}</td></tr>`; }).join("") || `<tr><td colspan="7">No holdings match this filter.</td></tr>`);
-  setHtml("mobileHoldings", rows.map(item => { const plClass = String(item.pl).startsWith("-") ? "negative" : item.pl === "-" ? "neutral" : "positive"; const layer = layerClass(item.layer); const gain = signedCurrencyFromThb(holdingGainThb(item)); return `<article class="mobile-holding-card ${plClass}"><div class="mobile-holding-top"><span class="ticker-cell">${tickerLogo(item.ticker)}<span><strong>${item.ticker}</strong><br><small>${assetKind(item.ticker)} <b>${Number(item.weight || 0).toFixed(1)}%</b> · <span class="layer-text ${layer}">${layer.toUpperCase()}</span></small></span></span><span class="mobile-signal">${signalBadge(item.signal)}</span></div><div class="holding-metrics"><div><span>Shares</span><strong>${numberFrom(item.shares).toFixed(7)}</strong></div><div><span>Avg cost</span><strong>${formatCurrencyFromUsd(item.avgCostUsd)}</strong></div><div><span>Current price</span><strong>${formatCurrencyFromUsd(item.currentPriceUsd || item.price)}</strong></div><div><span>Value</span><strong>${formatCurrencyFromThb(item.value)}</strong></div></div><div class="mobile-holding-meta"><span>Gain / Loss</span><strong class="${plClass}">${gain}<small>${item.pl}</small></strong></div></article>`; }).join("") || `<div class="empty">No holdings match this filter.</div>`);
+  setHtml("holdingsBody", rows.map((item) => { const plClass = String(item.pl).startsWith("-") ? "negative" : item.pl === "-" ? "neutral" : "positive"; const gain = signedCurrencyFromThb(holdingGainThb(item)); return `<tr class="holding-row ${plClass}"><td><span class="ticker-cell">${tickerLogo(item.ticker)}<span><strong>${item.ticker}</strong><small>${assetKind(item.ticker)} <b>${Number(item.weight || 0).toFixed(1)}%</b></small></span></span></td><td>${targetCell(item)}</td><td class="mono">${numberFrom(item.shares).toFixed(7)}</td><td>${formatCurrencyFromUsd(item.avgCostUsd)}</td><td>${formatCurrencyFromUsd(item.currentPriceUsd || item.price)}</td><td class="value-cell">${formatCurrencyFromThb(item.value)}</td><td class="${plClass}"><strong>${gain}</strong><small>${item.pl}</small></td><td>${signalBadge(item.signal)}</td></tr>`; }).join("") || `<tr><td colspan="8">No holdings match this filter.</td></tr>`);
+  setHtml("mobileHoldings", rows.map(item => { const plClass = String(item.pl).startsWith("-") ? "negative" : item.pl === "-" ? "neutral" : "positive"; const layer = layerClass(item.layer); const gain = signedCurrencyFromThb(holdingGainThb(item)); return `<article class="mobile-holding-card ${plClass}"><div class="mobile-holding-top"><span class="ticker-cell">${tickerLogo(item.ticker)}<span><strong>${item.ticker}</strong><br><small>${assetKind(item.ticker)} <b>${Number(item.weight || 0).toFixed(1)}%</b> - <span class="layer-text ${layer}">${layer.toUpperCase()}</span> · Target ${targetWeight(item) ? `${targetWeight(item).toFixed(1)}%` : "Set target"}</small></span></span><span class="mobile-signal">${signalBadge(item.signal)}</span></div><div class="holding-metrics"><div><span>Shares</span><strong>${numberFrom(item.shares).toFixed(7)}</strong></div><div><span>Avg cost</span><strong>${formatCurrencyFromUsd(item.avgCostUsd)}</strong></div><div><span>Current price</span><strong>${formatCurrencyFromUsd(item.currentPriceUsd || item.price)}</strong></div><div><span>Value</span><strong>${formatCurrencyFromThb(item.value)}</strong></div></div><div class="mobile-holding-meta"><span>Gain / Loss</span><strong class="${plClass}">${gain}<small>${item.pl}</small></strong></div></article>`; }).join("") || `<div class="empty">No holdings match this filter.</div>`);
 }
 
 function renderSignals() { const vixValue = numberFrom(kpis.vix), fearGreedValue = numberFrom(kpis.greedFear); const indicators = [["VIX", kpis.vix, vixValue <= 20 ? "positive" : "warning"], ["Fear & Greed Index", kpis.greedFear, fearGreedValue >= 55 ? "warning" : fearGreedValue <= 45 ? "negative" : "neutral"], ["S&P500 Trend", kpis.sp500Trend, /above|bull|up/i.test(kpis.sp500Trend) ? "positive" : "warning"], ["Market Breadth", kpis.marketBreadth, numberFrom(kpis.marketBreadth) >= 55 ? "positive" : "warning"], ["10Y Bond Yield", kpis.bondYield, "neutral"]]; setHtml("signalsList", indicators.map(([label, value, tone]) => `<div class="indicator-row"><span>${label}</span><span class="indicator-value"><strong class="${tone}">${value}</strong></span></div>`).join("")); }
@@ -182,7 +200,7 @@ function dcaReason(item, multiplier) { const signal = cleanSignal(item.signal); 
 
 function buildDcaPlan(budgetUsd) {
   const fx = fxRate();
-  const candidates = signalBoard.filter(item => item.ticker && item.ticker !== "CASH").map(item => ({ ...item, multiplier: dcaMultiplier(item), smartDcaUsd: numberFrom(item.smartDcaUsd) || Infinity })).filter(item => item.multiplier > 0).sort((a, b) => b.multiplier - a.multiplier || numberFrom(a.priority || 99) - numberFrom(b.priority || 99) || numberFrom(a.rsi7) - numberFrom(b.rsi7)).slice(0, 3);
+  const candidates = signalBoard.filter(item => item.ticker && item.ticker !== "CASH").map(item => ({ ...item, multiplier: dcaMultiplier(item), smartDcaUsd: numberFrom(item.smartDcaUsd) || Infinity, targetGap: targetGap(item) })).filter(item => item.multiplier > 0).sort((a, b) => b.multiplier - a.multiplier || Math.max(0, b.targetGap) - Math.max(0, a.targetGap) || numberFrom(a.priority || 99) - numberFrom(b.priority || 99) || numberFrom(a.rsi7) - numberFrom(b.rsi7)).slice(0, 3);
   const picks = candidates.map(item => ({ ...item, amountUsd: 0 }));
   const requestedUsd = Math.max(0, Number(budgetUsd || 0));
   let remaining = requestedUsd;
@@ -197,12 +215,12 @@ function buildDcaPlan(budgetUsd) {
     open = picks.filter(item => item.smartDcaUsd - item.amountUsd > 0.01);
   }
   const usedRaw = picks.reduce((sum, item) => sum + item.amountUsd, 0);
-  return { fx, deployRatio: requestedUsd > 0 ? 1 : 0, picks: picks.map(item => ({ ...item, reason: dcaReason(item, item.multiplier), amountUsd: Math.round(item.amountUsd * 100) / 100, amountThb: Math.round(item.amountUsd * fx), belowMin: item.amountUsd > 0 && item.amountUsd < MIN_ORDER_USD })), usedUsd: Math.round(usedRaw * 100) / 100, leftoverUsd: Math.round(Math.max(0, requestedUsd - usedRaw) * 100) / 100 };
+  return { fx, deployRatio: requestedUsd > 0 ? 1 : 0, picks: picks.map(item => ({ ...item, reason: `${dcaReason(item, item.multiplier)}${item.targetGap > 0 ? `; under target by ${item.targetGap.toFixed(1)}%` : ""}`, amountUsd: Math.round(item.amountUsd * 100) / 100, amountThb: Math.round(item.amountUsd * fx), belowMin: item.amountUsd > 0 && item.amountUsd < MIN_ORDER_USD })), usedUsd: Math.round(usedRaw * 100) / 100, leftoverUsd: Math.round(Math.max(0, requestedUsd - usedRaw) * 100) / 100 };
 }
 
 function renderSmartDca() { const input = document.getElementById("dcaBudgetInput"); const budget = parseBudgetInput(input?.value || ""); const plan = buildDcaPlan(budget.usd); const rows = budget.usd > 0 ? plan.picks.filter(item => item.amountUsd > 0) : plan.picks; setHtml("dcaBudgetSummary", budget.usd > 0 ? `<span class="dca-summary-title">Today's plan: use ${formatUsd(plan.usedUsd)} from ${formatUsd(budget.usd)} and keep ${formatUsd(plan.leftoverUsd)} in cash</span><span class="dca-figures"><b>Budget ${formatUsd(budget.usd)}</b><b>Use ${formatUsd(plan.usedUsd)}</b><b>Cash left ${formatUsd(plan.leftoverUsd)}</b><b>Min ${formatUsd(MIN_ORDER_USD)}</b></span>` : "Enter USD only, such as 10 or $10. Ranking uses Signal + RSI."); setHtml("smartDcaList", rows.map((item, index) => `<div class="mini-row dca-plan-row"><span>${index + 1}. <strong>${item.ticker}</strong><small>${item.multiplier}x - RSI ${numberFrom(item.rsi7).toFixed(1)}/${numberFrom(item.rsi14).toFixed(1)} - ${item.reason}${item.belowMin ? " - below DIME minimum" : ""}</small></span><strong>${budget.usd > 0 ? formatUsd(item.amountUsd) : `${item.multiplier}x`}</strong></div>`).join("") || `<div class="empty">No clean RSI-based buy setup today. Keep cash.</div>`); const best = rows[0]; if (best) { setText("todaySignal", budget.usd > 0 ? "Sizing Ready" : "Signal Ready"); setText("todaySignalText", `${best.ticker}: ${best.multiplier}x because ${best.reason}. Use this as sizing guidance before buying.`); } }
 function renderHealth() { const growth = holdings.filter(item => /growth/i.test(item.layer)).reduce((sum, item) => sum + item.weight, 0); const alpha = holdings.filter(item => /alpha/i.test(item.layer)).reduce((sum, item) => sum + item.weight, 0); const cash = holdings.find(item => item.ticker === "CASH"); const cashWeight = cash ? cash.weight : 0; const score = Math.max(6.4, Math.min(9.4, 9.2 - Math.max(0, growth - 58) * .06 - Math.max(0, alpha - 8) * .08 + Math.min(cashWeight, 4) * .03)); setText("healthScore", score.toFixed(1)); setHtml("healthMetrics", [["Diversification", Math.min(9.2, 7.2 + holdings.length * .18).toFixed(1)], ["Risk Control", score.toFixed(1)], ["Momentum", /MODE A/i.test(kpis.marketMode) ? "9.0" : "7.6"], ["Cash Buffer", Math.max(6.5, Math.min(9.0, 7 + cashWeight / 2)).toFixed(1)]].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("")); }
-function renderAlerts() { const rows = []; holdings.forEach(item => { const r = numberFrom(item.pl); const signal = cleanSignal(item.signal); if (/strong buy|buy|accumulate/i.test(signal)) rows.push({ title: `${item.ticker} has an active entry signal`, text: `${signal} from the Looker signal sheet. Check live market conditions before buying.`, tone: "positive" }); if (r > 25) rows.push({ title: `${item.ticker} is extended`, text: `Position return is ${item.pl}. Avoid chasing and review target weight.`, tone: "caution" }); if (r < -5) rows.push({ title: `${item.ticker} needs drawdown review`, text: `Position return is ${item.pl}. Review thesis and allocation gap.`, tone: "caution" }); }); document.querySelectorAll(".alert-dot").forEach(button => button.dataset.count = String(Math.min(rows.length, 9))); setHtml("alertsList", rows.slice(0, 5).map(row => `<div class="alert-row"><div><strong>${row.title}</strong><p>${row.text}</p></div><span class="badge ${row.tone}">${row.tone}</span></div>`).join("") || `<div class="empty">No major alerts from the latest sheet snapshot.</div>`); }
+function renderAlerts() { const rows = []; holdings.forEach(item => { const r = numberFrom(item.pl); const signal = cleanSignal(item.signal); const status = targetStatus(item); if (/strong buy|buy|accumulate/i.test(signal)) rows.push({ title: `${item.ticker} has an active entry signal`, text: `${signal} from the Looker signal sheet. Check live market conditions before buying.`, tone: "positive" }); if (status.gap >= 1.5) rows.push({ title: `${item.ticker} is under target`, text: `${kpis.marketMode} target is ${targetWeight(item).toFixed(1)}%, current weight is ${numberFrom(item.weight).toFixed(1)}%.`, tone: "positive" }); if (status.gap <= -2) rows.push({ title: `${item.ticker} is over target`, text: `${kpis.marketMode} target is ${targetWeight(item).toFixed(1)}%, current weight is ${numberFrom(item.weight).toFixed(1)}%.`, tone: "caution" }); if (r > 25) rows.push({ title: `${item.ticker} is extended`, text: `Position return is ${item.pl}. Avoid chasing and review target weight.`, tone: "caution" }); if (r < -5) rows.push({ title: `${item.ticker} needs drawdown review`, text: `Position return is ${item.pl}. Review thesis and allocation gap.`, tone: "caution" }); }); document.querySelectorAll(".alert-dot").forEach(button => button.dataset.count = String(Math.min(rows.length, 9))); setHtml("alertsList", rows.slice(0, 5).map(row => `<div class="alert-row"><div><strong>${row.title}</strong><p>${row.text}</p></div><span class="badge ${row.tone}">${row.tone}</span></div>`).join("") || `<div class="empty">No major alerts from the latest sheet snapshot.</div>`); }
 function applyLiveData(datasets) {
   const kpiRows = rowsToObjects(datasets.kpi);
   const rawSignals = rowsToObjects(datasets.signals);
@@ -252,6 +270,9 @@ function applyLiveData(datasets) {
     valueText: moneyText(row.Market_Value_THB),
     pl: percentText(row.PL_Percent),
     weight: numberFrom(row.Weight),
+    targetA: numberFrom(rowAny(row, ["Target_A", "Target A", "Target Weight A"], 0)),
+    targetB: numberFrom(rowAny(row, ["Target_B", "Target B", "Target Weight B"], 0)),
+    targetWeight: numberFrom(rowAny(row, ["Target_Weight", "Target Weight", "Target"], 0)),
     signal: cleanSignal(row.Signal),
     rsi7: numberFrom(rowAny(row, ["RSI 7", "RSI7", "RSI_7"], 0)),
     rsi14: numberFrom(rowAny(row, ["RSI 14", "RSI14", "RSI_14"], 0)),
@@ -282,7 +303,10 @@ function enrichHoldingsFromSheet(rows) {
       avgCostUsd: numberFrom(row.Avg_Cost_USD),
       currentPriceUsd: numberFrom(row.Current_Price_USD),
       valueUsd: numberFrom(row.Market_Value_USD),
-      costBasisUsd: numberFrom(row.Cost_Basis_USD)
+      costBasisUsd: numberFrom(row.Cost_Basis_USD),
+      targetA: numberFrom(rowAny(row, ["Target_A", "Target A", "Target Weight A"], item.targetA || 0)),
+      targetB: numberFrom(rowAny(row, ["Target_B", "Target B", "Target Weight B"], item.targetB || 0)),
+      targetWeight: numberFrom(rowAny(row, ["Target_Weight", "Target Weight", "Target"], item.targetWeight || 0))
     };
   });
 }

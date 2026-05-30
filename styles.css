@@ -1039,7 +1039,7 @@ body[data-theme="light"] .health-ring span {
 
 table {
   width: 100%;
-  min-width: 1120px;
+  min-width: 1240px;
   border-collapse: separate;
   border-spacing: 0 10px;
   font-size: 14px;
@@ -1063,8 +1063,8 @@ th {
 
 th:nth-child(1),
 td:nth-child(1),
-th:nth-child(7),
-td:nth-child(7) {
+th:nth-child(8),
+td:nth-child(8) {
   text-align: left;
 }
 
@@ -1090,14 +1090,14 @@ td:nth-child(7) {
   border-right: 1px solid rgba(148, 163, 184, 0.13);
 }
 
-.holdings-card tbody td:nth-child(6) strong,
+.holdings-card tbody td:nth-child(7) strong,
 .mobile-holding-meta > strong {
   display: grid;
   gap: 2px;
   justify-items: end;
 }
 
-.holdings-card tbody td:nth-child(6) small,
+.holdings-card tbody td:nth-child(7) small,
 .mobile-holding-meta > strong small {
   font-size: 12px;
   font-weight: 800;
@@ -1112,6 +1112,31 @@ td:nth-child(7) {
   color: var(--blue);
   font-weight: 900;
 }
+
+.target-cell {
+  display: grid;
+  gap: 3px;
+  justify-items: end;
+}
+
+.target-cell strong {
+  color: var(--text);
+  font-weight: 900;
+}
+
+.target-cell small,
+.target-mini {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.target-cell.positive small,
+.target-mini.positive { color: var(--green); }
+
+.target-cell.caution small,
+.target-mini.caution { color: var(--amber); }
 
 tfoot td {
   border-bottom: 0;
