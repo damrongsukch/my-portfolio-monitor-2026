@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>My Portfolio Monitor 2026</title>
-  <link rel="stylesheet" href="./styles.css?v=20260530j">
+  <link rel="stylesheet" href="./styles.css?v=20260530k">
   <style>
     .layer-text {
       display: inline-block;
@@ -359,7 +359,7 @@
           <div class="section-head holdings-head">
             <div>
               <span class="eyebrow">Portfolio holdings</span>
-              <h2>Positions from Google Sheet</h2>
+              <h2>Portfolio holdings</h2>
             </div>
             <div class="filter-tabs" id="assetTabs">
               <button class="active" data-filter="All" type="button">All</button>
@@ -373,12 +373,12 @@
             <table>
               <thead>
                 <tr>
-                  <th>สินทรัพย์</th>
-                  <th>จำนวนหุ้น</th>
-                  <th>ต้นทุนเฉลี่ย</th>
-                  <th>ราคาปัจจุบัน</th>
-                  <th>มูลค่า</th>
-                  <th>กำไร/ขาดทุน</th>
+                  <th>Asset</th>
+                  <th>Shares</th>
+                  <th>Avg Cost</th>
+                  <th>Current Price</th>
+                  <th>Value</th>
+                  <th>Gain / Loss</th>
                   <th>Signal</th>
                 </tr>
               </thead>
@@ -428,7 +428,7 @@
     <button data-jump="alerts" type="button"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg><span>Alerts</span></button>
   </nav>
 
-  <script src="./script.js?v=20260530j"></script>
+  <script src="./script.js?v=20260530k"></script>
   <script>
     (() => {
       const normalizeLayerName = (value) => {
@@ -486,11 +486,11 @@
         const signal = typeof cleanSignal === "function" ? cleanSignal(item.signal) : item.signal || "HOLD";
         const rsi7 = moneyToNumber(item.rsi7);
         const rsi14 = moneyToNumber(item.rsi14);
-        if (!multiplier) return `ข้าม: ${signal}; RSI ${rsi7.toFixed(1)}/${rsi14.toFixed(1)} ยังไม่ใช่จังหวะซื้อที่ชัด`;
-        if (multiplier === 1) return "1.0x: RSI ย่อตัวหรือ BUY DIP เป็นโซนที่น่าสะสมที่สุดวันนี้";
-        if (multiplier === 0.75) return "0.75x: สัญญาณสะสมดี แต่ยังไม่ใช่ไม้เต็ม";
-        if (multiplier === 0.5) return "0.5x: เทรนด์ยังดี ใช้ไม้กลางเพื่อลดการไล่ราคา";
-        return "0.25x: สัญญาณอ่อนกว่า ใช้ไม้เล็กเท่านั้น";
+        if (!multiplier) return `Skip: ${signal}; RSI ${rsi7.toFixed(1)}/${rsi14.toFixed(1)} is not a clean buy setup`;
+        if (multiplier === 1) return "1.0x: RSI dip or BUY DIP signal; best opportunity tier today";
+        if (multiplier === 0.75) return "0.75x: accumulation signal is good, but not a full-size entry";
+        if (multiplier === 0.5) return "0.5x: bullish follow; use medium size to avoid chasing price";
+        return "0.25x: weaker setup; use only a small starter size";
       };
 
       const renderSmartDcaPatch = () => {
@@ -503,8 +503,8 @@
         const list = document.getElementById("smartDcaList");
         if (summary) {
           summary.innerHTML = budget.usd > 0
-            ? `<span class="dca-summary-title">แผนวันนี้: ใช้ ${formatUsdPatch(plan.usedUsd)} จากงบ ${formatUsdPatch(budget.usd)} และกันเงินสดไว้ ${formatUsdPatch(plan.leftoverUsd)}</span><span class="dca-figures"><b>Budget ${formatUsdPatch(budget.usd)}</b><b>Use ${formatUsdPatch(plan.usedUsd)}</b><b>Cash left ${formatUsdPatch(plan.leftoverUsd)}</b><b>Min ${formatUsdPatch(1.5)}</b></span>`
-            : "ใส่งบเป็น USD เท่านั้น เช่น 10 หรือ $10 แล้วระบบจะจัดอันดับซื้อจาก Signal + RSI";
+            ? `<span class="dca-summary-title">Today's plan: use ${formatUsdPatch(plan.usedUsd)} from ${formatUsdPatch(budget.usd)} and keep ${formatUsdPatch(plan.leftoverUsd)} in cash</span><span class="dca-figures"><b>Budget ${formatUsdPatch(budget.usd)}</b><b>Use ${formatUsdPatch(plan.usedUsd)}</b><b>Cash left ${formatUsdPatch(plan.leftoverUsd)}</b><b>Min ${formatUsdPatch(1.5)}</b></span>`
+            : "Enter USD only, such as 10 or $10. Ranking uses Signal + RSI.";
         }
         if (list) {
           list.innerHTML = rows.map((item, index) => {

@@ -1196,9 +1196,25 @@ tfoot td {
   gap: 12px;
 }
 
+.mobile-holding-top {
+  align-items: flex-start;
+}
+
+.mobile-holding-top .ticker-cell {
+  min-width: 0;
+}
+
+.mobile-signal {
+  flex: 0 0 auto;
+}
+
 .mobile-holding-meta {
   color: var(--soft);
   font-size: 13px;
+}
+
+.mobile-holding-meta > strong small {
+  display: block;
 }
 
 .holding-metrics {
