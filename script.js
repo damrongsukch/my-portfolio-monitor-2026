@@ -68,14 +68,14 @@ let kpis = {
 
 const SHEET_ID = "1rV26pJqw8rMNO0nplvE9K0gsMCotfZ4dgvXs5kgRFDk";
 const DATA_SHEETS = { kpi: "Looker_KPI", holdings: "Looker_Holdings", nav: "Looker_NAV", monthly: "Looker_Monthly", signals: "Looker_Signals" };
-const colors = ["#25e05d", "#f6c21a", "#4aa3ff", "#ff5148", "#b57cff", "#13b981", "#94a3b8"];
+const colors = ["#25e05d", "#f6c21a", "#4aa3ff", "#ff5148", "#b57cff", "#13b981", "#94a3b8", "#38bdf8", "#fb7185", "#a3e635", "#f97316", "#22d3ee", "#e879f9", "#facc15", "#60a5fa", "#34d399"];
 const MIN_ORDER_USD = 1.5;
 let allocationMode = "sector";
 let activeFilter = "All";
 let performancePeriod = "YTD";
 let currencyMode = "THB";
 
-const logoDomains = { SPMO: "invesco.com", NVDA: "nvidia.com", GOOGL: "google.com", META: "meta.com", MSFT: "microsoft.com", AVGO: "broadcom.com", TSM: "tsmc.com", PLTR: "palantir.com", QQQI: "neosfunds.com", IAUI: "ishares.com", RKLB: "rocketlabusa.com" };
+const logoDomains = { SPMO: "invesco.com", SCHD: "schwabassetmanagement.com", NVDA: "nvidia.com", GOOGL: "google.com", META: "meta.com", MSFT: "microsoft.com", AVGO: "broadcom.com", TSM: "tsmc.com", LLY: "lilly.com", PLTR: "palantir.com", QQQI: "neosfunds.com", IAUI: "ishares.com", MLPI: "neosfunds.com", RKLB: "rocketlabusa.com" };
 
 function numberFrom(value) { const cleaned = String(value ?? "").replace(/[^0-9.-]/g, ""); const parsed = Number(cleaned); return Number.isFinite(parsed) ? parsed : 0; }
 function moneyText(value) { const text = String(value || "").trim(); return text ? text.replace("\u0e3f", "THB ").replace("\u00e0\u00b8\u00bf", "THB ") : "THB 0.00"; }
@@ -97,7 +97,7 @@ function formatCurrencyFromThb(valueThb) { const amount = numberFrom(valueThb); 
 function signedCurrencyFromThb(valueThb) { const amount = numberFrom(valueThb); const sign = amount < 0 ? "-" : "+"; const absolute = Math.abs(amount); const text = currencyMode === "USD" ? `$${(absolute / fxRate()).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : formatThb(absolute); return `${sign}${text}`; }
 function formatCurrencyFromUsd(valueUsd) { const amount = numberFrom(valueUsd); if (currencyMode === "USD") return `$${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; return formatThb(amount * fxRate()); }
 function holdingGainThb(item) { const pct = numberFrom(item.pl) / 100; if (Number.isFinite(numberFrom(item.costBasisUsd)) && numberFrom(item.costBasisUsd) > 0) return (numberFrom(item.valueUsd) - numberFrom(item.costBasisUsd)) * fxRate(); return pct > -0.99 ? numberFrom(item.value) - (numberFrom(item.value) / (1 + pct)) : 0; }
-function assetKind(ticker) { return /SPMO|QQQI|IAUI/i.test(ticker) ? "ETF" : "US stock"; }
+function assetKind(ticker) { return /SPMO|SCHD|QQQI|IAUI|MLPI/i.test(ticker) ? "ETF" : "US stock"; }
 function activeTargetKey() { return /MODE\s*B|MODE_B|\bB\b/i.test(kpis.marketMode) ? "targetB" : "targetA"; }
 function targetWeight(item) { const preferred = numberFrom(item[activeTargetKey()]); const fallback = numberFrom(item.targetWeight); return preferred || fallback || 0; }
 function targetGap(item) { const target = targetWeight(item); return target ? target - numberFrom(item.weight) : 0; }
