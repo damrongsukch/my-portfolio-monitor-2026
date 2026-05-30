@@ -78,7 +78,7 @@ let currencyMode = "THB";
 const logoDomains = { SPMO: "invesco.com", NVDA: "nvidia.com", GOOGL: "google.com", META: "meta.com", MSFT: "microsoft.com", AVGO: "broadcom.com", TSM: "tsmc.com", PLTR: "palantir.com", QQQI: "neosfunds.com", IAUI: "ishares.com", RKLB: "rocketlabusa.com" };
 
 function numberFrom(value) { const cleaned = String(value ?? "").replace(/[^0-9.-]/g, ""); const parsed = Number(cleaned); return Number.isFinite(parsed) ? parsed : 0; }
-function moneyText(value) { const text = String(value || "").trim(); return text ? text.replace("฿", "THB ").replace("à¸¿", "THB ") : "THB 0.00"; }
+function moneyText(value) { const text = String(value || "").trim(); return text ? text.replace("\u0e3f", "THB ").replace("\u00e0\u00b8\u00bf", "THB ") : "THB 0.00"; }
 function percentText(value) { return String(value || "").trim() || "0.00%"; }
 function decimalText(value, digits = 2) { return numberFrom(value).toFixed(digits); }
 function plusText(value, formatter) { const text = formatter(value); return text.startsWith("-") || text.startsWith("+") ? text : `+${text}`; }
@@ -125,7 +125,33 @@ function renderNavChart() { const svg = document.getElementById("navChart"); if 
 function polarToCartesian(cx, cy, radius, angle) { const radians = (angle - 90) * Math.PI / 180; return { x: cx + radius * Math.cos(radians), y: cy + radius * Math.sin(radians) }; }
 function donutSegment(cx, cy, radius, innerRadius, startAngle, endAngle) { const start = polarToCartesian(cx, cy, radius, endAngle), end = polarToCartesian(cx, cy, radius, startAngle), innerStart = polarToCartesian(cx, cy, innerRadius, endAngle), innerEnd = polarToCartesian(cx, cy, innerRadius, startAngle), largeArc = endAngle - startAngle <= 180 ? 0 : 1; return [`M ${start.x} ${start.y}`, `A ${radius} ${radius} 0 ${largeArc} 0 ${end.x} ${end.y}`, `L ${innerEnd.x} ${innerEnd.y}`, `A ${innerRadius} ${innerRadius} 0 ${largeArc} 1 ${innerStart.x} ${innerStart.y}`, "Z"].join(" "); }
 function allocationEntries() { if (allocationMode === "asset") return holdings.filter(item => item.value > 0 && item.ticker !== "CASH").sort((a, b) => b.value - a.value).map(item => [item.ticker, item.value]); const grouped = holdings.reduce((acc, item) => { if (item.value > 0 && item.ticker !== "CASH") acc[layerClass(item.layer)] = (acc[layerClass(item.layer)] || 0) + item.value; return acc; }, {}); return Object.entries(grouped).filter(([, value]) => value > 0); }
-function renderAllocation() { const entries = allocationEntries(); const total = entries.reduce((sum, [, value]) => sum + value, 0); if (!total) return; let angle = 0; setHtml("allocationChart", entries.map(([layer, value], index) => { const next = angle + (value / total) * 360; const path = donutSegment(120, 120, 104, 58, angle, next); angle = next; return `<path d="${path}" fill="${colors[index % colors.length]}" stroke="#071017" stroke-width="3"/>`; }).join("")); setHtml("allocationLegend", entries.map(([layer, value], index) => `<div class="allocation-row"><i class="swatch" style="background:${colors[index % colors.length]}"></i><span>${layer}</span><strong>${(value / total * 100).toFixed(1)}%</strong></div>`).join("")); }
+function allocationLabelSvg(name, percent, point) {
+  const label = String(name || "");
+  const x = point.x.toFixed(1), y = point.y.toFixed(1);
+  return `<text class="allocation-label" x="${x}" y="${y}"><tspan x="${x}" dy="0">${label}</tspan><tspan x="${x}" dy="13">${percent.toFixed(1)}%</tspan></text>`;
+}
+function renderAllocation() {
+  const entries = allocationEntries();
+  const total = entries.reduce((sum, [, value]) => sum + value, 0);
+  if (!total) return;
+  let angle = 0;
+  const cx = 150, cy = 150, radius = 116, innerRadius = 64;
+  const paths = [];
+  const labels = [];
+  entries.forEach(([name, value], index) => {
+    const percent = value / total * 100;
+    const next = angle + percent * 3.6;
+    const path = donutSegment(cx, cy, radius, innerRadius, angle, next);
+    paths.push(`<path d="${path}" fill="${colors[index % colors.length]}" stroke="#071017" stroke-width="3"/>`);
+    const mid = angle + (next - angle) / 2;
+    const labelRadius = allocationMode === "asset" ? 132 : 128;
+    const labelPoint = polarToCartesian(cx, cy, labelRadius, mid);
+    labels.push(allocationLabelSvg(name, percent, labelPoint));
+    angle = next;
+  });
+  setHtml("allocationChart", `${paths.join("")}${labels.join("")}`);
+  setHtml("allocationLegend", entries.map(([layer, value], index) => `<div class="allocation-row"><i class="swatch" style="background:${colors[index % colors.length]}"></i><span>${layer}</span><strong>${(value / total * 100).toFixed(1)}%</strong></div>`).join(""));
+}
 function renderMonthly() { const svg = document.getElementById("monthlyChart"); if (!svg || !monthly.length) return; const width = 640, height = 280, padding = { top: 26, right: 18, bottom: 42, left: 48 }, max = Math.max(...monthly.map(item => item.value), 1), plotH = height - padding.top - padding.bottom, gap = (width - padding.left - padding.right) / monthly.length, barW = Math.min(64, gap * .34); svg.innerHTML = monthly.map((item, index) => { const x = padding.left + index * gap + gap / 2 - barW / 2, h = Math.max(4, (item.value / max) * plotH), y = padding.top + plotH - h; return `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="#25e05d" rx="5"/><text class="axis-text" x="${x - 7}" y="${y - 8}">${Math.round(item.value).toLocaleString()}</text><text class="muted-text" x="${x - 4}" y="${height - 14}">${item.label}</text>`; }).join(""); }
 function signalBadge(signal) { const normalized = String(signal || "").toLowerCase(); const cls = normalized.includes("strong") ? "strong" : normalized.includes("buy") || normalized.includes("accumulate") ? "buy" : normalized.includes("reduce") ? "reduce" : "hold"; return `<span class="badge ${cls}">${signal || "HOLD"}</span>`; }
 
@@ -177,7 +203,74 @@ function buildDcaPlan(budgetUsd) {
 function renderSmartDca() { const input = document.getElementById("dcaBudgetInput"); const budget = parseBudgetInput(input?.value || ""); const plan = buildDcaPlan(budget.usd); const rows = budget.usd > 0 ? plan.picks.filter(item => item.amountUsd > 0) : plan.picks; setHtml("dcaBudgetSummary", budget.usd > 0 ? `<span class="dca-summary-title">Today's plan: use ${formatUsd(plan.usedUsd)} from ${formatUsd(budget.usd)} and keep ${formatUsd(plan.leftoverUsd)} in cash</span><span class="dca-figures"><b>Budget ${formatUsd(budget.usd)}</b><b>Use ${formatUsd(plan.usedUsd)}</b><b>Cash left ${formatUsd(plan.leftoverUsd)}</b><b>Min ${formatUsd(MIN_ORDER_USD)}</b></span>` : "Enter USD only, such as 10 or $10. Ranking uses Signal + RSI."); setHtml("smartDcaList", rows.map((item, index) => `<div class="mini-row dca-plan-row"><span>${index + 1}. <strong>${item.ticker}</strong><small>${item.multiplier}x - RSI ${numberFrom(item.rsi7).toFixed(1)}/${numberFrom(item.rsi14).toFixed(1)} - ${item.reason}${item.belowMin ? " - below DIME minimum" : ""}</small></span><strong>${budget.usd > 0 ? formatUsd(item.amountUsd) : `${item.multiplier}x`}</strong></div>`).join("") || `<div class="empty">No clean RSI-based buy setup today. Keep cash.</div>`); const best = rows[0]; if (best) { setText("todaySignal", budget.usd > 0 ? "Sizing Ready" : "Signal Ready"); setText("todaySignalText", `${best.ticker}: ${best.multiplier}x because ${best.reason}. Use this as sizing guidance before buying.`); } }
 function renderHealth() { const growth = holdings.filter(item => /growth/i.test(item.layer)).reduce((sum, item) => sum + item.weight, 0); const alpha = holdings.filter(item => /alpha/i.test(item.layer)).reduce((sum, item) => sum + item.weight, 0); const cash = holdings.find(item => item.ticker === "CASH"); const cashWeight = cash ? cash.weight : 0; const score = Math.max(6.4, Math.min(9.4, 9.2 - Math.max(0, growth - 58) * .06 - Math.max(0, alpha - 8) * .08 + Math.min(cashWeight, 4) * .03)); setText("healthScore", score.toFixed(1)); setHtml("healthMetrics", [["Diversification", Math.min(9.2, 7.2 + holdings.length * .18).toFixed(1)], ["Risk Control", score.toFixed(1)], ["Momentum", /MODE A/i.test(kpis.marketMode) ? "9.0" : "7.6"], ["Cash Buffer", Math.max(6.5, Math.min(9.0, 7 + cashWeight / 2)).toFixed(1)]].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("")); }
 function renderAlerts() { const rows = []; holdings.forEach(item => { const r = numberFrom(item.pl); const signal = cleanSignal(item.signal); if (/strong buy|buy|accumulate/i.test(signal)) rows.push({ title: `${item.ticker} has an active entry signal`, text: `${signal} from the Looker signal sheet. Check live market conditions before buying.`, tone: "positive" }); if (r > 25) rows.push({ title: `${item.ticker} is extended`, text: `Position return is ${item.pl}. Avoid chasing and review target weight.`, tone: "caution" }); if (r < -5) rows.push({ title: `${item.ticker} needs drawdown review`, text: `Position return is ${item.pl}. Review thesis and allocation gap.`, tone: "caution" }); }); document.querySelectorAll(".alert-dot").forEach(button => button.dataset.count = String(Math.min(rows.length, 9))); setHtml("alertsList", rows.slice(0, 5).map(row => `<div class="alert-row"><div><strong>${row.title}</strong><p>${row.text}</p></div><span class="badge ${row.tone}">${row.tone}</span></div>`).join("") || `<div class="empty">No major alerts from the latest sheet snapshot.</div>`); }
-function applyLiveData(datasets) { const kpiRows = rowsToObjects(datasets.kpi); const rawSignals = rowsToObjects(datasets.signals); const signalRows = rawSignals.map(row => ({ ticker: rowAny(row, ["Ticker", "Symbol"], "N/A"), totalTrend: rowAny(row, ["Total_Trend", "Total Trend", "Trend"], ""), signal: cleanSignal(rowAny(row, ["Signal", "EMA_Signal", "EMA Signal"], "HOLD")), rsi7: numberFrom(rowAny(row, ["RSI 7", "RSI7", "RSI_7", "RSI7_Value"], 0)), rsi14: numberFrom(rowAny(row, ["RSI 14", "RSI14", "RSI_14", "RSI14_Value"], 0)), priority: numberFrom(rowAny(row, ["Priority", "Rank"], 99)), smartDcaUsd: numberFrom(rowAny(row, ["Smart DCA $", "Smart_DCA_USD", "Smart DCA USD", "Smart_DCA"], 0)) })).filter(item => item.ticker && item.ticker !== "N/A"); const signalMap = new Map(signalRows.map(item => [String(item.ticker).toUpperCase(), item])); kpis = { ...kpis, portfolioValue: moneyText(kpiValue(kpiRows, "Portfolio Value THB", kpis.portfolioValue)), invested: moneyText(kpiValue(kpiRows, "Total Invested THB", kpis.invested)), profit: moneyText(kpiValue(kpiRows, "Total Profit THB", kpis.profit)), totalReturn: percentText(kpiValue(kpiRows, "Total Return %", kpis.totalReturn)), irr: percentText(kpiValue(kpiRows, "IRR", kpis.irr)), volatility: percentText(kpiAny(kpiRows, ["Volatility (Daily)", "Daily Volatility", "Volatility"], kpis.volatility)), sharpe: kpiAny(kpiRows, ["Sharpe Ratio", "Sharpe"], kpis.sharpe), maxDrawdown: percentText(kpiAny(kpiRows, ["Max Drawdown", "Maximum Drawdown"], kpis.maxDrawdown)), benchmarkSpy: percentText(kpiAny(kpiRows, ["vs S&P500", "SPY", "S&P500"], kpis.benchmarkSpy)), benchmarkQqq: percentText(kpiAny(kpiRows, ["vs NASDAQ", "QQQ", "NASDAQ"], kpis.benchmarkQqq)), vix: kpiAny(kpiRows, "VIX", kpis.vix), greedFear: kpiAny(kpiRows, ["Greed & Fear", "Fear & Greed", "Fear Greed"], kpis.greedFear), sp500Trend: kpiAny(kpiRows, ["S&P500 Trend", "S&P 500 Trend", "SP500 Trend"], kpis.sp500Trend), marketBreadth: percentText(kpiAny(kpiRows, ["Market Breadth", "Breadth"], kpis.marketBreadth)), bondYield: percentText(kpiAny(kpiRows, ["10Y Bond Yield", "10Y Yield", "Bond Yield"], kpis.bondYield)), dailyProfit: moneyText(kpiValue(kpiRows, "Daily Profit THB", kpis.dailyProfit)), dailyChange: percentText(kpiValue(kpiRows, "Daily Change %", kpis.dailyChange)), marketMode: kpiValue(kpiRows, "Market Mode", kpis.marketMode) }; holdings = rowsToObjects(datasets.holdings).map(row => ({ ticker: row.Ticker || "N/A", layer: normalizeLayer(row.Ticker, row.Asset_Layer), shares: row.Total_Shares || "0", price: `$${row.Current_Price_USD || "0.00"}`, value: numberFrom(row.Market_Value_THB), valueText: moneyText(row.Market_Value_THB), pl: percentText(row.PL_Percent), weight: numberFrom(row.Weight), signal: cleanSignal(row.Signal), rsi7: numberFrom(rowAny(row, ["RSI 7", "RSI7", "RSI_7"], 0)), rsi14: numberFrom(rowAny(row, ["RSI 14", "RSI14", "RSI_14"], 0)), priority: numberFrom(rowAny(row, ["Priority", "Rank"], 99)), smartDcaUsd: numberFrom(rowAny(row, ["Smart DCA $", "Smart_DCA_USD", "Smart DCA USD", "Smart_DCA"], 0)) })).filter(item => item.ticker && item.ticker !== "N/A").map(item => { const signal = signalMap.get(String(item.ticker).toUpperCase()); return signal ? { ...item, signal: cleanSignal(signal.signal || item.signal), rsi7: signal.rsi7 || item.rsi7, rsi14: signal.rsi14 || item.rsi14, priority: signal.priority || item.priority, smartDcaUsd: signal.smartDcaUsd || item.smartDcaUsd, totalTrend: signal.totalTrend } : item; }); signalBoard = holdings.filter(item => item.ticker !== "CASH"); const cash = holdings.find(item => item.ticker === "CASH"); if (cash) { kpis.cash = cash.valueText; kpis.cashWeight = `${cash.weight.toFixed(2)}%`; } navRows = rowsToObjects(datasets.nav).map(row => [row.Date, numberFrom(row.Daily_Invested_THB), numberFrom(row.Cumulative_NAV_THB), numberFrom(row.Daily_Change_Percent) / 100, numberFrom(row.Drawdown_Percent) / 100]).filter(row => row[2] > 0); monthly = rowsToObjects(datasets.monthly).map(row => ({ label: new Date(Number(row.Year), Number(row.Month) - 1, 1).toLocaleDateString("en-US", { month: "short", year: "2-digit" }).replace(" ", " '"), value: numberFrom(row.Avg_NAV_THB) })).filter(item => item.value > 0); }
+function applyLiveData(datasets) {
+  const kpiRows = rowsToObjects(datasets.kpi);
+  const rawSignals = rowsToObjects(datasets.signals);
+  const signalRows = rawSignals.map(row => ({
+    ticker: rowAny(row, ["Ticker", "Symbol"], "N/A"),
+    totalTrend: rowAny(row, ["Total_Trend", "Total Trend", "Trend"], ""),
+    signal: cleanSignal(rowAny(row, ["Signal", "EMA_Signal", "EMA Signal"], "HOLD")),
+    rsi7: numberFrom(rowAny(row, ["RSI 7", "RSI7", "RSI_7", "RSI7_Value"], 0)),
+    rsi14: numberFrom(rowAny(row, ["RSI 14", "RSI14", "RSI_14", "RSI14_Value"], 0)),
+    priority: numberFrom(rowAny(row, ["Priority", "Rank"], 99)),
+    smartDcaUsd: numberFrom(rowAny(row, ["Smart DCA $", "Smart_DCA_USD", "Smart DCA USD", "Smart_DCA"], 0))
+  })).filter(item => item.ticker && item.ticker !== "N/A");
+  const signalMap = new Map(signalRows.map(item => [String(item.ticker).toUpperCase(), item]));
+
+  kpis = {
+    ...kpis,
+    portfolioValue: moneyText(kpiValue(kpiRows, "Portfolio Value THB", kpis.portfolioValue)),
+    invested: moneyText(kpiValue(kpiRows, "Total Invested THB", kpis.invested)),
+    profit: moneyText(kpiValue(kpiRows, "Total Profit THB", kpis.profit)),
+    totalReturn: percentText(kpiValue(kpiRows, "Total Return %", kpis.totalReturn)),
+    irr: percentText(kpiValue(kpiRows, "IRR", kpis.irr)),
+    volatility: percentText(kpiAny(kpiRows, ["Volatility (Daily)", "Daily Volatility", "Volatility"], kpis.volatility)),
+    sharpe: kpiAny(kpiRows, ["Sharpe Ratio", "Sharpe"], kpis.sharpe),
+    maxDrawdown: percentText(kpiAny(kpiRows, ["Max Drawdown", "Maximum Drawdown"], kpis.maxDrawdown)),
+    benchmarkSpy: percentText(kpiAny(kpiRows, ["vs S&P500", "SPY", "S&P500"], kpis.benchmarkSpy)),
+    benchmarkQqq: percentText(kpiAny(kpiRows, ["vs NASDAQ", "QQQ", "NASDAQ"], kpis.benchmarkQqq)),
+    vix: kpiAny(kpiRows, "VIX", kpis.vix),
+    greedFear: kpiAny(kpiRows, ["Greed & Fear", "Fear & Greed", "Fear Greed"], kpis.greedFear),
+    sp500Trend: kpiAny(kpiRows, ["S&P500 Trend", "S&P 500 Trend", "SP500 Trend"], kpis.sp500Trend),
+    marketBreadth: percentText(kpiAny(kpiRows, ["Market Breadth", "Breadth"], kpis.marketBreadth)),
+    bondYield: percentText(kpiAny(kpiRows, ["10Y Bond Yield", "10Y Yield", "Bond Yield"], kpis.bondYield)),
+    dailyProfit: moneyText(kpiValue(kpiRows, "Daily Profit THB", kpis.dailyProfit)),
+    dailyChange: percentText(kpiValue(kpiRows, "Daily Change %", kpis.dailyChange)),
+    marketMode: kpiValue(kpiRows, "Market Mode", kpis.marketMode)
+  };
+
+  holdings = rowsToObjects(datasets.holdings).map(row => ({
+    ticker: row.Ticker || "N/A",
+    layer: normalizeLayer(row.Ticker, row.Asset_Layer),
+    shares: rowAny(row, ["Total_Shares", "Total Shares", "Shares"], "0"),
+    price: `$${rowAny(row, ["Current_Price_USD", "Current Price USD", "Price"], "0.00")}`,
+    avgCostUsd: numberFrom(rowAny(row, ["Avg_Cost_USD", "Avg Cost USD", "Average Cost USD"], 0)),
+    currentPriceUsd: numberFrom(rowAny(row, ["Current_Price_USD", "Current Price USD", "Price"], 0)),
+    valueUsd: numberFrom(rowAny(row, ["Market_Value_USD", "Market Value USD"], 0)),
+    costBasisUsd: numberFrom(rowAny(row, ["Cost_Basis_USD", "Cost Basis USD"], 0)),
+    value: numberFrom(row.Market_Value_THB),
+    valueText: moneyText(row.Market_Value_THB),
+    pl: percentText(row.PL_Percent),
+    weight: numberFrom(row.Weight),
+    signal: cleanSignal(row.Signal),
+    rsi7: numberFrom(rowAny(row, ["RSI 7", "RSI7", "RSI_7"], 0)),
+    rsi14: numberFrom(rowAny(row, ["RSI 14", "RSI14", "RSI_14"], 0)),
+    priority: numberFrom(rowAny(row, ["Priority", "Rank"], 99)),
+    smartDcaUsd: numberFrom(rowAny(row, ["Smart DCA $", "Smart_DCA_USD", "Smart DCA USD", "Smart_DCA"], 0))
+  })).filter(item => item.ticker && item.ticker !== "N/A").map(item => {
+    const signal = signalMap.get(String(item.ticker).toUpperCase());
+    return signal ? { ...item, signal: cleanSignal(signal.signal || item.signal), rsi7: signal.rsi7 || item.rsi7, rsi14: signal.rsi14 || item.rsi14, priority: signal.priority || item.priority, smartDcaUsd: signal.smartDcaUsd || item.smartDcaUsd, totalTrend: signal.totalTrend } : item;
+  });
+
+  signalBoard = holdings.filter(item => item.ticker !== "CASH");
+  const cash = holdings.find(item => item.ticker === "CASH");
+  if (cash) {
+    kpis.cash = cash.valueText;
+    kpis.cashWeight = `${cash.weight.toFixed(2)}%`;
+  }
+  navRows = rowsToObjects(datasets.nav).map(row => [row.Date, numberFrom(row.Daily_Invested_THB), numberFrom(row.Cumulative_NAV_THB), numberFrom(row.Daily_Change_Percent) / 100, numberFrom(row.Drawdown_Percent) / 100]).filter(row => row[2] > 0);
+  monthly = rowsToObjects(datasets.monthly).map(row => ({ label: new Date(Number(row.Year), Number(row.Month) - 1, 1).toLocaleDateString("en-US", { month: "short", year: "2-digit" }).replace(" ", " '"), value: numberFrom(row.Avg_NAV_THB) })).filter(item => item.value > 0);
+}
 function enrichHoldingsFromSheet(rows) {
   const source = rowsToObjects(rows);
   const meta = new Map(source.map(row => [String(row.Ticker || "").toUpperCase(), row]));
@@ -223,7 +316,43 @@ async function loadLiveData() {
   }
 }
 function jumpToAlerts() { const alerts = document.getElementById("alerts"); const card = document.querySelector(".alerts-card"); alerts?.scrollIntoView({ behavior: "smooth", block: "start" }); document.querySelectorAll("[data-jump]").forEach(item => item.classList.toggle("active", item.dataset.jump === "alerts")); if (card) { card.classList.add("flash-focus"); window.setTimeout(() => card.classList.remove("flash-focus"), 1200); } }
-function bindInteractions() { const search = document.getElementById("holdingSearch"); document.getElementById("assetTabs")?.addEventListener("click", event => { const button = event.target.closest("button"); if (!button) return; document.querySelectorAll("#assetTabs button").forEach(tab => tab.classList.toggle("active", tab === button)); renderHoldings(button.dataset.filter || "All", search?.value || ""); }); document.querySelector(".period-tabs")?.addEventListener("click", event => { const button = event.target.closest("button"); if (!button) return; performancePeriod = button.dataset.period || button.textContent.trim() || "YTD"; document.querySelectorAll(".period-tabs button").forEach(tab => tab.classList.toggle("active", tab === button)); renderNavChart(); }); document.getElementById("allocationView")?.addEventListener("change", event => { allocationMode = event.target.value; renderAllocation(); }); search?.addEventListener("input", () => renderHoldings(activeFilter, search.value)); document.getElementById("refreshButton")?.addEventListener("click", loadLiveData); document.getElementById("notificationButton")?.addEventListener("click", jumpToAlerts); document.getElementById("themeToggle")?.addEventListener("click", () => setTheme(document.body.dataset.theme === "light" ? "dark" : "light")); document.getElementById("currencyToggle")?.addEventListener("click", () => setCurrencyMode(currencyMode === "THB" ? "USD" : "THB")); document.getElementById("dcaBudgetInput")?.addEventListener("input", renderSmartDca); document.getElementById("useCashButton")?.addEventListener("click", () => { const input = document.getElementById("dcaBudgetInput"); input.value = kpis.cash || ""; renderSmartDca(); }); document.querySelectorAll("[data-jump]").forEach(button => button.addEventListener("click", () => { if (button.dataset.jump === "overview") window.scrollTo({ top: 0, behavior: "smooth" }); else document.getElementById(button.dataset.jump)?.scrollIntoView({ behavior: "smooth", block: "start" }); document.querySelectorAll("[data-jump]").forEach(item => item.classList.toggle("active", item.dataset.jump === button.dataset.jump)); })); }
+function bindInteractions() {
+  const search = document.getElementById("holdingSearch");
+  document.getElementById("assetTabs")?.addEventListener("click", event => {
+    const button = event.target.closest("button");
+    if (!button) return;
+    document.querySelectorAll("#assetTabs button").forEach(tab => tab.classList.toggle("active", tab === button));
+    renderHoldings(button.dataset.filter || "All", search?.value || "");
+  });
+  document.querySelector(".period-tabs")?.addEventListener("click", event => {
+    const button = event.target.closest("button");
+    if (!button) return;
+    performancePeriod = button.dataset.period || button.textContent.trim() || "YTD";
+    document.querySelectorAll(".period-tabs button").forEach(tab => tab.classList.toggle("active", tab === button));
+    renderNavChart();
+  });
+  document.getElementById("allocationView")?.addEventListener("change", event => {
+    allocationMode = event.target.value;
+    renderAllocation();
+  });
+  search?.addEventListener("input", () => renderHoldings(activeFilter, search.value));
+  document.getElementById("refreshButton")?.addEventListener("click", loadLiveData);
+  document.getElementById("notificationButton")?.addEventListener("click", jumpToAlerts);
+  document.getElementById("themeToggle")?.addEventListener("click", () => setTheme(document.body.dataset.theme === "light" ? "dark" : "light"));
+  document.getElementById("currencyToggle")?.addEventListener("click", () => setCurrencyMode(currencyMode === "THB" ? "USD" : "THB"));
+  document.getElementById("dcaBudgetInput")?.addEventListener("input", renderSmartDca);
+  document.getElementById("useCashButton")?.addEventListener("click", () => {
+    const input = document.getElementById("dcaBudgetInput");
+    if (!input) return;
+    input.value = `$${(numberFrom(kpis.cash) / fxRate()).toFixed(2)}`;
+    renderSmartDca();
+  });
+  document.querySelectorAll("[data-jump]").forEach(button => button.addEventListener("click", () => {
+    if (button.dataset.jump === "overview") window.scrollTo({ top: 0, behavior: "smooth" });
+    else document.getElementById(button.dataset.jump)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.querySelectorAll("[data-jump]").forEach(item => item.classList.toggle("active", item.dataset.jump === button.dataset.jump));
+  }));
+}
 function setTheme(theme) { document.body.dataset.theme = theme; try { localStorage.setItem("portfolioTheme", theme); } catch (error) { console.warn(error); } }
 function initTheme() { try { setTheme(localStorage.getItem("portfolioTheme") || "dark"); } catch (error) { setTheme("dark"); } }
 

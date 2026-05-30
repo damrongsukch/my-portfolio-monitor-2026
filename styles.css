@@ -603,15 +603,20 @@ select:focus {
 
 .allocation-body {
   display: grid;
-  grid-template-columns: 170px minmax(150px, 1fr);
-  gap: 14px;
+  grid-template-columns: minmax(240px, 270px) minmax(150px, 1fr);
+  gap: 18px;
   align-items: center;
 }
 
 .donut-wrap {
   position: relative;
-  width: 170px;
+  width: min(270px, 100%);
   max-width: 100%;
+}
+
+.allocation-card #allocationChart {
+  width: 100%;
+  aspect-ratio: 1;
 }
 
 .donut-center {
@@ -624,6 +629,28 @@ select:focus {
 
 .donut-center strong { font-size: 24px; }
 .donut-center span { color: var(--muted); font-size: 12px; }
+
+.allocation-label {
+  fill: var(--text);
+  stroke: rgba(5, 9, 13, 0.78);
+  stroke-width: 3px;
+  paint-order: stroke;
+  font-size: 11px;
+  font-weight: 900;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.allocation-label tspan:last-child {
+  fill: var(--soft);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+body[data-theme="light"] .allocation-label {
+  stroke: rgba(255, 255, 255, 0.82);
+  stroke-width: 4px;
+}
 
 .legend-list {
   display: grid;
