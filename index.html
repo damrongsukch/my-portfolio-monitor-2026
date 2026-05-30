@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>My Portfolio Monitor 2026</title>
-  <link rel="stylesheet" href="./styles.css?v=20260530t">
+  <link rel="stylesheet" href="./styles.css?v=20260530u">
   <style>
     .layer-text {
       display: inline-block;
@@ -365,7 +365,7 @@
               <button class="active" data-filter="All" type="button">All</button>
               <button data-filter="Core" type="button">Core</button>
               <button data-filter="Growth" type="button">Growth</button>
-              <button data-filter="Safe" type="button">Safe</button>
+              <button data-filter="Income" type="button">Income</button>
               <button data-filter="Alpha" type="button">Alpha</button>
             </div>
           </div>
@@ -429,13 +429,13 @@
     <button data-jump="alerts" type="button"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg><span>Alerts</span></button>
   </nav>
 
-  <script src="./script.js?v=20260530t"></script>
+  <script src="./script.js?v=20260530u"></script>
   <script>
     (() => {
       const normalizeLayerName = (value) => {
         const clean = String(value || "").split("/")[0].trim().toLowerCase();
         if (clean === "growth") return "Growth";
-        if (clean === "safe" || clean === "income") return "Safe";
+        if (clean === "safe" || clean === "income") return "Income";
         if (clean === "alpha") return "Alpha";
         return "Core";
       };

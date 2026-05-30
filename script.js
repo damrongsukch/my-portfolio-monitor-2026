@@ -17,8 +17,8 @@ let holdings = [
   { ticker: "AVGO", layer: "Growth", shares: "0", price: "$419.30", value: 0, valueText: "THB 0.00", pl: "0.00%", weight: 0, signal: "ACCUMULATE" },
   { ticker: "PLTR", layer: "Growth", shares: "0.1481048", price: "$137.80", value: 657.23, valueText: "THB 657.23", pl: "-3.74%", weight: 12.37, signal: "HOLD" },
   { ticker: "TSM", layer: "Growth", shares: "0.0414339", price: "$411.68", value: 549.30, valueText: "THB 549.30", pl: "18.29%", weight: 10.34, signal: "BUY" },
-  { ticker: "QQQI", layer: "Safe", shares: "0.2030812", price: "$56.50", value: 369.50, valueText: "THB 369.50", pl: "7.94%", weight: 6.96, signal: "HOLD" },
-  { ticker: "IAUI", layer: "Safe", shares: "0.2208413", price: "$57.23", value: 407.01, valueText: "THB 407.01", pl: "1.35%", weight: 7.66, signal: "HOLD" },
+  { ticker: "QQQI", layer: "Income", shares: "0.2030812", price: "$56.50", value: 369.50, valueText: "THB 369.50", pl: "7.94%", weight: 6.96, signal: "HOLD" },
+  { ticker: "IAUI", layer: "Income", shares: "0.2208413", price: "$57.23", value: 407.01, valueText: "THB 407.01", pl: "1.35%", weight: 7.66, signal: "HOLD" },
   { ticker: "RKLB", layer: "Alpha", shares: "0.1307652", price: "$105.55", value: 444.47, valueText: "THB 444.47", pl: "44.54%", weight: 8.37, signal: "HOLD" }
 ];
 
@@ -88,8 +88,8 @@ function kpiValue(rows, metric, fallback = "") { const found = rows.find(row => 
 function kpiAny(rows, metrics, fallback = "") { const names = (Array.isArray(metrics) ? metrics : [metrics]).map(name => String(name).toLowerCase()); const found = rows.find(row => names.some(name => String(row.Metric || "").toLowerCase().includes(name))); return found && found.Value ? found.Value : fallback; }
 function rowAny(row, names, fallback = "") { for (const key of (Array.isArray(names) ? names : [names])) if (row[key] != null && row[key] !== "") return row[key]; const normalized = Object.fromEntries(Object.entries(row).map(([key, value]) => [key.toLowerCase().replace(/[^a-z0-9]/g, ""), value])); for (const key of (Array.isArray(names) ? names : [names])) { const found = normalized[String(key).toLowerCase().replace(/[^a-z0-9]/g, "")]; if (found != null && found !== "") return found; } return fallback; }
 function signedClass(value) { const text = String(value || "").trim(); return text.startsWith("-") || numberFrom(text) < 0 ? "negative" : "positive"; }
-function normalizeLayer(ticker, layer) { if (String(ticker || "").toUpperCase() === "QQQI") return "Safe"; return layerClass(layer); }
-function layerClass(layer) { const clean = String(layer || "").split("/")[0].trim().toLowerCase(); if (clean === "growth") return "Growth"; if (clean === "safe" || clean === "income" || clean === "defensive income") return "Safe"; if (clean === "alpha") return "Alpha"; return "Core"; }
+function normalizeLayer(ticker, layer) { if (String(ticker || "").toUpperCase() === "QQQI") return "Income"; return layerClass(layer); }
+function layerClass(layer) { const clean = String(layer || "").split("/")[0].trim().toLowerCase(); if (clean === "growth") return "Growth"; if (clean === "safe" || clean === "income" || clean === "defensive income") return "Income"; if (clean === "alpha") return "Alpha"; return "Core"; }
 function tickerLogo(ticker) { const symbol = String(ticker || "").trim().toUpperCase(); const fallback = symbol.slice(0, 2) || "--"; const domain = logoDomains[symbol]; if (!domain) return `<i class="ticker-logo">${fallback}</i>`; const url = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`; return `<i class="ticker-logo has-logo" style="overflow:hidden;flex:0 0 auto"><img src="${url}" alt="${symbol} logo" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;background:#fff" onerror="this.parentElement.classList.remove('has-logo');this.parentElement.textContent='${fallback}'"></i>`; }
 function setText(id, value) { const el = document.getElementById(id); if (el) el.textContent = value; }
 function setHtml(id, value) { const el = document.getElementById(id); if (el) el.innerHTML = value; }
