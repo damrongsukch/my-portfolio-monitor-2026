@@ -312,10 +312,14 @@ function renderGoal() {
   const safe = projectGoalSeries(startValue, monthlyDca, realReturn, months);
   const bull = projectGoalSeries(startValue, monthlyDca, bullReturn, months);
   const endBear = bear.at(-1).value, endSafe = safe.at(-1).value, endBull = bull.at(-1).value;
+  const principal = startValue + monthlyDca * months;
+  const estimatedProfit = endSafe - principal;
   setHtml("goalBaseValue", `Current portfolio <strong>${formatThb(startValue)}</strong>`);
   setText("goalBearValue", shortThb(endBear));
   setText("goalSafeValue", shortThb(endSafe));
   setText("goalBullValue", shortThb(endBull));
+  setText("goalPrincipalValue", formatThb(principal));
+  setText("goalProfitValue", formatThb(estimatedProfit));
   const svg = document.getElementById("goalChart");
   if (!svg) return;
   const width = 760, height = 340, padding = { top: 34, right: 72, bottom: 46, left: 54 };
