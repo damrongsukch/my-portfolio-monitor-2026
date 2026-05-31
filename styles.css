@@ -2155,6 +2155,54 @@ body[data-theme="light"] .goal-controls input {
   .mobile-holdings {
     display: grid;
   }
+  .mobile-holding-card.compact {
+    padding: 15px 10px 14px 12px;
+  }
+  .mobile-holding-strip {
+    grid-template-columns: minmax(0, 1.2fr) minmax(76px, .72fr) minmax(88px, .78fr);
+    gap: 8px 10px;
+    align-items: start;
+  }
+  .mobile-asset {
+    grid-column: 1;
+    grid-row: 1;
+    align-items: flex-start;
+  }
+  .mobile-asset > span {
+    min-width: 0;
+  }
+  .mobile-asset strong {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    line-height: 1.05;
+  }
+  .mobile-asset strong b.layer-text {
+    margin-left: 0;
+  }
+  .mobile-holding-strip > div:nth-child(2) {
+    grid-column: 1;
+    grid-row: 2;
+    padding-left: 39px;
+  }
+  .mobile-holding-strip > div:nth-child(3) {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .mobile-gain {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+  }
+  .mobile-target {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+  .mobile-holding-detail {
+    padding-top: 8px;
+  }
   .bottom-nav {
     position: fixed;
     left: 0;
