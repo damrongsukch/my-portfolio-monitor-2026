@@ -247,6 +247,8 @@ function signedThb(value) { const amount = Number(value || 0); return `${amount 
 function signedPercent(value, digits = 3) { const amount = Number(value || 0); return `${amount < 0 ? "-" : ""}${Math.abs(amount).toFixed(digits)}%`; }
 function shortThb(value) { const amount = numberFrom(value); if (amount >= 1000000) return `THB ${(amount / 1000000).toFixed(amount >= 10000000 ? 1 : 2)}M`; if (amount >= 1000) return `THB ${Math.round(amount).toLocaleString("en-US")}`; return formatThb(amount); }
 function axisThb(value) { const amount = numberFrom(value); if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`; if (amount >= 1000) return `${Math.round(amount / 1000)}k`; return Math.round(amount).toLocaleString("en-US"); }
+function fullAmount(value) { return Math.round(numberFrom(value)).toLocaleString("en-US"); }
+function monthAxisLabel(month) { if (!month) return "Now"; return month % 12 === 0 ? `M${month} (Y${month / 12})` : `M${month}`; }
 function sheetDate(value) { if (value instanceof Date) return value; if (typeof value === "number") return new Date(Date.UTC(1899, 11, 30) + value * 86400000); const parsed = new Date(String(value || "")); return Number.isNaN(parsed.getTime()) ? new Date() : parsed; }
 function xirr() { return null; }
 function dcaMultiplier(item) { const signal = String(item.signal || "").toUpperCase(); const rsi7 = numberFrom(item.rsi7), rsi14 = numberFrom(item.rsi14); if (/REDUCE|SELL|OVERBOUGHT/.test(signal) || rsi7 >= 75 || rsi14 >= 75) return 0; if (/BUY DIP|GOOD PRICE/.test(signal) || rsi7 < 35) return 1; if (/ACCUMULATE/.test(signal) || rsi14 < 45) return 0.75; if (/BULLISH|FOLLOW/.test(signal) || rsi7 <= 60) return 0.5; if (rsi7 < 70) return 0.25; return 0; }
@@ -282,14 +284,14 @@ function renderTodaySignal(best, budgetUsd) {
 function renderSmartDca() { const input = document.getElementById("dcaBudgetInput"); const budget = parseBudgetInput(input?.value || ""); const plan = buildDcaPlan(budget.usd); const rows = budget.usd > 0 ? plan.picks.filter(item => item.amountUsd > 0) : plan.picks; setHtml("dcaBudgetSummary", budget.usd > 0 ? `<span class="dca-summary-title">Today's plan: use ${formatUsd(plan.usedUsd)} from ${formatUsd(budget.usd)} and keep ${formatUsd(plan.leftoverUsd)} in cash</span><span class="dca-figures"><b>Budget ${formatUsd(budget.usd)}</b><b>Use ${formatUsd(plan.usedUsd)}</b><b>Cash left ${formatUsd(plan.leftoverUsd)}</b><b>Min ${formatUsd(MIN_ORDER_USD)}</b></span>` : "Enter USD only, such as 10 or $10. Ranking uses Signal + RSI."); setHtml("smartDcaList", rows.map((item, index) => `<div class="mini-row dca-plan-row"><span>${index + 1}. <strong>${item.ticker}</strong><small>${item.multiplier}x - ${signalReason(item)} - ${item.reason}${item.belowMin ? " - below DIME minimum" : ""}</small></span><strong>${budget.usd > 0 ? formatUsd(item.amountUsd) : `${item.multiplier}x`}</strong></div>`).join("") || `<div class="empty">No clean RSI-based buy setup today. Keep cash.</div>`); renderTodaySignal(rows[0], budget.usd); }
 function renderHealth() { const growth = holdings.filter(item => /growth/i.test(item.layer)).reduce((sum, item) => sum + item.weight, 0); const alpha = holdings.filter(item => /alpha/i.test(item.layer)).reduce((sum, item) => sum + item.weight, 0); const cash = holdings.find(item => item.ticker === "CASH"); const cashWeight = cash ? cash.weight : 0; const score = Math.max(6.4, Math.min(9.4, 9.2 - Math.max(0, growth - 58) * .06 - Math.max(0, alpha - 8) * .08 + Math.min(cashWeight, 4) * .03)); setText("healthScore", score.toFixed(1)); setHtml("healthMetrics", [["Diversification", Math.min(9.2, 7.2 + holdings.length * .18).toFixed(1)], ["Risk Control", score.toFixed(1)], ["Momentum", /MODE A/i.test(kpis.marketMode) ? "9.0" : "7.6"], ["Cash Buffer", Math.max(6.5, Math.min(9.0, 7 + cashWeight / 2)).toFixed(1)]].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("")); }
 function renderAlerts() { const rows = []; holdings.forEach(item => { const r = numberFrom(item.pl); const signal = cleanSignal(item.signal); const status = targetStatus(item); if (/strong buy|buy|accumulate/i.test(signal)) rows.push({ title: `${item.ticker} has an active entry signal`, text: `${signal} from the Looker signal sheet. Check live market conditions before buying.`, tone: "positive" }); if (status.gap >= 1.5) rows.push({ title: `${item.ticker} is under target`, text: `${kpis.marketMode} target is ${targetWeight(item).toFixed(1)}%, current weight is ${numberFrom(item.weight).toFixed(1)}%.`, tone: "positive" }); if (status.gap <= -2) rows.push({ title: `${item.ticker} is over target`, text: `${kpis.marketMode} target is ${targetWeight(item).toFixed(1)}%, current weight is ${numberFrom(item.weight).toFixed(1)}%.`, tone: "caution" }); if (r > 25) rows.push({ title: `${item.ticker} is extended`, text: `Position return is ${item.pl}. Avoid chasing and review target weight.`, tone: "caution" }); if (r < -5) rows.push({ title: `${item.ticker} needs drawdown review`, text: `Position return is ${item.pl}. Review thesis and allocation gap.`, tone: "caution" }); }); document.querySelectorAll(".alert-dot").forEach(button => button.dataset.count = String(Math.min(rows.length, 9))); setHtml("alertsList", rows.slice(0, 5).map(row => `<div class="alert-row"><div><strong>${row.title}</strong><p>${row.text}</p></div><span class="badge ${row.tone}">${row.tone}</span></div>`).join("") || `<div class="empty">No major alerts from the latest sheet snapshot.</div>`); }
-function projectGoalSeries(startValue, monthlyDca, annualReturn, years) {
-  const months = Math.max(1, Math.round(years * 12));
+function projectGoalSeries(startValue, monthlyDca, annualReturn, totalMonths) {
+  const months = Math.max(1, Math.round(totalMonths));
   const monthlyReturn = Math.pow(1 + annualReturn / 100, 1 / 12) - 1;
   let value = numberFrom(startValue);
   const points = [{ month: 0, value }];
   for (let month = 1; month <= months; month += 1) {
     value = value * (1 + monthlyReturn) + monthlyDca;
-    if (month % 12 === 0 || month === months) points.push({ month, value });
+    points.push({ month, value });
   }
   return points;
 }
@@ -302,28 +304,28 @@ function renderGoal() {
   const startValue = numberFrom(kpis.portfolioValue);
   const monthlyDca = Math.max(0, numberFrom(document.getElementById("goalMonthlyDca")?.value || 3500));
   const annualReturn = numberFrom(document.getElementById("goalAnnualReturn")?.value || 12);
-  const years = Math.max(1, Math.min(40, numberFrom(document.getElementById("goalYears")?.value || 10)));
+  const months = Math.max(1, Math.min(480, numberFrom(document.getElementById("goalMonths")?.value || 120)));
   const realReturn = annualReturn - GOAL_INFLATION_RATE;
   const bearReturn = realReturn - 5;
   const bullReturn = realReturn + 5;
-  const bear = projectGoalSeries(startValue, monthlyDca, bearReturn, years);
-  const safe = projectGoalSeries(startValue, monthlyDca, realReturn, years);
-  const bull = projectGoalSeries(startValue, monthlyDca, bullReturn, years);
+  const bear = projectGoalSeries(startValue, monthlyDca, bearReturn, months);
+  const safe = projectGoalSeries(startValue, monthlyDca, realReturn, months);
+  const bull = projectGoalSeries(startValue, monthlyDca, bullReturn, months);
   const endBear = bear.at(-1).value, endSafe = safe.at(-1).value, endBull = bull.at(-1).value;
-  setText("goalBaseValue", `Current portfolio ${formatThb(startValue)}`);
+  setHtml("goalBaseValue", `Current portfolio <strong>${formatThb(startValue)}</strong>`);
   setText("goalBearValue", shortThb(endBear));
   setText("goalSafeValue", shortThb(endSafe));
   setText("goalBullValue", shortThb(endBull));
   const svg = document.getElementById("goalChart");
   if (!svg) return;
-  const width = 760, height = 340, padding = { top: 34, right: 32, bottom: 46, left: 54 };
+  const width = 760, height = 340, padding = { top: 34, right: 72, bottom: 46, left: 54 };
   const maxValue = Math.max(...[...bear, ...safe, ...bull].map(point => point.value), 1);
   const yTicks = [0.33, 0.66, 1].map(ratio => maxValue * ratio);
-  const markCount = Math.min(years, 5);
-  const yearMarks = Array.from({ length: markCount + 1 }, (_, index) => Math.round(index * years / markCount));
+  const markCount = Math.min(months, 5);
+  const monthMarks = Array.from({ length: markCount + 1 }, (_, index) => Math.round(index * months / markCount));
   const endX = width - padding.right;
   const endY = padding.top + (1 - endSafe / maxValue) * (height - padding.top - padding.bottom);
-  svg.innerHTML = `<defs><linearGradient id="goalFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#38bdf8" stop-opacity=".12"/><stop offset="1" stop-color="#38bdf8" stop-opacity="0"/></linearGradient></defs>${yTicks.map(value => { const y = padding.top + (1 - value / maxValue) * (height - padding.top - padding.bottom); return `<path class="goal-grid" d="M${padding.left} ${y.toFixed(1)}H${width - padding.right}"/><text class="goal-axis" x="${padding.left - 10}" y="${(y + 4).toFixed(1)}">${axisThb(value)}</text>`; }).join("")}<path class="goal-fill" d="${goalPath(bull, maxValue, width, height, padding)} L${width - padding.right} ${height - padding.bottom} L${padding.left} ${height - padding.bottom}Z"/><path class="goal-line bear" d="${goalPath(bear, maxValue, width, height, padding)}"/><path class="goal-line safe" d="${goalPath(safe, maxValue, width, height, padding)}"/><path class="goal-line bull" d="${goalPath(bull, maxValue, width, height, padding)}"/>${yearMarks.map(year => { const x = padding.left + (year / years) * (width - padding.left - padding.right); return `<text class="goal-axis bottom" x="${x.toFixed(1)}" y="${height - 16}">${year ? `Y${year}` : "Now"}</text>`; }).join("")}<g class="goal-end-group" transform="translate(${endX.toFixed(1)} ${endY.toFixed(1)})"><text class="goal-end" x="-8" y="-8">${axisThb(endSafe)}</text><circle class="goal-dot" cx="0" cy="0" r="4"/></g>`;
+  svg.innerHTML = `<defs><linearGradient id="goalFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#38bdf8" stop-opacity=".12"/><stop offset="1" stop-color="#38bdf8" stop-opacity="0"/></linearGradient></defs>${yTicks.map(value => { const y = padding.top + (1 - value / maxValue) * (height - padding.top - padding.bottom); return `<path class="goal-grid" d="M${padding.left} ${y.toFixed(1)}H${width - padding.right}"/><text class="goal-axis" x="${padding.left - 10}" y="${(y + 4).toFixed(1)}">${axisThb(value)}</text>`; }).join("")}<path class="goal-fill" d="${goalPath(bull, maxValue, width, height, padding)} L${width - padding.right} ${height - padding.bottom} L${padding.left} ${height - padding.bottom}Z"/><path class="goal-line bear" d="${goalPath(bear, maxValue, width, height, padding)}"/><path class="goal-line safe" d="${goalPath(safe, maxValue, width, height, padding)}"/><path class="goal-line bull" d="${goalPath(bull, maxValue, width, height, padding)}"/>${monthMarks.map(month => { const x = padding.left + (month / months) * (width - padding.left - padding.right); return `<text class="goal-axis bottom" x="${x.toFixed(1)}" y="${height - 16}">${monthAxisLabel(month)}</text>`; }).join("")}<g class="goal-end-group" transform="translate(${endX.toFixed(1)} ${endY.toFixed(1)})"><text class="goal-end" x="-10" y="-8" text-anchor="end">${fullAmount(endSafe)}</text><circle class="goal-dot" cx="0" cy="0" r="4"/></g>`;
 }
 function applyLiveData(datasets) {
   const kpiRows = rowsToObjects(datasets.kpi);
@@ -478,7 +480,7 @@ function bindInteractions() {
   document.getElementById("themeToggle")?.addEventListener("click", () => setTheme(document.body.dataset.theme === "light" ? "dark" : "light"));
   document.getElementById("currencyToggle")?.addEventListener("click", () => setCurrencyMode(currencyMode === "THB" ? "USD" : "THB"));
   document.getElementById("dcaBudgetInput")?.addEventListener("input", renderSmartDca);
-  ["goalMonthlyDca", "goalAnnualReturn", "goalYears"].forEach(id => document.getElementById(id)?.addEventListener("input", renderGoal));
+  ["goalMonthlyDca", "goalAnnualReturn", "goalMonths"].forEach(id => document.getElementById(id)?.addEventListener("input", renderGoal));
   document.getElementById("useCashButton")?.addEventListener("click", () => {
     const input = document.getElementById("dcaBudgetInput");
     if (!input) return;
