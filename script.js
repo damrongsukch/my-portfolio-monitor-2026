@@ -70,6 +70,7 @@ const SHEET_ID = "1rV26pJqw8rMNO0nplvE9K0gsMCotfZ4dgvXs5kgRFDk";
 const DATA_SHEETS = { kpi: "Looker_KPI", holdings: "Looker_Holdings", nav: "Looker_NAV", monthly: "Looker_Monthly", signals: "Looker_Signals" };
 const colors = ["#25e05d", "#f6c21a", "#4aa3ff", "#ff5148", "#b57cff", "#13b981", "#94a3b8", "#38bdf8", "#fb7185", "#a3e635", "#f97316", "#22d3ee", "#e879f9", "#facc15", "#60a5fa", "#34d399"];
 const MIN_ORDER_USD = 1.5;
+const GOAL_INFLATION_RATE = 3;
 let allocationMode = "sector";
 let activeFilter = "All";
 let performancePeriod = "YTD";
@@ -194,7 +195,34 @@ function renderAllocation() {
   setHtml("allocationChart", `${paths.join("")}${labels.join("")}`);
   setHtml("allocationLegend", entries.map(([layer, value], index) => `<div class="allocation-row"><i class="swatch" style="background:${colors[index % colors.length]}"></i><span>${layer}</span><strong>${(value / total * 100).toFixed(1)}%</strong></div>`).join(""));
 }
-function renderMonthly() { const svg = document.getElementById("monthlyChart"); if (!svg || !monthly.length) return; const width = 640, height = 280, padding = { top: 26, right: 18, bottom: 42, left: 48 }, max = Math.max(...monthly.map(item => item.value), 1), plotH = height - padding.top - padding.bottom, gap = (width - padding.left - padding.right) / monthly.length, barW = Math.min(64, gap * .34); svg.innerHTML = monthly.map((item, index) => { const x = padding.left + index * gap + gap / 2 - barW / 2, h = Math.max(4, (item.value / max) * plotH), y = padding.top + plotH - h; return `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="#25e05d" rx="5"/><text class="axis-text" x="${x - 7}" y="${y - 8}">${Math.round(item.value).toLocaleString()}</text><text class="muted-text" x="${x - 4}" y="${height - 14}">${item.label}</text>`; }).join(""); }
+function monthKey(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`; }
+function monthLabel(key) { const [year, month] = key.split("-").map(Number); return new Date(year, month - 1, 1).toLocaleDateString("en-US", { month: "short", year: "2-digit" }).replace(" ", " '"); }
+function addMonths(date, offset) { return new Date(date.getFullYear(), date.getMonth() + offset, 1); }
+function monthlyAmount(value) { return Math.round(numberFrom(value)).toLocaleString("en-US"); }
+function buildMonthlyContributions(nav, monthlyRows) {
+  const grouped = new Map();
+  nav.forEach(row => {
+    const date = sheetDate(row[0]);
+    if (Number.isNaN(date.getTime())) return;
+    const invested = numberFrom(row[1]);
+    grouped.set(monthKey(date), (grouped.get(monthKey(date)) || 0) + invested);
+  });
+  if (!grouped.size) {
+    monthlyRows.forEach(row => {
+      const year = Number(rowAny(row, ["Year"], 0)), month = Number(rowAny(row, ["Month"], 0));
+      if (!year || !month) return;
+      const value = numberFrom(rowAny(row, ["Monthly_Invested_THB", "Invested_THB", "Total_Invested_THB", "Deposit_THB", "Avg_NAV_THB"], 0));
+      grouped.set(monthKey(new Date(year, month - 1, 1)), value);
+    });
+  }
+  const latest = [...grouped.keys()].sort().at(-1);
+  const end = latest ? new Date(Number(latest.slice(0, 4)), Number(latest.slice(5, 7)) - 1, 1) : new Date();
+  return Array.from({ length: 12 }, (_, index) => {
+    const key = monthKey(addMonths(end, index - 11));
+    return { label: monthLabel(key), value: grouped.get(key) || 0 };
+  });
+}
+function renderMonthly() { const svg = document.getElementById("monthlyChart"); if (!svg || !monthly.length) return; const width = 760, height = 320, padding = { top: 38, right: 24, bottom: 58, left: 24 }, max = Math.max(...monthly.map(item => item.value), 1), plotH = height - padding.top - padding.bottom, gap = (width - padding.left - padding.right) / monthly.length, barW = Math.min(34, gap * .5); svg.setAttribute("viewBox", `0 0 ${width} ${height}`); svg.innerHTML = monthly.map((item, index) => { const x = padding.left + index * gap + gap / 2 - barW / 2, h = item.value > 0 ? Math.max(4, (item.value / max) * plotH) : 2, y = padding.top + plotH - h, labelX = x + barW / 2; return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" fill="#25e05d" opacity="${item.value > 0 ? "1" : ".2"}" rx="5"/><text class="axis-text monthly-value" x="${labelX.toFixed(1)}" y="${(y - 8).toFixed(1)}">${monthlyAmount(item.value)}</text><text class="muted-text monthly-label" x="${labelX.toFixed(1)}" y="${height - 25}">${item.label.split(" ")[0]}</text><text class="muted-text monthly-year" x="${labelX.toFixed(1)}" y="${height - 10}">${item.label.split(" ")[1] || ""}</text>`; }).join(""); }
 function signalBadge(signal) { const normalized = String(signal || "").toLowerCase(); const cls = normalized.includes("strong") ? "strong" : normalized.includes("buy") || normalized.includes("accumulate") ? "buy" : normalized.includes("reduce") ? "reduce" : "hold"; return `<span class="badge ${cls}">${signal || "HOLD"}</span>`; }
 
 function renderHoldings(filter = activeFilter, query = document.getElementById("holdingSearch")?.value || "") {
@@ -217,6 +245,8 @@ function formatUsd(value) { return `$${Number(value || 0).toFixed(2)}`; }
 function formatThb(value) { return `THB ${Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 function signedThb(value) { const amount = Number(value || 0); return `${amount < 0 ? "-" : ""}THB ${Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 function signedPercent(value, digits = 3) { const amount = Number(value || 0); return `${amount < 0 ? "-" : ""}${Math.abs(amount).toFixed(digits)}%`; }
+function shortThb(value) { const amount = numberFrom(value); if (amount >= 1000000) return `THB ${(amount / 1000000).toFixed(amount >= 10000000 ? 1 : 2)}M`; if (amount >= 1000) return `THB ${Math.round(amount).toLocaleString("en-US")}`; return formatThb(amount); }
+function axisThb(value) { const amount = numberFrom(value); if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`; if (amount >= 1000) return `${Math.round(amount / 1000)}k`; return Math.round(amount).toLocaleString("en-US"); }
 function sheetDate(value) { if (value instanceof Date) return value; if (typeof value === "number") return new Date(Date.UTC(1899, 11, 30) + value * 86400000); const parsed = new Date(String(value || "")); return Number.isNaN(parsed.getTime()) ? new Date() : parsed; }
 function xirr() { return null; }
 function dcaMultiplier(item) { const signal = String(item.signal || "").toUpperCase(); const rsi7 = numberFrom(item.rsi7), rsi14 = numberFrom(item.rsi14); if (/REDUCE|SELL|OVERBOUGHT/.test(signal) || rsi7 >= 75 || rsi14 >= 75) return 0; if (/BUY DIP|GOOD PRICE/.test(signal) || rsi7 < 35) return 1; if (/ACCUMULATE/.test(signal) || rsi14 < 45) return 0.75; if (/BULLISH|FOLLOW/.test(signal) || rsi7 <= 60) return 0.5; if (rsi7 < 70) return 0.25; return 0; }
@@ -252,6 +282,49 @@ function renderTodaySignal(best, budgetUsd) {
 function renderSmartDca() { const input = document.getElementById("dcaBudgetInput"); const budget = parseBudgetInput(input?.value || ""); const plan = buildDcaPlan(budget.usd); const rows = budget.usd > 0 ? plan.picks.filter(item => item.amountUsd > 0) : plan.picks; setHtml("dcaBudgetSummary", budget.usd > 0 ? `<span class="dca-summary-title">Today's plan: use ${formatUsd(plan.usedUsd)} from ${formatUsd(budget.usd)} and keep ${formatUsd(plan.leftoverUsd)} in cash</span><span class="dca-figures"><b>Budget ${formatUsd(budget.usd)}</b><b>Use ${formatUsd(plan.usedUsd)}</b><b>Cash left ${formatUsd(plan.leftoverUsd)}</b><b>Min ${formatUsd(MIN_ORDER_USD)}</b></span>` : "Enter USD only, such as 10 or $10. Ranking uses Signal + RSI."); setHtml("smartDcaList", rows.map((item, index) => `<div class="mini-row dca-plan-row"><span>${index + 1}. <strong>${item.ticker}</strong><small>${item.multiplier}x - ${signalReason(item)} - ${item.reason}${item.belowMin ? " - below DIME minimum" : ""}</small></span><strong>${budget.usd > 0 ? formatUsd(item.amountUsd) : `${item.multiplier}x`}</strong></div>`).join("") || `<div class="empty">No clean RSI-based buy setup today. Keep cash.</div>`); renderTodaySignal(rows[0], budget.usd); }
 function renderHealth() { const growth = holdings.filter(item => /growth/i.test(item.layer)).reduce((sum, item) => sum + item.weight, 0); const alpha = holdings.filter(item => /alpha/i.test(item.layer)).reduce((sum, item) => sum + item.weight, 0); const cash = holdings.find(item => item.ticker === "CASH"); const cashWeight = cash ? cash.weight : 0; const score = Math.max(6.4, Math.min(9.4, 9.2 - Math.max(0, growth - 58) * .06 - Math.max(0, alpha - 8) * .08 + Math.min(cashWeight, 4) * .03)); setText("healthScore", score.toFixed(1)); setHtml("healthMetrics", [["Diversification", Math.min(9.2, 7.2 + holdings.length * .18).toFixed(1)], ["Risk Control", score.toFixed(1)], ["Momentum", /MODE A/i.test(kpis.marketMode) ? "9.0" : "7.6"], ["Cash Buffer", Math.max(6.5, Math.min(9.0, 7 + cashWeight / 2)).toFixed(1)]].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("")); }
 function renderAlerts() { const rows = []; holdings.forEach(item => { const r = numberFrom(item.pl); const signal = cleanSignal(item.signal); const status = targetStatus(item); if (/strong buy|buy|accumulate/i.test(signal)) rows.push({ title: `${item.ticker} has an active entry signal`, text: `${signal} from the Looker signal sheet. Check live market conditions before buying.`, tone: "positive" }); if (status.gap >= 1.5) rows.push({ title: `${item.ticker} is under target`, text: `${kpis.marketMode} target is ${targetWeight(item).toFixed(1)}%, current weight is ${numberFrom(item.weight).toFixed(1)}%.`, tone: "positive" }); if (status.gap <= -2) rows.push({ title: `${item.ticker} is over target`, text: `${kpis.marketMode} target is ${targetWeight(item).toFixed(1)}%, current weight is ${numberFrom(item.weight).toFixed(1)}%.`, tone: "caution" }); if (r > 25) rows.push({ title: `${item.ticker} is extended`, text: `Position return is ${item.pl}. Avoid chasing and review target weight.`, tone: "caution" }); if (r < -5) rows.push({ title: `${item.ticker} needs drawdown review`, text: `Position return is ${item.pl}. Review thesis and allocation gap.`, tone: "caution" }); }); document.querySelectorAll(".alert-dot").forEach(button => button.dataset.count = String(Math.min(rows.length, 9))); setHtml("alertsList", rows.slice(0, 5).map(row => `<div class="alert-row"><div><strong>${row.title}</strong><p>${row.text}</p></div><span class="badge ${row.tone}">${row.tone}</span></div>`).join("") || `<div class="empty">No major alerts from the latest sheet snapshot.</div>`); }
+function projectGoalSeries(startValue, monthlyDca, annualReturn, years) {
+  const months = Math.max(1, Math.round(years * 12));
+  const monthlyReturn = Math.pow(1 + annualReturn / 100, 1 / 12) - 1;
+  let value = numberFrom(startValue);
+  const points = [{ month: 0, value }];
+  for (let month = 1; month <= months; month += 1) {
+    value = value * (1 + monthlyReturn) + monthlyDca;
+    if (month % 12 === 0 || month === months) points.push({ month, value });
+  }
+  return points;
+}
+function goalPath(points, maxValue, width, height, padding) {
+  const x = point => padding.left + (point.month / Math.max(points.at(-1).month, 1)) * (width - padding.left - padding.right);
+  const y = point => padding.top + (1 - point.value / Math.max(maxValue, 1)) * (height - padding.top - padding.bottom);
+  return points.map((point, index) => `${index ? "L" : "M"}${x(point).toFixed(1)} ${y(point).toFixed(1)}`).join(" ");
+}
+function renderGoal() {
+  const startValue = numberFrom(kpis.portfolioValue);
+  const monthlyDca = Math.max(0, numberFrom(document.getElementById("goalMonthlyDca")?.value || 3500));
+  const annualReturn = numberFrom(document.getElementById("goalAnnualReturn")?.value || 12);
+  const years = Math.max(1, Math.min(40, numberFrom(document.getElementById("goalYears")?.value || 10)));
+  const realReturn = annualReturn - GOAL_INFLATION_RATE;
+  const bearReturn = realReturn - 5;
+  const bullReturn = realReturn + 5;
+  const bear = projectGoalSeries(startValue, monthlyDca, bearReturn, years);
+  const safe = projectGoalSeries(startValue, monthlyDca, realReturn, years);
+  const bull = projectGoalSeries(startValue, monthlyDca, bullReturn, years);
+  const endBear = bear.at(-1).value, endSafe = safe.at(-1).value, endBull = bull.at(-1).value;
+  setText("goalBaseValue", `Current portfolio ${formatThb(startValue)}`);
+  setText("goalBearValue", shortThb(endBear));
+  setText("goalSafeValue", shortThb(endSafe));
+  setText("goalBullValue", shortThb(endBull));
+  const svg = document.getElementById("goalChart");
+  if (!svg) return;
+  const width = 760, height = 340, padding = { top: 34, right: 32, bottom: 46, left: 54 };
+  const maxValue = Math.max(...[...bear, ...safe, ...bull].map(point => point.value), 1);
+  const yTicks = [0.33, 0.66, 1].map(ratio => maxValue * ratio);
+  const markCount = Math.min(years, 5);
+  const yearMarks = Array.from({ length: markCount + 1 }, (_, index) => Math.round(index * years / markCount));
+  const endX = width - padding.right;
+  const endY = padding.top + (1 - endSafe / maxValue) * (height - padding.top - padding.bottom);
+  svg.innerHTML = `<defs><linearGradient id="goalFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#38bdf8" stop-opacity=".12"/><stop offset="1" stop-color="#38bdf8" stop-opacity="0"/></linearGradient></defs>${yTicks.map(value => { const y = padding.top + (1 - value / maxValue) * (height - padding.top - padding.bottom); return `<path class="goal-grid" d="M${padding.left} ${y.toFixed(1)}H${width - padding.right}"/><text class="goal-axis" x="${padding.left - 10}" y="${(y + 4).toFixed(1)}">${axisThb(value)}</text>`; }).join("")}<path class="goal-fill" d="${goalPath(bull, maxValue, width, height, padding)} L${width - padding.right} ${height - padding.bottom} L${padding.left} ${height - padding.bottom}Z"/><path class="goal-line bear" d="${goalPath(bear, maxValue, width, height, padding)}"/><path class="goal-line safe" d="${goalPath(safe, maxValue, width, height, padding)}"/><path class="goal-line bull" d="${goalPath(bull, maxValue, width, height, padding)}"/>${yearMarks.map(year => { const x = padding.left + (year / years) * (width - padding.left - padding.right); return `<text class="goal-axis bottom" x="${x.toFixed(1)}" y="${height - 16}">${year ? `Y${year}` : "Now"}</text>`; }).join("")}<g class="goal-end-group" transform="translate(${endX.toFixed(1)} ${endY.toFixed(1)})"><text class="goal-end" x="-8" y="-8">${axisThb(endSafe)}</text><circle class="goal-dot" cx="0" cy="0" r="4"/></g>`;
+}
 function applyLiveData(datasets) {
   const kpiRows = rowsToObjects(datasets.kpi);
   const rawSignals = rowsToObjects(datasets.signals);
@@ -322,7 +395,7 @@ function applyLiveData(datasets) {
     kpis.cashWeight = `${cash.weight.toFixed(2)}%`;
   }
   navRows = rowsToObjects(datasets.nav).map(row => [row.Date, numberFrom(row.Daily_Invested_THB), numberFrom(row.Cumulative_NAV_THB), numberFrom(row.Daily_Change_Percent) / 100, numberFrom(row.Drawdown_Percent) / 100]).filter(row => row[2] > 0);
-  monthly = rowsToObjects(datasets.monthly).map(row => ({ label: new Date(Number(row.Year), Number(row.Month) - 1, 1).toLocaleDateString("en-US", { month: "short", year: "2-digit" }).replace(" ", " '"), value: numberFrom(row.Avg_NAV_THB) })).filter(item => item.value > 0);
+  monthly = buildMonthlyContributions(navRows, rowsToObjects(datasets.monthly));
 }
 function enrichHoldingsFromSheet(rows) {
   const source = rowsToObjects(rows);
@@ -342,7 +415,7 @@ function enrichHoldingsFromSheet(rows) {
     };
   });
 }
-function renderAll() { renderKpis(); renderSparklines(); renderNavChart(); renderAllocation(); renderMonthly(); renderHoldings(activeFilter); renderSignals(); renderSmartDca(); renderHealth(); renderAlerts(); }
+function renderAll() { renderKpis(); renderSparklines(); renderNavChart(); renderAllocation(); renderMonthly(); renderHoldings(activeFilter); renderSignals(); renderSmartDca(); renderHealth(); renderAlerts(); renderGoal(); }
 async function loadLiveData() {
   setText("sideSync", "Loading");
   setText("marketOpenLabel", "Sheet Loading");
@@ -405,6 +478,7 @@ function bindInteractions() {
   document.getElementById("themeToggle")?.addEventListener("click", () => setTheme(document.body.dataset.theme === "light" ? "dark" : "light"));
   document.getElementById("currencyToggle")?.addEventListener("click", () => setCurrencyMode(currencyMode === "THB" ? "USD" : "THB"));
   document.getElementById("dcaBudgetInput")?.addEventListener("input", renderSmartDca);
+  ["goalMonthlyDca", "goalAnnualReturn", "goalYears"].forEach(id => document.getElementById(id)?.addEventListener("input", renderGoal));
   document.getElementById("useCashButton")?.addEventListener("click", () => {
     const input = document.getElementById("dcaBudgetInput");
     if (!input) return;

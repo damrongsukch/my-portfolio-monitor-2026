@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>My Portfolio Monitor 2026</title>
-  <link rel="stylesheet" href="./styles.css?v=20260530ag">
+  <link rel="stylesheet" href="./styles.css?v=20260530ar">
   <style>
     .layer-text {
       display: inline-block;
@@ -403,7 +403,7 @@
             <div class="section-head">
               <div>
                 <span class="eyebrow">Monthly performance</span>
-                <h2>Month rhythm</h2>
+                <h2>Month Rhythm (THB)</h2>
               </div>
             </div>
             <svg id="monthlyChart" class="bar-chart" viewBox="0 0 640 280" role="img" aria-label="Monthly NAV chart"></svg>
@@ -418,6 +418,49 @@
             <div id="alertsList" class="alert-list"></div>
           </article>
         </section>
+
+        <section class="card goal-card" id="goal">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">Return simulator</span>
+              <h2>My Goal</h2>
+            </div>
+            <span class="goal-base" id="goalBaseValue">Current portfolio THB 0.00</span>
+          </div>
+          <div class="goal-layout">
+            <div class="goal-controls">
+              <label>
+                <span>Monthly DCA (THB)</span>
+                <input id="goalMonthlyDca" type="number" min="0" step="500" value="3500">
+              </label>
+              <label>
+                <span>Annual return (%)</span>
+                <input id="goalAnnualReturn" type="number" min="-30" max="80" step="0.5" value="12">
+              </label>
+              <label>
+                <span>Time horizon (years)</span>
+                <input id="goalYears" type="number" min="1" max="40" step="1" value="10">
+              </label>
+              <div class="goal-assumptions">
+                <span>Inflation 3% (Included)</span>
+                <span>Reinvested (Included)</span>
+              </div>
+            </div>
+            <div class="goal-visual">
+              <div class="goal-summary">
+                <div><span>Bear case</span><strong id="goalBearValue">THB 0.00</strong></div>
+                <div><span>Safe scenario</span><strong id="goalSafeValue">THB 0.00</strong></div>
+                <div><span>Bull case</span><strong id="goalBullValue">THB 0.00</strong></div>
+              </div>
+              <svg id="goalChart" class="goal-chart" viewBox="0 0 760 340" role="img" aria-label="My Goal return simulation chart"></svg>
+              <div class="goal-legend">
+                <span><i class="bear"></i>Bear Case</span>
+                <span><i class="safe"></i>Safe Scenario</span>
+                <span><i class="bull"></i>Bull Case</span>
+              </div>
+            </div>
+          </div>
+        </section>
       </section>
     </main>
   </div>
@@ -430,7 +473,7 @@
     <button data-jump="alerts" type="button"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg><span>Alerts</span></button>
   </nav>
 
-  <script src="./script.js?v=20260530ag"></script>
+  <script src="./script.js?v=20260530ar"></script>
   <script>
     (() => {
       const normalizeLayerName = (value) => {
