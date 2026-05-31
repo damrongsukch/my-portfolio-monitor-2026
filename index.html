@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>My Portfolio Monitor 2026</title>
-  <link rel="stylesheet" href="./styles.css?v=20260530u">
+  <link rel="stylesheet" href="./styles.css?v=20260530ag">
   <style>
     .layer-text {
       display: inline-block;
@@ -374,13 +374,14 @@
               <thead>
                 <tr>
                   <th>Asset</th>
-                  <th>Target</th>
-                  <th>Shares</th>
+                  <th><button class="sort-head" data-sort="target" type="button">Target</button></th>
+                  <th><button class="sort-head" data-sort="shares" type="button">Shares</button></th>
                   <th>Avg Cost</th>
                   <th>Current Price</th>
-                  <th>Value</th>
-                  <th>Gain / Loss</th>
-                  <th>Signal</th>
+                  <th><button class="sort-head" data-sort="value" type="button">Value</button></th>
+                  <th><button class="sort-head" data-sort="pl" type="button">Gain / Loss</button></th>
+                  <th><button class="sort-head" data-sort="signal" type="button">Signal</button></th>
+                  <th><button class="sort-head" data-sort="rsi" type="button">RSI 7 / RSI 14</button></th>
                 </tr>
               </thead>
               <tbody id="holdingsBody"></tbody>
@@ -389,7 +390,7 @@
                   <td colspan="5">Total</td>
                   <td id="tableTotalValue">THB 0.00</td>
                   <td id="tableTotalReturn" class="positive">0.00%</td>
-                  <td id="tableMode">MODE A</td>
+                  <td id="tableMode" colspan="2">MODE A</td>
                 </tr>
               </tfoot>
             </table>
@@ -429,7 +430,7 @@
     <button data-jump="alerts" type="button"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg><span>Alerts</span></button>
   </nav>
 
-  <script src="./script.js?v=20260530u"></script>
+  <script src="./script.js?v=20260530ag"></script>
   <script>
     (() => {
       const normalizeLayerName = (value) => {
@@ -511,9 +512,11 @@
           list.innerHTML = rows.map((item, index) => {
             const reason = cleanDcaReason(item, item.multiplier);
             const dime = item.belowMin ? " - below DIME minimum" : "";
-            return `<div class="mini-row dca-plan-row"><span>${index + 1}. <strong>${item.ticker}</strong><small>${item.multiplier}x - RSI ${moneyToNumber(item.rsi7).toFixed(1)}/${moneyToNumber(item.rsi14).toFixed(1)} - ${reason}${dime}</small></span><strong>${budget.usd > 0 ? formatUsdPatch(item.amountUsd) : `${item.multiplier}x`}</strong></div>`;
+            const detail = typeof signalReason === "function" ? signalReason(item) : `Daily: RSI7 ${moneyToNumber(item.rsi7).toFixed(1)}, RSI14 ${moneyToNumber(item.rsi14).toFixed(1)}`;
+            return `<div class="mini-row dca-plan-row"><span>${index + 1}. <strong>${item.ticker}</strong><small>${item.multiplier}x - ${detail} - ${reason}${dime}</small></span><strong>${budget.usd > 0 ? formatUsdPatch(item.amountUsd) : `${item.multiplier}x`}</strong></div>`;
           }).join("") || `<div class="empty">No RSI-based buy setup today. Keep cash.</div>`;
         }
+        if (typeof renderTodaySignal === "function") renderTodaySignal(rows[0], budget.usd);
       };
 
       const renderMobileSummaryPatch = () => {
