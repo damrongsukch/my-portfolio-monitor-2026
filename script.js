@@ -78,7 +78,7 @@ let currencyMode = "THB";
 let holdingsSort = { key: "preferred", direction: "asc" };
 let indicatorTimeframe = "Daily";
 
-const logoDomains = { SPMO: "invesco.com", SCHD: "schwabassetmanagement.com", NVDA: "nvidia.com", GOOGL: "google.com", META: "meta.com", MSFT: "microsoft.com", AVGO: "broadcom.com", TSM: "tsmc.com", LLY: "lilly.com", PLTR: "palantir.com", QQQI: "neosfunds.com", IAUI: "ishares.com", MLPI: "neosfunds.com", RKLB: "rocketlabusa.com" };
+const logoDomains = { SPMO: "invesco.com", SCHD: "schwabassetmanagement.com", NVDA: "nvidia.com", GOOGL: "google.com", META: "meta.com", MSFT: "microsoft.com", AVGO: "broadcom.com", TSM: "tsmc.com", LLY: "lilly.com", PLTR: "palantir.com", QQQI: "neosfunds.com", IAUI: "neosfunds.com", MLPI: "neosfunds.com", RKLB: "rocketlabusa.com" };
 const preferredHoldingOrder = ["SPMO", "SCHD", "NVDA", "GOOGL", "META", "AVGO", "TSM", "LLY", "PLTR", "QQQI", "IAUI", "MLPI", "RKLB"];
 const preferredHoldingRank = new Map(preferredHoldingOrder.map((ticker, index) => [ticker, index]));
 
@@ -120,6 +120,14 @@ function targetCell(item) {
   if (!target) return `<span class="target-cell neutral"><strong>Set target</strong><small>${kpis.marketMode}</small></span>`;
   const sign = status.gap > 0 ? "+" : "";
   return `<span class="target-cell ${status.tone}"><strong>${target.toFixed(1)}%</strong><small>${status.label} ${sign}${status.gap.toFixed(1)}%</small></span>`;
+}
+function targetMeter(item, className = "holding-target") {
+  const target = targetWeight(item);
+  const weight = numberFrom(item.weight);
+  const status = targetStatus(item);
+  const fill = target ? Math.max(4, Math.min(100, (weight / target) * 100)) : 0;
+  const targetLabel = target ? `${target.toFixed(1)}%` : "Set";
+  return `<span class="${className} ${status.tone}" style="--target-fill:${fill.toFixed(0)}%"><strong>${weight.toFixed(1)} <small>/ ${targetLabel}</small></strong><i><b></b></i><em>Target ${targetLabel}</em></span>`;
 }
 function indicatorTrend(item) { return cleanSignal(item.totalTrend || item.signal || "Trend n/a"); }
 function indicatorCell(item) { return `<span class="indicator-cell compact"><strong>${numberFrom(item.rsi7).toFixed(1)} / ${numberFrom(item.rsi14).toFixed(1)}</strong></span>`; }
@@ -234,8 +242,18 @@ function renderHoldings(filter = activeFilter, query = document.getElementById("
     const matchesSearch = !search || `${item.ticker} ${item.layer} ${item.signal}`.toLowerCase().includes(search);
     return matchesLayer && matchesSearch && item.ticker !== "CASH";
   }).sort(compareHoldings);
-  setHtml("holdingsBody", rows.map((item) => { const plClass = String(item.pl).startsWith("-") ? "negative" : item.pl === "-" ? "neutral" : "positive"; const gain = signedCurrencyFromThb(holdingGainThb(item)); return `<tr class="holding-row ${plClass}"><td><span class="ticker-cell">${tickerLogo(item.ticker)}<span><strong>${item.ticker}</strong><small>${assetKind(item.ticker)} <b>${Number(item.weight || 0).toFixed(1)}%</b></small></span></span></td><td>${targetCell(item)}</td><td class="mono">${numberFrom(item.shares).toFixed(7)}</td><td>${formatCurrencyFromUsd(item.avgCostUsd)}</td><td>${formatCurrencyFromUsd(item.currentPriceUsd || item.price)}</td><td class="value-cell">${formatCurrencyFromThb(item.value)}</td><td class="${plClass}"><strong>${gain}</strong><small>${item.pl}</small></td><td>${signalBadge(item.signal)}</td><td>${indicatorCell(item)}</td></tr>`; }).join("") || `<tr><td colspan="9">No holdings match this filter.</td></tr>`);
-  setHtml("mobileHoldings", rows.map(item => { const plClass = String(item.pl).startsWith("-") ? "negative" : item.pl === "-" ? "neutral" : "positive"; const layer = layerClass(item.layer); const gain = signedCurrencyFromThb(holdingGainThb(item)); return `<article class="mobile-holding-card ${plClass}"><div class="mobile-holding-top"><span class="ticker-cell">${tickerLogo(item.ticker)}<span><strong>${item.ticker}</strong><br><small>${assetKind(item.ticker)} <b>${Number(item.weight || 0).toFixed(1)}%</b> - <span class="layer-text ${layer}">${layer.toUpperCase()}</span> · Target ${targetWeight(item) ? `${targetWeight(item).toFixed(1)}%` : "Set target"}</small></span></span><span class="mobile-signal">${signalBadge(item.signal)}</span></div><div class="holding-metrics"><div><span>Shares</span><strong>${numberFrom(item.shares).toFixed(7)}</strong></div><div><span>RSI 7 / RSI 14</span><strong>${numberFrom(item.rsi7).toFixed(1)} / ${numberFrom(item.rsi14).toFixed(1)}</strong></div><div><span>Avg cost</span><strong>${formatCurrencyFromUsd(item.avgCostUsd)}</strong></div><div><span>Current price</span><strong>${formatCurrencyFromUsd(item.currentPriceUsd || item.price)}</strong></div><div><span>Value</span><strong>${formatCurrencyFromThb(item.value)}</strong></div></div><div class="mobile-holding-meta"><span>Gain / Loss</span><strong class="${plClass}">${gain}<small>${item.pl}</small></strong></div></article>`; }).join("") || `<div class="empty">No holdings match this filter.</div>`);
+  setHtml("holdingsBody", rows.map((item) => {
+    const plClass = String(item.pl).startsWith("-") ? "negative" : item.pl === "-" ? "neutral" : "positive";
+    const layer = layerClass(item.layer);
+    const gain = signedCurrencyFromThb(holdingGainThb(item));
+    return `<tr class="holding-row compact ${plClass}"><td><span class="ticker-cell holding-asset">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="layer-text ${layer}">${layer.toUpperCase()}</b></strong><small>${numberFrom(item.shares).toFixed(6)} shares</small></span></span></td><td class="price-cell"><strong>${formatCurrencyFromUsd(item.currentPriceUsd || item.price)}</strong><small>Avg ${formatCurrencyFromUsd(item.avgCostUsd)}</small></td><td class="value-cell">${formatCurrencyFromThb(item.value)}</td><td class="gain-cell ${plClass}"><strong>${gain}</strong><small>${item.pl}</small></td><td>${targetMeter(item)}</td><td>${signalBadge(item.signal)}</td><td>${indicatorCell(item)}</td></tr>`;
+  }).join("") || `<tr><td colspan="7">No holdings match this filter.</td></tr>`);
+  setHtml("mobileHoldings", rows.map(item => {
+    const plClass = String(item.pl).startsWith("-") ? "negative" : item.pl === "-" ? "neutral" : "positive";
+    const layer = layerClass(item.layer);
+    const gain = signedCurrencyFromThb(holdingGainThb(item));
+    return `<article class="mobile-holding-card compact ${plClass}"><div class="mobile-holding-strip"><div class="mobile-asset">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="layer-text ${layer}">${layer.toUpperCase()}</b></strong><small>${numberFrom(item.shares).toFixed(6)} shares</small></span></div><div><span>Price</span><strong>${formatCurrencyFromUsd(item.currentPriceUsd || item.price)}</strong></div><div><span>Value</span><strong>${formatCurrencyFromThb(item.value)}</strong></div><div class="mobile-gain ${plClass}"><strong>${gain}</strong><small>${item.pl}</small></div>${targetMeter(item, "mobile-target")}</div><div class="mobile-holding-detail"><span>Avg ${formatCurrencyFromUsd(item.avgCostUsd)}</span><span>RSI ${numberFrom(item.rsi7).toFixed(1)} / ${numberFrom(item.rsi14).toFixed(1)}</span><span>${cleanSignal(item.signal)}</span></div></article>`;
+  }).join("") || `<div class="empty">No holdings match this filter.</div>`);
 }
 
 function renderSignals() { const vixValue = numberFrom(kpis.vix), fearGreedValue = numberFrom(kpis.greedFear); const indicators = [["VIX", kpis.vix, vixValue <= 20 ? "positive" : "warning"], ["Fear & Greed Index", kpis.greedFear, fearGreedValue >= 55 ? "warning" : fearGreedValue <= 45 ? "negative" : "neutral"], ["S&P500 Trend", kpis.sp500Trend, /above|bull|up/i.test(kpis.sp500Trend) ? "positive" : "warning"], ["Market Breadth", kpis.marketBreadth, numberFrom(kpis.marketBreadth) >= 55 ? "positive" : "warning"], ["10Y Bond Yield", kpis.bondYield, "neutral"]]; setHtml("signalsList", indicators.map(([label, value, tone]) => `<div class="indicator-row"><span>${label}</span><span class="indicator-value"><strong class="${tone}">${value}</strong></span></div>`).join("")); }

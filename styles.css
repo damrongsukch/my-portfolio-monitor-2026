@@ -1094,7 +1094,8 @@ body[data-theme="light"] .health-ring span {
 
 table {
   width: 100%;
-  min-width: 1380px;
+  min-width: 820px;
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0 10px;
   font-size: 14px;
@@ -1102,12 +1103,22 @@ table {
 
 th,
 td {
-  padding: 16px 14px;
+  padding: 14px 10px;
   border-top: 1px solid rgba(148, 163, 184, 0.13);
   border-bottom: 1px solid rgba(148, 163, 184, 0.13);
   text-align: right;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+th:nth-child(1) { width: 22%; }
+th:nth-child(2) { width: 13%; }
+th:nth-child(3) { width: 13%; }
+th:nth-child(4) { width: 15%; }
+th:nth-child(5) { width: 16%; }
+th:nth-child(6) { width: 12%; }
+th:nth-child(7) { width: 9%; }
 
 th {
   color: var(--soft);
@@ -1118,10 +1129,10 @@ th {
 
 th:nth-child(1),
 td:nth-child(1),
-th:nth-child(8),
-td:nth-child(8),
-th:nth-child(9),
-td:nth-child(9) {
+th:nth-child(6),
+td:nth-child(6),
+th:nth-child(7),
+td:nth-child(7) {
   text-align: left;
 }
 
@@ -1147,14 +1158,14 @@ td:nth-child(9) {
   border-right: 1px solid rgba(148, 163, 184, 0.13);
 }
 
-.holdings-card tbody td:nth-child(7) strong,
+.holdings-card tbody td:nth-child(4) strong,
 .mobile-holding-meta > strong {
   display: grid;
   gap: 2px;
   justify-items: end;
 }
 
-.holdings-card tbody td:nth-child(7) small,
+.holdings-card tbody td:nth-child(4) small,
 .mobile-holding-meta > strong small {
   font-size: 12px;
   font-weight: 800;
@@ -1166,8 +1177,135 @@ td:nth-child(9) {
 }
 
 .value-cell {
-  color: var(--blue);
+  color: var(--text);
+  font-weight: 800;
+}
+
+.holding-row.compact td {
+  padding-top: 14px;
+  padding-bottom: 14px;
+  vertical-align: middle;
+}
+
+.holding-asset .ticker-logo {
+  width: 42px;
+  height: 42px;
+}
+
+.holding-asset > span > strong {
+  font-size: 16px;
+}
+
+.holding-asset strong b.layer-text,
+.mobile-asset strong b.layer-text {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 7px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.1);
+  font-size: 10px;
   font-weight: 900;
+  line-height: 1.25;
+  vertical-align: 2px;
+}
+
+.ticker-cell small b.layer-text {
+  min-height: auto;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+}
+
+.price-cell,
+.gain-cell {
+  display: grid;
+  gap: 3px;
+  justify-items: end;
+}
+
+.price-cell strong,
+.gain-cell strong {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.price-cell small,
+.gain-cell small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.gain-cell.positive strong,
+.gain-cell.positive small {
+  color: var(--green);
+}
+
+.gain-cell.negative strong,
+.gain-cell.negative small {
+  color: var(--red);
+}
+
+.holding-target {
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+  min-width: 120px;
+}
+
+.holding-target strong {
+  color: var(--amber);
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.holding-target strong small {
+  color: var(--soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.holding-target em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.holding-target i {
+  display: block;
+  width: 112px;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.holding-target b {
+  display: block;
+  width: var(--target-fill, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--amber);
+}
+
+.holding-target.positive strong {
+  color: var(--green);
+}
+
+.holding-target.positive b {
+  background: var(--green);
+}
+
+.holding-target.caution strong {
+  color: var(--red);
+}
+
+.holding-target.caution b {
+  background: var(--red);
 }
 
 .target-cell {
@@ -1204,6 +1342,9 @@ td:nth-child(9) {
 .indicator-cell strong {
   color: var(--text);
   font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .indicator-cell small {
@@ -1297,20 +1438,54 @@ tfoot td {
   background: #ffffff;
 }
 
-.layer-text.Core { color: var(--amber); }
-.layer-text.Growth { color: var(--green); }
+.layer-text.Core { color: var(--green); }
+.layer-text.Growth { color: var(--amber); }
 .layer-text.Safe,
 .layer-text.Income { color: var(--blue); }
 .layer-text.Alpha { color: var(--red); }
 
+.holding-asset strong b.layer-text.Core,
+.mobile-asset strong b.layer-text.Core {
+  color: var(--green);
+  border-color: var(--green);
+  background: rgba(37, 224, 93, 0.12);
+}
+
+.holding-asset strong b.layer-text.Growth,
+.mobile-asset strong b.layer-text.Growth {
+  color: var(--amber);
+  border-color: var(--amber);
+  background: rgba(247, 190, 18, 0.12);
+}
+
+.holding-asset strong b.layer-text.Income,
+.mobile-asset strong b.layer-text.Income,
+.holding-asset strong b.layer-text.Safe,
+.mobile-asset strong b.layer-text.Safe {
+  color: var(--blue);
+  border-color: var(--blue);
+  background: rgba(74, 163, 255, 0.12);
+}
+
+.holding-asset strong b.layer-text.Alpha,
+.mobile-asset strong b.layer-text.Alpha {
+  color: var(--red);
+  border-color: var(--red);
+  background: rgba(255, 81, 72, 0.12);
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
+  max-width: 100%;
   min-height: 28px;
   padding: 0 10px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .badge.buy,
@@ -1349,6 +1524,158 @@ tfoot td {
 }
 
 .mobile-holding-card:last-child { border-bottom: 0; }
+
+.mobile-holding-card.compact {
+  gap: 10px;
+  padding: 13px 10px 13px 12px;
+}
+
+.mobile-holding-strip {
+  display: grid;
+  grid-template-columns: minmax(86px, 1.08fr) minmax(56px, .72fr) minmax(66px, .82fr) minmax(70px, .86fr) minmax(80px, .9fr);
+  gap: 9px;
+  align-items: center;
+}
+
+.mobile-holding-strip > div {
+  min-width: 0;
+}
+
+.mobile-holding-strip span,
+.mobile-holding-detail {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.mobile-holding-strip strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-asset {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-asset .ticker-logo {
+  width: 31px;
+  height: 31px;
+  flex: 0 0 auto;
+}
+
+.mobile-asset strong {
+  margin-top: 0;
+  font-size: 17px;
+}
+
+.mobile-asset strong b.layer-text {
+  margin-left: 6px;
+  padding: 2px 5px;
+  font-size: 9px;
+}
+
+.mobile-asset small,
+.mobile-gain small,
+.mobile-target small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.mobile-gain {
+  text-align: right;
+}
+
+.mobile-gain.positive strong,
+.mobile-gain.positive small {
+  color: var(--green);
+}
+
+.mobile-gain.negative strong,
+.mobile-gain.negative small {
+  color: var(--red);
+}
+
+.mobile-target {
+  display: block;
+  text-align: right;
+  min-width: 0;
+}
+
+.mobile-target strong {
+  color: var(--amber);
+  font-size: 14px;
+  line-height: 1.05;
+}
+
+.mobile-target strong small {
+  display: inline;
+  color: var(--soft);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.mobile-target em {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 750;
+}
+
+.mobile-target i {
+  display: block;
+  width: 100%;
+  height: 8px;
+  margin: 5px 0 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.mobile-target b {
+  display: block;
+  width: var(--target-fill, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--amber);
+}
+
+.mobile-target.positive strong {
+  color: var(--green);
+}
+
+.mobile-target.positive b {
+  background: var(--green);
+}
+
+.mobile-target.caution strong {
+  color: var(--red);
+}
+
+.mobile-target.caution b {
+  background: var(--red);
+}
+
+.mobile-holding-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  padding-top: 2px;
+}
+
+.mobile-holding-detail span {
+  white-space: nowrap;
+}
 
 .mobile-holding-top,
 .mobile-holding-meta {
@@ -1412,6 +1739,10 @@ body[data-theme="light"] .holdings-card tbody tr {
 
 body[data-theme="light"] .holding-metrics div {
   background: rgba(241, 245, 249, 0.86);
+}
+
+body[data-theme="light"] .mobile-target i {
+  background: rgba(15, 23, 42, 0.14);
 }
 
 .alerts-card {
