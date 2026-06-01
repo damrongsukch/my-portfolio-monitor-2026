@@ -687,32 +687,43 @@ body[data-theme="light"] .allocation-label {
 .filter-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 10px;
+  background: rgba(8, 13, 19, 0.42);
 }
 
 .period-tabs button,
 .filter-tabs button {
   min-height: 32px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border: 1px solid transparent;
+  border-radius: 7px;
   color: var(--soft);
-  background: rgba(15, 23, 32, 0.7);
-  padding: 0 13px;
+  background: transparent;
+  padding: 0 12px;
+  font-weight: 700;
   cursor: pointer;
+  transition: background 180ms var(--ease), border-color 180ms var(--ease), color 180ms var(--ease);
+}
+
+.period-tabs button:hover,
+.filter-tabs button:hover {
+  color: var(--text);
+  background: rgba(148, 163, 184, 0.08);
 }
 
 body[data-theme="light"] .period-tabs button,
 body[data-theme="light"] .filter-tabs button {
   color: #334155;
-  border-color: rgba(47, 67, 88, 0.18);
-  background: #ffffff;
+  background: transparent;
 }
 
 .period-tabs button.active,
 .filter-tabs button.active {
   color: #06100b;
-  border-color: transparent;
-  background: linear-gradient(135deg, var(--green), #1fb954);
+  border-color: rgba(37, 224, 93, 0.36);
+  background: var(--green);
   font-weight: 800;
 }
 
@@ -1090,6 +1101,7 @@ body[data-theme="light"] .health-ring span {
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: var(--radius);
+  background: rgba(8, 13, 19, 0.22);
 }
 
 table {
@@ -1121,9 +1133,10 @@ th:nth-child(6) { width: 12%; }
 th:nth-child(7) { width: 9%; }
 
 th {
-  color: var(--soft);
+  color: var(--muted);
   background: transparent;
-  font-size: 12px;
+  font-size: 11px;
+  letter-spacing: .01em;
   text-transform: uppercase;
 }
 
@@ -1137,20 +1150,20 @@ td:nth-child(7) {
 }
 
 .holdings-card tbody tr {
-  background: rgba(15, 23, 32, 0.62);
+  background: rgba(15, 23, 32, 0.54);
 }
 
 .holdings-card tbody tr:hover {
-  background: rgba(74, 163, 255, 0.06);
+  background: rgba(74, 163, 255, 0.055);
 }
 
 .holdings-card tbody td:first-child {
-  border-left: 3px solid var(--green);
+  border-left: 1px solid rgba(148, 163, 184, 0.13);
   border-radius: 12px 0 0 12px;
 }
 
 .holdings-card tbody tr.negative td:first-child {
-  border-left-color: var(--red);
+  border-left-color: rgba(148, 163, 184, 0.13);
 }
 
 .holdings-card tbody td:last-child {
@@ -1173,12 +1186,17 @@ td:nth-child(7) {
 
 .mono {
   font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-  font-weight: 800;
+  font-weight: 760;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .value-cell {
   color: var(--text);
-  font-weight: 800;
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Consolas, monospace;
+  font-size: 14px;
+  font-weight: 760;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: 0;
 }
 
 .holding-row.compact td {
@@ -1222,13 +1240,15 @@ td:nth-child(7) {
   display: grid;
   gap: 3px;
   justify-items: end;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .price-cell strong,
 .gain-cell strong {
   color: var(--text);
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 760;
+  letter-spacing: 0;
 }
 
 .price-cell small,
@@ -1258,8 +1278,9 @@ td:nth-child(7) {
 .holding-target strong {
   color: var(--amber);
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 760;
   line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .holding-target strong small {
@@ -1341,7 +1362,10 @@ td:nth-child(7) {
 
 .indicator-cell strong {
   color: var(--text);
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Consolas, monospace;
   font-size: 13px;
+  font-weight: 760;
+  font-variant-numeric: tabular-nums lining-nums;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1430,6 +1454,8 @@ tfoot td {
   background: var(--green);
   font-size: 11px;
   font-weight: 900;
+  overflow: hidden;
+  flex: 0 0 auto;
 }
 
 .ticker-logo.has-logo {
@@ -1437,6 +1463,55 @@ tfoot td {
   color: transparent;
   background: #ffffff;
 }
+
+.ticker-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 4px;
+  background: #ffffff;
+}
+
+.ticker-logo.vector-logo svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.ticker-logo.logo-tsm img,
+.ticker-logo.logo-schd img,
+.ticker-logo.logo-pltr img,
+.ticker-logo.logo-rklb img {
+  padding: 0;
+}
+
+.ticker-logo.logo-pltr img,
+.ticker-logo.logo-rklb img {
+  object-fit: cover;
+  object-position: 50% 42%;
+  transform: scale(1.55);
+  transform-origin: center;
+}
+
+.ticker-logo.logo-tsm img {
+  object-fit: contain;
+}
+
+.ticker-logo.logo-pltr,
+.ticker-logo.logo-rklb {
+  background: #0b1017;
+}
+
+.ticker-logo.logo-pltr img,
+.ticker-logo.logo-rklb img {
+  background: transparent;
+}
+
+.ticker-logo.logo-pltr img {
+  padding: 7px;
+  object-fit: contain;
+}
+
 
 .layer-text.Core { color: var(--green); }
 .layer-text.Growth { color: var(--amber); }
@@ -1512,22 +1587,40 @@ tfoot td {
 }
 
 .mobile-holding-card {
+  position: relative;
   display: grid;
   gap: 12px;
-  padding: 14px 0 14px 12px;
-  border-left: 3px solid var(--green);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.13);
+  padding: 14px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(20, 31, 42, 0.78), rgba(12, 20, 28, 0.72));
+}
+
+.mobile-holding-card::before {
+  content: "";
+  position: absolute;
+  top: 20px;
+  left: 11px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--green);
+  box-shadow: 0 0 0 4px rgba(37, 224, 93, 0.1);
 }
 
 .mobile-holding-card.negative {
-  border-left-color: var(--red);
+  border-color: rgba(255, 81, 72, 0.22);
 }
 
-.mobile-holding-card:last-child { border-bottom: 0; }
+.mobile-holding-card.negative::before {
+  background: var(--red);
+}
+
+.mobile-holding-card:last-child { border-bottom-color: rgba(148, 163, 184, 0.13); }
 
 .mobile-holding-card.compact {
   gap: 10px;
-  padding: 13px 10px 13px 12px;
+  padding: 14px 12px 13px 13px;
 }
 
 .mobile-holding-strip {
@@ -1553,7 +1646,8 @@ tfoot td {
   margin-top: 2px;
   color: var(--text);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 760;
+  font-variant-numeric: tabular-nums lining-nums;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1583,6 +1677,7 @@ tfoot td {
 }
 
 .mobile-asset small,
+.mobile-stat small,
 .mobile-gain small,
 .mobile-target small {
   display: block;
@@ -1593,6 +1688,10 @@ tfoot td {
 
 .mobile-gain {
   text-align: right;
+}
+
+.mobile-stat {
+  min-width: 0;
 }
 
 .mobile-gain.positive strong,
@@ -2142,31 +2241,36 @@ body[data-theme="light"] .goal-controls input {
   }
   .filter-tabs {
     width: 100%;
-    overflow-x: auto;
+    overflow-x: visible;
     flex-wrap: nowrap;
-    padding-bottom: 2px;
+    padding: 4px;
   }
   .filter-tabs button {
-    flex: 0 0 auto;
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: 8px;
+    font-size: 14px;
   }
   .table-wrap {
     display: none;
   }
   .mobile-holdings {
     display: grid;
+    gap: 10px;
   }
   .mobile-holding-card.compact {
-    padding: 15px 10px 14px 12px;
+    padding: 15px 12px 14px 16px;
   }
   .mobile-holding-strip {
-    grid-template-columns: minmax(0, 1.2fr) minmax(76px, .72fr) minmax(88px, .78fr);
-    gap: 8px 10px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px 12px;
     align-items: start;
   }
   .mobile-asset {
-    grid-column: 1;
+    grid-column: 1 / 3;
     grid-row: 1;
     align-items: flex-start;
+    padding-left: 6px;
   }
   .mobile-asset > span {
     min-width: 0;
@@ -2181,27 +2285,53 @@ body[data-theme="light"] .goal-controls input {
   .mobile-asset strong b.layer-text {
     margin-left: 0;
   }
-  .mobile-holding-strip > div:nth-child(2) {
-    grid-column: 1;
-    grid-row: 2;
-    padding-left: 39px;
-  }
-  .mobile-holding-strip > div:nth-child(3) {
-    grid-column: 2;
-    grid-row: 2;
-  }
   .mobile-gain {
-    grid-column: 2;
+    grid-column: 3;
     grid-row: 1;
     align-self: center;
+    padding-top: 1px;
+  }
+  .mobile-price {
+    grid-column: 1;
+    grid-row: 2;
+    padding-left: 44px;
+  }
+  .mobile-avg {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .mobile-value {
+    grid-column: 3;
+    grid-row: 2;
+    text-align: right;
   }
   .mobile-target {
-    grid-column: 3;
-    grid-row: 1 / span 2;
-    align-self: center;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    align-self: stretch;
+    display: grid;
+    grid-template-columns: auto minmax(120px, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    text-align: left;
+    padding: 7px 8px;
+    border-radius: 8px;
+    background: rgba(148, 163, 184, 0.055);
+  }
+  .mobile-target strong {
+    margin-top: 0;
+    min-width: 86px;
+  }
+  .mobile-target i {
+    margin: 0;
+  }
+  .mobile-target em {
+    text-align: right;
   }
   .mobile-holding-detail {
-    padding-top: 8px;
+    gap: 7px 12px;
+    padding: 9px 2px 0 41px;
+    border-top: 1px solid rgba(148, 163, 184, 0.1);
   }
   .bottom-nav {
     position: fixed;
@@ -2245,6 +2375,14 @@ body[data-theme="light"] .goal-controls input {
   .risk-card,
   .card {
     padding: 15px;
+  }
+  .filter-tabs {
+    gap: 6px;
+  }
+  .filter-tabs button {
+    min-height: 36px;
+    padding-inline: 6px;
+    font-size: 13px;
   }
   .stat-card strong,
   .risk-card strong {
