@@ -79,7 +79,7 @@ let holdingsSort = { key: "preferred", direction: "asc" };
 let indicatorTimeframe = "Daily";
 
 const logoDomains = { SPMO: "invesco.com", SCHD: "schwab.com", NVDA: "nvidia.com", GOOGL: "google.com", META: "meta.com", MSFT: "microsoft.com", AVGO: "broadcom.com", TSM: "tsmc.com", LLY: "lilly.com", PLTR: "palantir.com", QQQI: "neosfunds.com", IAUI: "neosfunds.com", MLPI: "neosfunds.com", RKLB: "rocketlabusa.com" };
-const logoUrls = { SCHD: "./assets/logos/schd.svg", NVDA: "https://cdn.simpleicons.org/nvidia/76B900", META: "https://cdn.simpleicons.org/meta/0866FF", AVGO: "https://cdn.simpleicons.org/broadcom/CC092F", TSM: "./assets/logos/tsmc.png", PLTR: "https://cdn.simpleicons.org/palantir/FFFFFF", RKLB: "./assets/logos/rklb.jpg" };
+const logoUrls = { SCHD: "./assets/logos/schd.svg", NVDA: "https://cdn.simpleicons.org/nvidia/76B900", META: "https://cdn.simpleicons.org/meta/0866FF", AVGO: "https://cdn.simpleicons.org/broadcom/CC092F", TSM: "./assets/logos/tsmc.png", PLTR: "https://cdn.simpleicons.org/palantir/FFFFFF", QQQI: "./assets/logos/neos.jpg", IAUI: "./assets/logos/neos.jpg", MLPI: "./assets/logos/neos.jpg", RKLB: "./assets/logos/rklb.jpg" };
 const preferredHoldingOrder = ["SPMO", "SCHD", "NVDA", "GOOGL", "META", "AVGO", "TSM", "LLY", "PLTR", "QQQI", "IAUI", "MLPI", "RKLB"];
 const preferredHoldingRank = new Map(preferredHoldingOrder.map((ticker, index) => [ticker, index]));
 

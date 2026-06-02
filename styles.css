@@ -1481,6 +1481,9 @@ tfoot td {
 .ticker-logo.logo-tsm img,
 .ticker-logo.logo-schd img,
 .ticker-logo.logo-pltr img,
+.ticker-logo.logo-qqqi img,
+.ticker-logo.logo-iaui img,
+.ticker-logo.logo-mlpi img,
 .ticker-logo.logo-rklb img {
   padding: 0;
 }
@@ -1510,6 +1513,14 @@ tfoot td {
 .ticker-logo.logo-pltr img {
   padding: 7px;
   object-fit: contain;
+}
+
+.ticker-logo.logo-qqqi img,
+.ticker-logo.logo-iaui img,
+.ticker-logo.logo-mlpi img {
+  object-fit: contain;
+  transform: scale(1.7);
+  transform-origin: center;
 }
 
 
