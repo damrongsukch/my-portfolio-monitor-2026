@@ -798,10 +798,10 @@ body[data-theme="light"] .filter-tabs button {
 
 .monthly-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(78px, 1fr));
+  grid-template-columns: repeat(4, minmax(72px, 1fr));
   gap: 8px;
   align-items: stretch;
-  min-width: min(100%, 290px);
+  min-width: min(100%, 360px);
 }
 
 .monthly-summary-item {

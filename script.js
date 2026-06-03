@@ -229,9 +229,11 @@ function renderMonthlySummary() {
   const total = monthly.reduce((sum, item) => sum + numberFrom(item.value), 0);
   const activeTotal = activeMonths.reduce((sum, item) => sum + numberFrom(item.value), 0);
   const average = activeMonths.length ? activeTotal / activeMonths.length : 0;
+  const startLabel = activeMonths[0]?.label || "-";
   setHtml("monthlySummary", `
+    <div class="monthly-summary-item"><span>Start</span><strong>${startLabel}</strong></div>
     <div class="monthly-summary-item primary"><span>Avg active</span><strong>THB ${monthlyAmount(average)}</strong></div>
-    <div class="monthly-summary-item"><span>Months</span><strong>${activeMonths.length}/12</strong></div>
+    <div class="monthly-summary-item"><span>Month</span><strong>${activeMonths.length}</strong></div>
     <div class="monthly-summary-item"><span>12M total</span><strong>THB ${monthlyAmount(total)}</strong></div>
   `);
 }
