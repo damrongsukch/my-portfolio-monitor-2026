@@ -224,6 +224,17 @@ function monthKey(date) { return `${date.getFullYear()}-${String(date.getMonth()
 function monthLabel(key) { const [year, month] = key.split("-").map(Number); return new Date(year, month - 1, 1).toLocaleDateString("en-US", { month: "short", year: "2-digit" }).replace(" ", " '"); }
 function addMonths(date, offset) { return new Date(date.getFullYear(), date.getMonth() + offset, 1); }
 function monthlyAmount(value) { return Math.round(numberFrom(value)).toLocaleString("en-US"); }
+function renderMonthlySummary() {
+  const activeMonths = monthly.filter(item => numberFrom(item.value) > 0);
+  const total = monthly.reduce((sum, item) => sum + numberFrom(item.value), 0);
+  const activeTotal = activeMonths.reduce((sum, item) => sum + numberFrom(item.value), 0);
+  const average = activeMonths.length ? activeTotal / activeMonths.length : 0;
+  setHtml("monthlySummary", `
+    <div class="monthly-summary-item primary"><span>Avg active</span><strong>THB ${monthlyAmount(average)}</strong></div>
+    <div class="monthly-summary-item"><span>Months</span><strong>${activeMonths.length}/12</strong></div>
+    <div class="monthly-summary-item"><span>12M total</span><strong>THB ${monthlyAmount(total)}</strong></div>
+  `);
+}
 function buildMonthlyContributions(nav, monthlyRows) {
   const grouped = new Map();
   nav.forEach(row => {
@@ -247,7 +258,7 @@ function buildMonthlyContributions(nav, monthlyRows) {
     return { label: monthLabel(key), value: grouped.get(key) || 0 };
   });
 }
-function renderMonthly() { const svg = document.getElementById("monthlyChart"); if (!svg || !monthly.length) return; const width = 760, height = 320, padding = { top: 38, right: 24, bottom: 58, left: 24 }, max = Math.max(...monthly.map(item => item.value), 1), plotH = height - padding.top - padding.bottom, gap = (width - padding.left - padding.right) / monthly.length, barW = Math.min(34, gap * .5); svg.setAttribute("viewBox", `0 0 ${width} ${height}`); svg.innerHTML = monthly.map((item, index) => { const x = padding.left + index * gap + gap / 2 - barW / 2, h = item.value > 0 ? Math.max(4, (item.value / max) * plotH) : 2, y = padding.top + plotH - h, labelX = x + barW / 2; return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" fill="#25e05d" opacity="${item.value > 0 ? "1" : ".2"}" rx="5"/><text class="axis-text monthly-value" x="${labelX.toFixed(1)}" y="${(y - 8).toFixed(1)}">${monthlyAmount(item.value)}</text><text class="muted-text monthly-label" x="${labelX.toFixed(1)}" y="${height - 25}">${item.label.split(" ")[0]}</text><text class="muted-text monthly-year" x="${labelX.toFixed(1)}" y="${height - 10}">${item.label.split(" ")[1] || ""}</text>`; }).join(""); }
+function renderMonthly() { const svg = document.getElementById("monthlyChart"); if (!svg || !monthly.length) return; renderMonthlySummary(); const width = 760, height = 320, padding = { top: 38, right: 24, bottom: 58, left: 24 }, max = Math.max(...monthly.map(item => item.value), 1), plotH = height - padding.top - padding.bottom, gap = (width - padding.left - padding.right) / monthly.length, barW = Math.min(34, gap * .5); svg.setAttribute("viewBox", `0 0 ${width} ${height}`); svg.innerHTML = monthly.map((item, index) => { const x = padding.left + index * gap + gap / 2 - barW / 2, h = item.value > 0 ? Math.max(4, (item.value / max) * plotH) : 2, y = padding.top + plotH - h, labelX = x + barW / 2; return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" fill="#25e05d" opacity="${item.value > 0 ? "1" : ".2"}" rx="5"/><text class="axis-text monthly-value" x="${labelX.toFixed(1)}" y="${(y - 8).toFixed(1)}">${monthlyAmount(item.value)}</text><text class="muted-text monthly-label" x="${labelX.toFixed(1)}" y="${height - 25}">${item.label.split(" ")[0]}</text><text class="muted-text monthly-year" x="${labelX.toFixed(1)}" y="${height - 10}">${item.label.split(" ")[1] || ""}</text>`; }).join(""); }
 function signalBadge(signal) { const normalized = String(signal || "").toLowerCase(); const cls = normalized.includes("strong") ? "strong" : normalized.includes("buy") || normalized.includes("accumulate") ? "buy" : normalized.includes("reduce") ? "reduce" : "hold"; return `<span class="badge ${cls}">${signal || "HOLD"}</span>`; }
 
 function renderHoldings(filter = activeFilter, query = document.getElementById("holdingSearch")?.value || "") {

@@ -795,6 +795,58 @@ body[data-theme="light"] .filter-tabs button {
 .monthly-year {
   font-size: 9px;
 }
+
+.monthly-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(78px, 1fr));
+  gap: 8px;
+  align-items: stretch;
+  min-width: min(100%, 290px);
+}
+
+.monthly-summary-item {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(15, 23, 32, 0.68);
+}
+
+.monthly-summary-item.primary {
+  border-color: rgba(37, 224, 93, 0.34);
+  background: rgba(37, 224, 93, 0.08);
+}
+
+.monthly-summary-item span,
+.monthly-summary-item strong {
+  display: block;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.monthly-summary-item span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.monthly-summary-item strong {
+  margin-top: 5px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.monthly-summary-item.primary strong {
+  color: var(--green);
+}
+
+body[data-theme="light"] .monthly-summary-item {
+  background: rgba(255, 255, 255, 0.78);
+}
+
+body[data-theme="light"] .monthly-summary-item.primary {
+  background: rgba(37, 224, 93, 0.1);
+}
 .nav-line { fill: none; stroke: var(--green); stroke-width: 3; }
 .invested-line { fill: none; stroke: rgba(148, 163, 184, .72); stroke-width: 2; stroke-dasharray: 7 8; }
 .area-fill { fill: url(#navGradient); stroke: none; }
@@ -2249,6 +2301,13 @@ body[data-theme="light"] .goal-controls input {
   .holdings-head {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .monthly-summary {
+    width: 100%;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+  .monthly-summary-item {
+    min-width: 0;
   }
   .filter-tabs {
     width: 100%;
