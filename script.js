@@ -194,6 +194,14 @@ function renderAllocation() {
   const entries = allocationEntries();
   const total = entries.reduce((sum, [, value]) => sum + value, 0);
   if (!total) return;
+  const isAsset = allocationMode === "asset";
+  const center = document.querySelector(".donut-center");
+  if (center) {
+    const strong = center.querySelector("strong");
+    const span = center.querySelector("span");
+    if (strong) strong.textContent = isAsset ? `${entries.length} ${entries.length === 1 ? "Stock" : "Stocks"}` : "100%";
+    if (span) span.textContent = "Invested";
+  }
   let angle = 0;
   const cx = 150, cy = 150, radius = 116, innerRadius = 64;
   const paths = [];
@@ -204,7 +212,7 @@ function renderAllocation() {
     const path = donutSegment(cx, cy, radius, innerRadius, angle, next);
     paths.push(`<path d="${path}" fill="${colors[index % colors.length]}" stroke="#071017" stroke-width="3"/>`);
     const mid = angle + (next - angle) / 2;
-    const labelRadius = allocationMode === "asset" ? 132 : 128;
+    const labelRadius = isAsset ? 132 : 128;
     const labelPoint = polarToCartesian(cx, cy, labelRadius, mid);
     labels.push(allocationLabelSvg(name, percent, labelPoint));
     angle = next;
