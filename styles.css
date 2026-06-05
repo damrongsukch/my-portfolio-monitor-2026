@@ -1435,6 +1435,24 @@ td:nth-child(7) {
   white-space: nowrap;
 }
 
+.rsi-value {
+  color: var(--text);
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Consolas, monospace;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.rsi-value.low {
+  color: var(--red);
+}
+
+.rsi-value.high {
+  color: var(--green);
+}
+
+.rsi-separator {
+  color: var(--muted);
+}
+
 .indicator-cell small {
   max-width: 148px;
   color: var(--muted);

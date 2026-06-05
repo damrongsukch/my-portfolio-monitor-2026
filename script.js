@@ -139,7 +139,18 @@ function targetMeter(item, className = "holding-target") {
   return `<span class="${className} ${status.tone}" style="--target-fill:${fill.toFixed(0)}%"><strong>${weight.toFixed(1)} <small>/ ${targetLabel}</small></strong><i><b></b></i><em>Target ${targetLabel}</em></span>`;
 }
 function indicatorTrend(item) { return cleanSignal(item.totalTrend || item.signal || "Trend n/a"); }
-function indicatorCell(item) { return `<span class="indicator-cell compact"><strong>${numberFrom(item.rsi7).toFixed(1)} / ${numberFrom(item.rsi14).toFixed(1)}</strong></span>`; }
+function rsiTone(value) {
+  const rsi = numberFrom(value);
+  if (rsi < 30) return "low";
+  if (rsi > 70) return "high";
+  return "mid";
+}
+function rsiValue(value) {
+  const rsi = numberFrom(value);
+  return `<span class="rsi-value ${rsiTone(rsi)}">${rsi.toFixed(1)}</span>`;
+}
+function rsiPair(item) { return `${rsiValue(item.rsi7)} <span class="rsi-separator">/</span> ${rsiValue(item.rsi14)}`; }
+function indicatorCell(item) { return `<span class="indicator-cell compact"><strong>${rsiPair(item)}</strong></span>`; }
 function signalReason(item) { const gap = targetGap(item); return `${indicatorTimeframe}: RSI7 ${numberFrom(item.rsi7).toFixed(1)}, RSI14 ${numberFrom(item.rsi14).toFixed(1)}, ${indicatorTrend(item)}, ${gap > 0 ? `under target ${gap.toFixed(1)}%` : gap < 0 ? `over target ${Math.abs(gap).toFixed(1)}%` : "near target"}, ${kpis.marketMode}`; }
 function compareHoldings(a, b) {
   const dir = holdingsSort.direction === "asc" ? 1 : -1;
@@ -282,7 +293,7 @@ function renderHoldings(filter = activeFilter, query = document.getElementById("
     const plClass = String(item.pl).startsWith("-") ? "negative" : item.pl === "-" ? "neutral" : "positive";
     const layer = layerClass(item.layer);
     const gain = signedCurrencyFromThb(holdingGainThb(item));
-    return `<article class="mobile-holding-card compact ${plClass}"><div class="mobile-holding-strip"><div class="mobile-asset">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="layer-text ${layer}">${layer.toUpperCase()}</b></strong><small>${numberFrom(item.shares).toFixed(6)} shares</small></span></div><div class="mobile-gain ${plClass}"><strong>${gain}</strong><small>${item.pl}</small></div><div class="mobile-stat mobile-price"><span>Price</span><strong>${formatCurrencyFromUsd(item.currentPriceUsd || item.price)}</strong></div><div class="mobile-stat mobile-avg"><span>Avg</span><strong>${formatCurrencyFromUsd(item.avgCostUsd)}</strong></div><div class="mobile-stat mobile-value"><span>Value</span><strong>${formatCurrencyFromThb(item.value)}</strong></div>${targetMeter(item, "mobile-target")}</div><div class="mobile-holding-detail"><span>RSI ${numberFrom(item.rsi7).toFixed(1)} / ${numberFrom(item.rsi14).toFixed(1)}</span><span>${cleanSignal(item.signal)}</span></div></article>`;
+    return `<article class="mobile-holding-card compact ${plClass}"><div class="mobile-holding-strip"><div class="mobile-asset">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="layer-text ${layer}">${layer.toUpperCase()}</b></strong><small>${numberFrom(item.shares).toFixed(6)} shares</small></span></div><div class="mobile-gain ${plClass}"><strong>${gain}</strong><small>${item.pl}</small></div><div class="mobile-stat mobile-price"><span>Price</span><strong>${formatCurrencyFromUsd(item.currentPriceUsd || item.price)}</strong></div><div class="mobile-stat mobile-avg"><span>Avg</span><strong>${formatCurrencyFromUsd(item.avgCostUsd)}</strong></div><div class="mobile-stat mobile-value"><span>Value</span><strong>${formatCurrencyFromThb(item.value)}</strong></div>${targetMeter(item, "mobile-target")}</div><div class="mobile-holding-detail"><span>RSI ${rsiPair(item)}</span><span>${cleanSignal(item.signal)}</span></div></article>`;
   }).join("") || `<div class="empty">No holdings match this filter.</div>`);
 }
 
@@ -327,7 +338,7 @@ function renderTodaySignal(best, budgetUsd) {
   const gap = targetGap(best);
   const signal = cleanSignal(best.signal);
   setText("todaySignal", budgetUsd > 0 ? "Sizing Ready" : `${best.ticker} ${best.multiplier}x`);
-  setHtml("todaySignalText", `<span class="signal-summary">${signal}</span><span class="signal-chips"><b>${best.ticker}</b><b>${best.multiplier}x</b><b>RSI ${numberFrom(best.rsi7).toFixed(1)} / ${numberFrom(best.rsi14).toFixed(1)}</b><b>${gap > 0 ? `Under +${gap.toFixed(1)}%` : gap < 0 ? `Over ${Math.abs(gap).toFixed(1)}%` : "On target"}</b></span><span class="signal-note">${best.reason}</span>`);
+  setHtml("todaySignalText", `<span class="signal-summary">${signal}</span><span class="signal-chips"><b>${best.ticker}</b><b>${best.multiplier}x</b><b>RSI ${rsiPair(best)}</b><b>${gap > 0 ? `Under +${gap.toFixed(1)}%` : gap < 0 ? `Over ${Math.abs(gap).toFixed(1)}%` : "On target"}</b></span><span class="signal-note">${best.reason}</span>`);
 }
 function renderSmartDca() { const input = document.getElementById("dcaBudgetInput"); const budget = parseBudgetInput(input?.value || ""); const plan = buildDcaPlan(budget.usd); const rows = budget.usd > 0 ? plan.picks.filter(item => item.amountUsd > 0) : plan.picks; setHtml("dcaBudgetSummary", budget.usd > 0 ? `<span class="dca-summary-title">Today's plan: use ${formatUsd(plan.usedUsd)} from ${formatUsd(budget.usd)} and keep ${formatUsd(plan.leftoverUsd)} in cash</span><span class="dca-figures"><b>Budget ${formatUsd(budget.usd)}</b><b>Use ${formatUsd(plan.usedUsd)}</b><b>Cash left ${formatUsd(plan.leftoverUsd)}</b><b>Min ${formatUsd(MIN_ORDER_USD)}</b></span>` : "Enter USD only, such as 10 or $10. Ranking uses Signal + RSI."); setHtml("smartDcaList", rows.map((item, index) => `<div class="mini-row dca-plan-row"><span>${index + 1}. <strong>${item.ticker}</strong><small>${item.multiplier}x - ${signalReason(item)} - ${item.reason}${item.belowMin ? " - below DIME minimum" : ""}</small></span><strong>${budget.usd > 0 ? formatUsd(item.amountUsd) : `${item.multiplier}x`}</strong></div>`).join("") || `<div class="empty">No clean RSI-based buy setup today. Keep cash.</div>`); renderTodaySignal(rows[0], budget.usd); }
 function renderHealth() { const growth = holdings.filter(item => /growth/i.test(item.layer)).reduce((sum, item) => sum + item.weight, 0); const alpha = holdings.filter(item => /alpha/i.test(item.layer)).reduce((sum, item) => sum + item.weight, 0); const cash = holdings.find(item => item.ticker === "CASH"); const cashWeight = cash ? cash.weight : 0; const score = Math.max(6.4, Math.min(9.4, 9.2 - Math.max(0, growth - 58) * .06 - Math.max(0, alpha - 8) * .08 + Math.min(cashWeight, 4) * .03)); setText("healthScore", score.toFixed(1)); setHtml("healthMetrics", [["Diversification", Math.min(9.2, 7.2 + holdings.length * .18).toFixed(1)], ["Risk Control", score.toFixed(1)], ["Momentum", /MODE A/i.test(kpis.marketMode) ? "9.0" : "7.6"], ["Cash Buffer", Math.max(6.5, Math.min(9.0, 7 + cashWeight / 2)).toFixed(1)]].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("")); }
