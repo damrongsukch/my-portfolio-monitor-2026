@@ -397,7 +397,7 @@ function applyLiveData(datasets) {
   const signalRows = rawSignals.map(row => ({
     ticker: rowAny(row, ["Ticker", "Symbol"], "N/A"),
     totalTrend: rowAny(row, ["Total_Trend", "Total Trend", "Trend", "EMA_Trend", "EMA Trend", "Price_vs_EMA", "Price vs EMA"], ""),
-    signal: cleanSignal(rowAny(row, ["Signal", "EMA_Signal", "EMA Signal"], "HOLD")),
+    signal: cleanSignal(rowAny(row, ["Final_Action", "Final Action", "Signal", "EMA_Signal", "EMA Signal"], "HOLD")),
     rsi7: numberFrom(rowAny(row, ["RSI 7", "RSI7", "RSI_7", "RSI7_Value"], 0)),
     rsi14: numberFrom(rowAny(row, ["RSI 14", "RSI14", "RSI_14", "RSI14_Value"], 0)),
     priority: numberFrom(rowAny(row, ["Priority", "Rank"], 99)),
