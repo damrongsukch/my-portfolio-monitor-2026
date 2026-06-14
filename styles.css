@@ -2362,7 +2362,7 @@ body[data-theme="light"] .goal-controls input {
     padding: 15px 12px 14px 16px;
   }
   .mobile-holding-strip {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr) minmax(0, 1.08fr);
     gap: 12px 12px;
     align-items: start;
   }
@@ -2394,7 +2394,7 @@ body[data-theme="light"] .goal-controls input {
   .mobile-price {
     grid-column: 1;
     grid-row: 2;
-    padding-left: 44px;
+    padding-left: 0;
   }
   .mobile-avg {
     grid-column: 2;
@@ -2404,6 +2404,11 @@ body[data-theme="light"] .goal-controls input {
     grid-column: 3;
     grid-row: 2;
     text-align: right;
+  }
+  .mobile-stat strong {
+    overflow: visible;
+    text-overflow: clip;
+    font-size: 12px;
   }
   .mobile-target {
     grid-column: 1 / -1;
