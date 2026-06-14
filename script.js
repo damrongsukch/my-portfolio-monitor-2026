@@ -88,7 +88,7 @@ function moneyText(value) { const text = String(value || "").trim(); return text
 function percentText(value) { return String(value || "").trim() || "0.00%"; }
 function decimalText(value, digits = 2) { return numberFrom(value).toFixed(digits); }
 function plusText(value, formatter) { const text = formatter(value); return text.startsWith("-") || text.startsWith("+") ? text : `+${text}`; }
-function cleanSignal(value) { return String(value || "HOLD").replace(/[^\w\s()%/-]+/g, "").trim() || "HOLD"; }
+function cleanSignal(value) { return String(value || "HOLD").replace(/[^\w\s().%/-]+/g, "").trim() || "HOLD"; }
 function rowsToObjects(rows) { const [headers, ...body] = rows; return body.map(row => Object.fromEntries(headers.map((header, index) => [header, row[index] || ""]))); }
 function kpiValue(rows, metric, fallback = "") { const found = rows.find(row => row.Metric === metric); return found && found.Value ? found.Value : fallback; }
 function kpiAny(rows, metrics, fallback = "") { const names = (Array.isArray(metrics) ? metrics : [metrics]).map(name => String(name).toLowerCase()); const found = rows.find(row => names.some(name => String(row.Metric || "").toLowerCase().includes(name))); return found && found.Value ? found.Value : fallback; }
