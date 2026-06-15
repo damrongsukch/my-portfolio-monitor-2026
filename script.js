@@ -272,7 +272,17 @@ function buildMonthlyContributions(nav, monthlyRows) {
   });
 }
 function renderMonthly() { const svg = document.getElementById("monthlyChart"); if (!svg || !monthly.length) return; renderMonthlySummary(); const width = 760, height = 320, padding = { top: 38, right: 24, bottom: 58, left: 24 }, max = Math.max(...monthly.map(item => item.value), 1), plotH = height - padding.top - padding.bottom, gap = (width - padding.left - padding.right) / monthly.length, barW = Math.min(34, gap * .5); svg.setAttribute("viewBox", `0 0 ${width} ${height}`); svg.innerHTML = monthly.map((item, index) => { const x = padding.left + index * gap + gap / 2 - barW / 2, h = item.value > 0 ? Math.max(4, (item.value / max) * plotH) : 2, y = padding.top + plotH - h, labelX = x + barW / 2; return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" fill="#25e05d" opacity="${item.value > 0 ? "1" : ".2"}" rx="5"/><text class="axis-text monthly-value" x="${labelX.toFixed(1)}" y="${(y - 8).toFixed(1)}">${monthlyAmount(item.value)}</text><text class="muted-text monthly-label" x="${labelX.toFixed(1)}" y="${height - 25}">${item.label.split(" ")[0]}</text><text class="muted-text monthly-year" x="${labelX.toFixed(1)}" y="${height - 10}">${item.label.split(" ")[1] || ""}</text>`; }).join(""); }
-function signalBadge(signal) { const normalized = String(signal || "").toLowerCase(); const cls = normalized.includes("strong") ? "strong" : normalized.includes("buy") || normalized.includes("accumulate") ? "buy" : normalized.includes("reduce") ? "reduce" : "hold"; return `<span class="badge ${cls}">${signal || "HOLD"}</span>`; }
+function signalMeta(signal) {
+  const text = cleanSignal(signal);
+  const normalized = text.toLowerCase();
+  if (normalized.includes("wait")) return { cls: "wait", help: "Wait for a better entry condition" };
+  if (normalized.includes("reduce") || normalized.includes("sell")) return { cls: "reduce", help: "Reduce or review position size" };
+  if (normalized.includes("hold")) return { cls: "hold", help: "Hold and monitor the current position" };
+  if (normalized.includes("starter")) return { cls: "starter", help: "Starter position only" };
+  if (normalized.includes("buy") || normalized.includes("accumulate")) return { cls: "buy", help: "Entry signal from Final Action" };
+  return { cls: "hold", help: "Signal from the latest sheet" };
+}
+function signalBadge(signal) { const text = cleanSignal(signal); const meta = signalMeta(text); return `<span class="badge ${meta.cls}" tabindex="0" title="${meta.help}" aria-label="${text}. ${meta.help}">${text}</span>`; }
 
 function renderHoldings(filter = activeFilter, query = document.getElementById("holdingSearch")?.value || "") {
   activeFilter = filter || "All";
@@ -288,13 +298,14 @@ function renderHoldings(filter = activeFilter, query = document.getElementById("
     const layer = layerClass(item.layer);
     const gain = signedCurrencyFromThb(holdingGainThb(item));
     return `<tr class="holding-row compact ${plClass}"><td><span class="ticker-cell holding-asset">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="layer-text ${layer}">${layer.toUpperCase()}</b></strong><small>${numberFrom(item.shares).toFixed(6)} shares</small></span></span></td><td class="price-cell"><strong>${formatCurrencyFromUsd(item.currentPriceUsd || item.price)}</strong><small>Avg ${formatCurrencyFromUsd(item.avgCostUsd)}</small></td><td class="value-cell">${formatCurrencyFromThb(item.value)}</td><td class="gain-cell ${plClass}"><strong>${gain}</strong><small>${item.pl}</small></td><td>${targetMeter(item)}</td><td>${signalBadge(item.signal)}</td><td>${indicatorCell(item)}</td></tr>`;
-  }).join("") || `<tr><td colspan="7">No holdings match this filter.</td></tr>`);
+  }).join("") || `<tr><td colspan="7"><div class="empty">No holdings match. Clear the search or choose All.</div></td></tr>`);
   setHtml("mobileHoldings", rows.map(item => {
     const plClass = String(item.pl).startsWith("-") ? "negative" : item.pl === "-" ? "neutral" : "positive";
     const layer = layerClass(item.layer);
     const gain = signedCurrencyFromThb(holdingGainThb(item));
-    return `<article class="mobile-holding-card compact ${plClass}"><div class="mobile-holding-strip"><div class="mobile-asset">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="layer-text ${layer}">${layer.toUpperCase()}</b></strong><small>${numberFrom(item.shares).toFixed(6)} shares</small></span></div><div class="mobile-gain ${plClass}"><strong>${gain}</strong><small>${item.pl}</small></div><div class="mobile-stat mobile-price"><span>Price</span><strong>${formatCurrencyFromUsd(item.currentPriceUsd || item.price)}</strong></div><div class="mobile-stat mobile-avg"><span>Avg</span><strong>${formatCurrencyFromUsd(item.avgCostUsd)}</strong></div><div class="mobile-stat mobile-value"><span>Value</span><strong>${formatCurrencyFromThb(item.value)}</strong></div>${targetMeter(item, "mobile-target")}</div><div class="mobile-holding-detail"><span>RSI ${rsiPair(item)}</span><span>${cleanSignal(item.signal)}</span></div></article>`;
-  }).join("") || `<div class="empty">No holdings match this filter.</div>`);
+    const signal = signalMeta(item.signal);
+    return `<article class="mobile-holding-card compact ${plClass}"><div class="mobile-holding-strip"><div class="mobile-asset">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="layer-text ${layer}">${layer.toUpperCase()}</b></strong><small>${numberFrom(item.shares).toFixed(6)} shares</small></span></div><div class="mobile-gain ${plClass}"><strong>${gain}</strong><small>${item.pl}</small></div><div class="mobile-stat mobile-price"><span>Price</span><strong>${formatCurrencyFromUsd(item.currentPriceUsd || item.price)}</strong></div><div class="mobile-stat mobile-avg"><span>Avg</span><strong>${formatCurrencyFromUsd(item.avgCostUsd)}</strong></div><div class="mobile-stat mobile-value"><span>Value</span><strong>${formatCurrencyFromThb(item.value)}</strong></div>${targetMeter(item, "mobile-target")}</div><div class="mobile-holding-detail"><span>RSI ${rsiPair(item)}</span><span class="mobile-signal ${signal.cls}" tabindex="0" title="${signal.help}">${cleanSignal(item.signal)}</span></div></article>`;
+  }).join("") || `<div class="empty">No holdings match. Clear the search or choose All.</div>`);
 }
 
 function renderSignals() { const vixValue = numberFrom(kpis.vix), fearGreedValue = numberFrom(kpis.greedFear); const indicators = [["VIX", kpis.vix, vixValue <= 20 ? "positive" : "warning"], ["Fear & Greed Index", kpis.greedFear, fearGreedValue >= 55 ? "warning" : fearGreedValue <= 45 ? "negative" : "neutral"], ["S&P500 Trend", kpis.sp500Trend, /above|bull|up/i.test(kpis.sp500Trend) ? "positive" : "warning"], ["Market Breadth", kpis.marketBreadth, numberFrom(kpis.marketBreadth) >= 55 ? "positive" : "warning"], ["10Y Bond Yield", kpis.bondYield, "neutral"]]; setHtml("signalsList", indicators.map(([label, value, tone]) => `<div class="indicator-row"><span>${label}</span><span class="indicator-value"><strong class="${tone}">${value}</strong></span></div>`).join("")); }
@@ -482,23 +493,44 @@ function enrichHoldingsFromSheet(rows) {
 }
 function renderAll() { renderKpis(); renderSparklines(); renderNavChart(); renderAllocation(); renderMonthly(); renderHoldings(activeFilter); renderSignals(); renderSmartDca(); renderHealth(); renderAlerts(); renderGoal(); }
 async function loadLiveData() {
+  document.body.classList.add("is-loading");
+  const syncBanner = document.getElementById("syncBanner");
+  if (syncBanner) syncBanner.dataset.state = "loading";
   setText("sideSync", "Loading");
   setText("marketOpenLabel", "Sheet Loading");
+  setText("updatedAt", "Refreshing portfolio data");
+  setText("syncStatusText", "Connecting to Google Sheet...");
+  setText("portfolioSyncMeta", "Portfolio loading");
+  setText("signalSyncMeta", "Signals loading");
+  const retryButton = document.getElementById("syncRetryButton");
+  if (retryButton) retryButton.hidden = true;
   try {
-    const [kpi, holdingsData, nav, monthlyData, signalsData] = await Promise.all([
+    const [kpi, holdingsData, nav, monthlyData] = await Promise.all([
       fetchSheet(DATA_SHEETS.kpi),
       fetchSheet(DATA_SHEETS.holdings),
       fetchSheet(DATA_SHEETS.nav),
-      fetchSheet(DATA_SHEETS.monthly),
-      fetchSheet(DATA_SHEETS.signals)
+      fetchSheet(DATA_SHEETS.monthly)
     ]);
+    const portfolioUpdatedAt = new Date();
+    let signalsData = [["Ticker", "Signal", "RSI7", "RSI14"]];
+    let signalsLive = false;
+    try {
+      signalsData = await fetchSheet(DATA_SHEETS.signals);
+      signalsLive = true;
+    } catch (signalError) {
+      console.warn("Signal sync failed", signalError);
+    }
     applyLiveData({ kpi, holdings: holdingsData, nav, monthly: monthlyData, signals: signalsData });
     enrichHoldingsFromSheet(holdingsData);
     renderAll();
     const now = new Date();
     setText("updatedAt", `Updated ${now.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`);
+    setText("syncStatusText", signalsLive ? "Google Sheet synced" : "Portfolio synced, signals unavailable");
+    setText("portfolioSyncMeta", `Portfolio ${portfolioUpdatedAt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`);
+    setText("signalSyncMeta", signalsLive ? `Signals ${now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}` : "Signals fallback active");
     setText("sideSync", "Live");
     setText("marketOpenLabel", "Sheet Live");
+    if (syncBanner) syncBanner.dataset.state = signalsLive ? "live" : "partial";
     const meter = document.getElementById("syncMeter");
     if (meter) meter.style.width = "92%";
   } catch (error) {
@@ -506,7 +538,14 @@ async function loadLiveData() {
     setText("updatedAt", "Using saved data. Check sheet publish access.");
     setText("sideSync", "Saved");
     setText("marketOpenLabel", "Saved Data");
+    if (syncBanner) syncBanner.dataset.state = "saved";
+    setText("syncStatusText", "Live sync unavailable. Showing saved data.");
+    setText("portfolioSyncMeta", "Portfolio saved snapshot");
+    setText("signalSyncMeta", "Signals saved snapshot");
+    if (retryButton) retryButton.hidden = false;
     renderAll();
+  } finally {
+    document.body.classList.remove("is-loading");
   }
 }
 function jumpToAlerts() { const alerts = document.getElementById("alerts"); const card = document.querySelector(".alerts-card"); alerts?.scrollIntoView({ behavior: "smooth", block: "start" }); document.querySelectorAll("[data-jump]").forEach(item => item.classList.toggle("active", item.dataset.jump === "alerts")); if (card) { card.classList.add("flash-focus"); window.setTimeout(() => card.classList.remove("flash-focus"), 1200); } }
@@ -523,7 +562,11 @@ function bindInteractions() {
   document.getElementById("assetTabs")?.addEventListener("click", event => {
     const button = event.target.closest("button");
     if (!button) return;
-    document.querySelectorAll("#assetTabs button").forEach(tab => tab.classList.toggle("active", tab === button));
+    document.querySelectorAll("#assetTabs button").forEach(tab => {
+      const selected = tab === button;
+      tab.classList.toggle("active", selected);
+      tab.setAttribute("aria-selected", String(selected));
+    });
     renderHoldings(button.dataset.filter || "All", search?.value || "");
   });
   document.querySelector(".period-tabs")?.addEventListener("click", event => {
@@ -539,6 +582,7 @@ function bindInteractions() {
   });
   search?.addEventListener("input", () => renderHoldings(activeFilter, search.value));
   document.getElementById("refreshButton")?.addEventListener("click", loadLiveData);
+  document.getElementById("syncRetryButton")?.addEventListener("click", loadLiveData);
   document.getElementById("notificationButton")?.addEventListener("click", jumpToAlerts);
   document.getElementById("themeToggle")?.addEventListener("click", () => setTheme(document.body.dataset.theme === "light" ? "dark" : "light"));
   document.getElementById("currencyToggle")?.addEventListener("click", () => setCurrencyMode(currencyMode === "THB" ? "USD" : "THB"));

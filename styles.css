@@ -7,7 +7,7 @@
   --line: rgba(166, 189, 213, 0.14);
   --line-strong: rgba(166, 189, 213, 0.24);
   --text: #f4f8fc;
-  --muted: #94a3b8;
+  --muted: #b0bdcd;
   --soft: #cbd5e1;
   --green: #25e05d;
   --green-2: #13b981;
@@ -29,7 +29,7 @@ body[data-theme="light"] {
   --line: rgba(47, 67, 88, 0.14);
   --line-strong: rgba(47, 67, 88, 0.25);
   --text: #111827;
-  --muted: #64748b;
+  --muted: #52647a;
   --soft: #475569;
   --shadow: 0 22px 60px rgba(30, 41, 59, 0.12);
 }
@@ -73,6 +73,14 @@ button, input, select {
 
 button {
   color: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[tabindex="0"]:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
 }
 
 svg {
@@ -1663,6 +1671,16 @@ tfoot td {
   background: rgba(37, 224, 93, 0.12);
 }
 
+.badge.starter {
+  color: #7dd3fc;
+  background: rgba(56, 189, 248, 0.13);
+}
+
+.badge.wait {
+  color: var(--amber);
+  background: rgba(246, 194, 26, 0.12);
+}
+
 .badge.hold,
 .badge.neutral {
   color: var(--soft);
@@ -1869,6 +1887,12 @@ tfoot td {
   white-space: nowrap;
 }
 
+.mobile-signal.buy,
+.mobile-signal.starter { color: var(--green); }
+.mobile-signal.wait { color: var(--amber); }
+.mobile-signal.reduce { color: var(--red); }
+.mobile-signal.hold { color: var(--soft); }
+
 .mobile-holding-top,
 .mobile-holding-meta {
   display: flex;
@@ -1963,6 +1987,54 @@ body[data-theme="light"] .mobile-target i {
   border-radius: var(--radius);
   background: rgba(148, 163, 184, 0.06);
 }
+
+.sync-details {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.sync-details > span {
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  background: rgba(148, 163, 184, 0.06);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+#syncRetryButton {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 81, 72, 0.35);
+  border-radius: 6px;
+  color: var(--red);
+  background: rgba(255, 81, 72, 0.08);
+  cursor: pointer;
+}
+
+.sync-banner[data-state="partial"]::before { background: var(--amber); }
+
+.is-loading .content .card {
+  position: relative;
+  overflow: hidden;
+}
+
+.is-loading .content .card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent 20%, rgba(148, 163, 184, 0.08) 42%, transparent 64%);
+  transform: translateX(-100%);
+  animation: loading-sheen 1.15s ease-in-out infinite;
+}
+
+@keyframes loading-sheen { to { transform: translateX(100%); } }
 
 .goal-card {
   margin-bottom: 28px;
@@ -2249,7 +2321,7 @@ body[data-theme="light"] .goal-controls input {
   .signal-stack { min-height: auto; }
 }
 
-@media (max-width: 820px) {
+@media (max-width: 1024px) {
   body {
     padding-bottom: 80px;
   }
@@ -2437,6 +2509,13 @@ body[data-theme="light"] .goal-controls input {
     gap: 7px 12px;
     padding: 9px 2px 0 41px;
     border-top: 1px solid rgba(148, 163, 184, 0.1);
+    font-size: 11px;
+  }
+  .sync-details {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    margin-left: 0;
   }
   .bottom-nav {
     position: fixed;
@@ -2469,6 +2548,30 @@ body[data-theme="light"] .goal-controls input {
   .bottom-nav svg {
     width: 21px;
     height: 21px;
+  }
+}
+
+@media (max-width: 380px) {
+  .content { padding-inline: 8px; }
+  .card { padding-inline: 12px; }
+  .mobile-holding-card.compact { padding-inline: 12px 9px; }
+  .mobile-holding-strip {
+    grid-template-columns: minmax(0, .92fr) minmax(0, 1.04fr) minmax(0, 1.04fr);
+    gap: 10px 6px;
+  }
+  .mobile-stat strong { font-size: 11px; }
+  .mobile-target { grid-template-columns: auto minmax(80px, 1fr) auto; }
+  .mobile-target strong { min-width: 72px; }
+  .mobile-holding-detail { padding-left: 2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
 
