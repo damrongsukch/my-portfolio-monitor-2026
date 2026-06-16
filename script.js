@@ -321,12 +321,36 @@ function fullAmount(value) { return Math.round(numberFrom(value)).toLocaleString
 function monthAxisLabel(month) { if (!month) return "Now"; return month % 12 === 0 ? `M${month} (Y${month / 12})` : `M${month}`; }
 function sheetDate(value) { if (value instanceof Date) return value; if (typeof value === "number") return new Date(Date.UTC(1899, 11, 30) + value * 86400000); const parsed = new Date(String(value || "")); return Number.isNaN(parsed.getTime()) ? new Date() : parsed; }
 function xirr() { return null; }
-function dcaMultiplier(item) { const signal = String(item.signal || "").toUpperCase(); const rsi7 = numberFrom(item.rsi7), rsi14 = numberFrom(item.rsi14); if (/REDUCE|SELL|OVERBOUGHT/.test(signal) || rsi7 >= 75 || rsi14 >= 75) return 0; if (/BUY DIP|GOOD PRICE/.test(signal) || rsi7 < 35) return 1; if (/ACCUMULATE/.test(signal) || rsi14 < 45) return 0.75; if (/BULLISH|FOLLOW/.test(signal) || rsi7 <= 60) return 0.5; if (rsi7 < 70) return 0.25; return 0; }
-function dcaReason(item, multiplier) { const signal = cleanSignal(item.signal); const rsi7 = numberFrom(item.rsi7), rsi14 = numberFrom(item.rsi14); if (!multiplier) return `Skip: ${signal}; RSI ${rsi7.toFixed(1)}/${rsi14.toFixed(1)} is not a clean buy setup`; if (multiplier === 1) return "1.0x: RSI dip or BUY DIP signal; best opportunity tier today"; if (multiplier === 0.75) return "0.75x: accumulation signal is good, but not a full-size entry"; if (multiplier === 0.5) return "0.5x: bullish follow; use medium size to avoid chasing price"; return "0.25x: weaker setup; use only a small starter size"; }
+function dcaSizing(item) {
+  const signal = cleanSignal(item.signal).toUpperCase();
+  if (/WAIT|HOLD|REDUCE|SELL|NO BUY|AVOID/.test(signal)) return { multiplier: 0, source: item.signalSource || "Signal" };
+  const explicit = signal.match(/(?:^|\s)(1(?:\.0+)?|0?\.(?:25|5|50|75))\s*X\b/i);
+  if (explicit) return { multiplier: Math.min(1, numberFrom(explicit[1])), source: item.signalSource || "Final_Action" };
+  if (/STARTER/.test(signal)) return { multiplier: 0.25, source: "Signal fallback" };
+  if (/SUPER BUY|STRONG BUY|BUY DIP|GOOD PRICE/.test(signal)) return { multiplier: 1, source: "Signal fallback" };
+  if (/ACCUMULATE/.test(signal)) return { multiplier: 0.5, source: "Signal fallback" };
+  if (/BUY|BULLISH|FOLLOW/.test(signal)) return { multiplier: 0.25, source: "Signal fallback" };
+  return { multiplier: 0, source: item.signalSource || "Signal" };
+}
+function dcaMultiplier(item) { return dcaSizing(item).multiplier; }
+function dcaRankScore(item) {
+  const multiplier = dcaMultiplier(item);
+  const gap = Math.max(-5, Math.min(10, targetGap(item)));
+  const priority = numberFrom(item.priority || 99);
+  const rsi7 = numberFrom(item.rsi7);
+  const rsiQuality = rsi7 < 30 ? 10 : rsi7 < 45 ? 7 : rsi7 <= 65 ? 3 : rsi7 > 75 ? -10 : 0;
+  return multiplier * 100 + gap * 5 + Math.max(0, 20 - priority) + rsiQuality;
+}
+function dcaReason(item, multiplier) {
+  const sizing = dcaSizing(item);
+  const gap = targetGap(item);
+  const cap = Number.isFinite(item.smartDcaUsd) ? `cap ${formatUsd(item.smartDcaUsd)}` : "no sheet cap";
+  return `${sizing.source}: ${multiplier.toFixed(2)}x; ${gap > 0 ? `under target ${gap.toFixed(1)}%` : gap < 0 ? `over target ${Math.abs(gap).toFixed(1)}%` : "on target"}; priority ${numberFrom(item.priority || 99)}; ${cap}`;
+}
 
 function buildDcaPlan(budgetUsd) {
   const fx = fxRate();
-  const candidates = signalBoard.filter(item => item.ticker && item.ticker !== "CASH").map(item => ({ ...item, multiplier: dcaMultiplier(item), smartDcaUsd: numberFrom(item.smartDcaUsd) || Infinity, targetGap: targetGap(item) })).filter(item => item.multiplier > 0).sort((a, b) => b.multiplier - a.multiplier || Math.max(0, b.targetGap) - Math.max(0, a.targetGap) || numberFrom(a.priority || 99) - numberFrom(b.priority || 99) || numberFrom(a.rsi7) - numberFrom(b.rsi7)).slice(0, 3);
+  const candidates = signalBoard.filter(item => item.ticker && item.ticker !== "CASH").map(item => ({ ...item, multiplier: dcaMultiplier(item), smartDcaUsd: numberFrom(item.smartDcaUsd) || Infinity, targetGap: targetGap(item), rankScore: dcaRankScore(item) })).filter(item => item.multiplier > 0).sort((a, b) => b.rankScore - a.rankScore || numberFrom(a.priority || 99) - numberFrom(b.priority || 99)).slice(0, 3);
   const picks = candidates.map(item => ({ ...item, amountUsd: 0 }));
   const requestedUsd = Math.max(0, Number(budgetUsd || 0));
   let remaining = requestedUsd;
@@ -341,7 +365,7 @@ function buildDcaPlan(budgetUsd) {
     open = picks.filter(item => item.smartDcaUsd - item.amountUsd > 0.01);
   }
   const usedRaw = picks.reduce((sum, item) => sum + item.amountUsd, 0);
-  return { fx, deployRatio: requestedUsd > 0 ? 1 : 0, picks: picks.map(item => ({ ...item, reason: `${dcaReason(item, item.multiplier)}${item.targetGap > 0 ? `; under target by ${item.targetGap.toFixed(1)}%` : ""}`, amountUsd: Math.round(item.amountUsd * 100) / 100, amountThb: Math.round(item.amountUsd * fx), belowMin: item.amountUsd > 0 && item.amountUsd < MIN_ORDER_USD })), usedUsd: Math.round(usedRaw * 100) / 100, leftoverUsd: Math.round(Math.max(0, requestedUsd - usedRaw) * 100) / 100 };
+  return { fx, deployRatio: requestedUsd > 0 ? 1 : 0, picks: picks.map(item => ({ ...item, reason: dcaReason(item, item.multiplier), amountUsd: Math.round(item.amountUsd * 100) / 100, amountThb: Math.round(item.amountUsd * fx), belowMin: item.amountUsd > 0 && item.amountUsd < MIN_ORDER_USD })), usedUsd: Math.round(usedRaw * 100) / 100, leftoverUsd: Math.round(Math.max(0, requestedUsd - usedRaw) * 100) / 100 };
 }
 
 function renderTodaySignal(best, budgetUsd) {
@@ -349,9 +373,9 @@ function renderTodaySignal(best, budgetUsd) {
   const gap = targetGap(best);
   const signal = cleanSignal(best.signal);
   setText("todaySignal", budgetUsd > 0 ? "Sizing Ready" : `${best.ticker} ${best.multiplier}x`);
-  setHtml("todaySignalText", `<span class="signal-summary">${signal}</span><span class="signal-chips"><b>${best.ticker}</b><b>${best.multiplier}x</b><b>RSI ${rsiPair(best)}</b><b>${gap > 0 ? `Under +${gap.toFixed(1)}%` : gap < 0 ? `Over ${Math.abs(gap).toFixed(1)}%` : "On target"}</b></span><span class="signal-note">${best.reason}</span>`);
+  setHtml("todaySignalText", `<span class="signal-summary">${signal}</span><span class="signal-chips"><b>${best.ticker}</b><b>${best.multiplier.toFixed(2)}x</b><b>Score ${best.rankScore.toFixed(0)}</b><b>RSI ${rsiPair(best)}</b><b>${gap > 0 ? `Under +${gap.toFixed(1)}%` : gap < 0 ? `Over ${Math.abs(gap).toFixed(1)}%` : "On target"}</b></span><span class="signal-note">${best.reason}</span>`);
 }
-function renderSmartDca() { const input = document.getElementById("dcaBudgetInput"); const budget = parseBudgetInput(input?.value || ""); const plan = buildDcaPlan(budget.usd); const rows = budget.usd > 0 ? plan.picks.filter(item => item.amountUsd > 0) : plan.picks; setHtml("dcaBudgetSummary", budget.usd > 0 ? `<span class="dca-summary-title">Today's plan: use ${formatUsd(plan.usedUsd)} from ${formatUsd(budget.usd)} and keep ${formatUsd(plan.leftoverUsd)} in cash</span><span class="dca-figures"><b>Budget ${formatUsd(budget.usd)}</b><b>Use ${formatUsd(plan.usedUsd)}</b><b>Cash left ${formatUsd(plan.leftoverUsd)}</b><b>Min ${formatUsd(MIN_ORDER_USD)}</b></span>` : "Enter USD only, such as 10 or $10. Ranking uses Signal + RSI."); setHtml("smartDcaList", rows.map((item, index) => `<div class="mini-row dca-plan-row"><span>${index + 1}. <strong>${item.ticker}</strong><small>${item.multiplier}x - ${signalReason(item)} - ${item.reason}${item.belowMin ? " - below DIME minimum" : ""}</small></span><strong>${budget.usd > 0 ? formatUsd(item.amountUsd) : `${item.multiplier}x`}</strong></div>`).join("") || `<div class="empty">No clean RSI-based buy setup today. Keep cash.</div>`); renderTodaySignal(rows[0], budget.usd); }
+function renderSmartDca() { const input = document.getElementById("dcaBudgetInput"); const budget = parseBudgetInput(input?.value || ""); const plan = buildDcaPlan(budget.usd); const rows = budget.usd > 0 ? plan.picks.filter(item => item.amountUsd > 0) : plan.picks; setHtml("dcaBudgetSummary", budget.usd > 0 ? `<span class="dca-summary-title">Final Action sizing: allocate ${formatUsd(plan.usedUsd)} from ${formatUsd(budget.usd)} and keep ${formatUsd(plan.leftoverUsd)} in cash</span><span class="dca-figures"><b>Budget ${formatUsd(budget.usd)}</b><b>Allocate ${formatUsd(plan.usedUsd)}</b><b>Cash left ${formatUsd(plan.leftoverUsd)}</b><b>Min ${formatUsd(MIN_ORDER_USD)}</b></span>` : "Enter USD. Sizing follows Final_Action; target gap, priority and RSI rank equal-size signals."); setHtml("smartDcaList", rows.map((item, index) => `<div class="mini-row dca-plan-row"><span>${index + 1}. <strong>${item.ticker}</strong><small>${cleanSignal(item.signal)} · Score ${item.rankScore.toFixed(0)} · ${item.reason}${item.belowMin ? " · below DIME minimum" : ""}</small></span><strong>${budget.usd > 0 ? formatUsd(item.amountUsd) : `${item.multiplier.toFixed(2)}x`}<small>${item.multiplier.toFixed(2)}x weight</small></strong></div>`).join("") || `<div class="empty">No eligible Final Action today. Keep cash.</div>`); renderTodaySignal(rows[0], budget.usd); }
 function renderHealth() { const growth = holdings.filter(item => /growth/i.test(item.layer)).reduce((sum, item) => sum + item.weight, 0); const alpha = holdings.filter(item => /alpha/i.test(item.layer)).reduce((sum, item) => sum + item.weight, 0); const cash = holdings.find(item => item.ticker === "CASH"); const cashWeight = cash ? cash.weight : 0; const score = Math.max(6.4, Math.min(9.4, 9.2 - Math.max(0, growth - 58) * .06 - Math.max(0, alpha - 8) * .08 + Math.min(cashWeight, 4) * .03)); setText("healthScore", score.toFixed(1)); setHtml("healthMetrics", [["Diversification", Math.min(9.2, 7.2 + holdings.length * .18).toFixed(1)], ["Risk Control", score.toFixed(1)], ["Momentum", /MODE A/i.test(kpis.marketMode) ? "9.0" : "7.6"], ["Cash Buffer", Math.max(6.5, Math.min(9.0, 7 + cashWeight / 2)).toFixed(1)]].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("")); }
 function renderAlerts() { const rows = []; holdings.forEach(item => { const r = numberFrom(item.pl); const signal = cleanSignal(item.signal); const status = targetStatus(item); if (/strong buy|buy|accumulate/i.test(signal)) rows.push({ title: `${item.ticker} has an active entry signal`, text: `${signal} from the Looker signal sheet. Check live market conditions before buying.`, tone: "positive" }); if (status.gap >= 1.5) rows.push({ title: `${item.ticker} is under target`, text: `${kpis.marketMode} target is ${targetWeight(item).toFixed(1)}%, current weight is ${numberFrom(item.weight).toFixed(1)}%.`, tone: "positive" }); if (status.gap <= -2) rows.push({ title: `${item.ticker} is over target`, text: `${kpis.marketMode} target is ${targetWeight(item).toFixed(1)}%, current weight is ${numberFrom(item.weight).toFixed(1)}%.`, tone: "caution" }); if (r > 25) rows.push({ title: `${item.ticker} is extended`, text: `Position return is ${item.pl}. Avoid chasing and review target weight.`, tone: "caution" }); if (r < -5) rows.push({ title: `${item.ticker} needs drawdown review`, text: `Position return is ${item.pl}. Review thesis and allocation gap.`, tone: "caution" }); }); document.querySelectorAll(".alert-dot").forEach(button => button.dataset.count = String(Math.min(rows.length, 9))); setHtml("alertsList", rows.slice(0, 5).map(row => `<div class="alert-row"><div><strong>${row.title}</strong><p>${row.text}</p></div><span class="badge ${row.tone}">${row.tone}</span></div>`).join("") || `<div class="empty">No major alerts from the latest sheet snapshot.</div>`); }
 function projectGoalSeries(startValue, monthlyDca, annualReturn, totalMonths) {
@@ -405,15 +429,21 @@ function applyLiveData(datasets) {
   const kpiRows = rowsToObjects(datasets.kpi);
   const rawSignals = rowsToObjects(datasets.signals);
   indicatorTimeframe = kpiAny(kpiRows, ["Indicator Timeframe", "RSI Timeframe", "Signal Timeframe", "Timeframe"], indicatorTimeframe) || "Daily";
-  const signalRows = rawSignals.map(row => ({
-    ticker: rowAny(row, ["Ticker", "Symbol"], "N/A"),
-    totalTrend: rowAny(row, ["Total_Trend", "Total Trend", "Trend", "EMA_Trend", "EMA Trend", "Price_vs_EMA", "Price vs EMA"], ""),
-    signal: cleanSignal(rowAny(row, ["Final_Action", "Final Action", "Signal", "EMA_Signal", "EMA Signal"], "HOLD")),
-    rsi7: numberFrom(rowAny(row, ["RSI 7", "RSI7", "RSI_7", "RSI7_Value"], 0)),
-    rsi14: numberFrom(rowAny(row, ["RSI 14", "RSI14", "RSI_14", "RSI14_Value"], 0)),
-    priority: numberFrom(rowAny(row, ["Priority", "Rank"], 99)),
-    smartDcaUsd: numberFrom(rowAny(row, ["Smart DCA $", "Smart_DCA_USD", "Smart DCA USD", "Smart_DCA"], 0))
-  })).filter(item => item.ticker && item.ticker !== "N/A");
+  const signalRows = rawSignals.map(row => {
+    const finalAction = rowAny(row, ["Final_Action", "Final Action"], "");
+    const standardSignal = rowAny(row, ["Signal"], "");
+    const emaSignal = rowAny(row, ["EMA_Signal", "EMA Signal"], "");
+    return {
+      ticker: rowAny(row, ["Ticker", "Symbol"], "N/A"),
+      totalTrend: rowAny(row, ["Total_Trend", "Total Trend", "Trend", "EMA_Trend", "EMA Trend", "Price_vs_EMA", "Price vs EMA"], ""),
+      signal: cleanSignal(finalAction || standardSignal || emaSignal || "HOLD"),
+      signalSource: finalAction ? "Final_Action" : standardSignal ? "Signal" : emaSignal ? "EMA_Signal" : "Fallback",
+      rsi7: numberFrom(rowAny(row, ["RSI 7", "RSI7", "RSI_7", "RSI7_Value"], 0)),
+      rsi14: numberFrom(rowAny(row, ["RSI 14", "RSI14", "RSI_14", "RSI14_Value"], 0)),
+      priority: numberFrom(rowAny(row, ["Priority", "Rank"], 99)),
+      smartDcaUsd: numberFrom(rowAny(row, ["Smart DCA $", "Smart_DCA_USD", "Smart DCA USD", "Smart_DCA"], 0))
+    };
+  }).filter(item => item.ticker && item.ticker !== "N/A");
   const signalMap = new Map(signalRows.map(item => [String(item.ticker).toUpperCase(), item]));
 
   kpis = {
@@ -455,13 +485,14 @@ function applyLiveData(datasets) {
     targetB: numberFrom(rowAny(row, ["Target_B", "Target B", "Target Weight B"], 0)),
     targetWeight: numberFrom(rowAny(row, ["Target_Weight", "Target Weight", "Target"], 0)),
     signal: cleanSignal(row.Signal),
+    signalSource: row.Signal ? "Looker_Holdings" : "Fallback",
     rsi7: numberFrom(rowAny(row, ["RSI 7", "RSI7", "RSI_7"], 0)),
     rsi14: numberFrom(rowAny(row, ["RSI 14", "RSI14", "RSI_14"], 0)),
     priority: numberFrom(rowAny(row, ["Priority", "Rank"], 99)),
     smartDcaUsd: numberFrom(rowAny(row, ["Smart DCA $", "Smart_DCA_USD", "Smart DCA USD", "Smart_DCA"], 0))
   })).filter(item => item.ticker && item.ticker !== "N/A").map(item => {
     const signal = signalMap.get(String(item.ticker).toUpperCase());
-    return signal ? { ...item, signal: cleanSignal(signal.signal || item.signal), rsi7: signal.rsi7 || item.rsi7, rsi14: signal.rsi14 || item.rsi14, priority: signal.priority || item.priority, smartDcaUsd: signal.smartDcaUsd || item.smartDcaUsd, totalTrend: signal.totalTrend } : item;
+    return signal ? { ...item, signal: cleanSignal(signal.signal || item.signal), signalSource: signal.signalSource || item.signalSource, rsi7: signal.rsi7 || item.rsi7, rsi14: signal.rsi14 || item.rsi14, priority: signal.priority || item.priority, smartDcaUsd: signal.smartDcaUsd || item.smartDcaUsd, totalTrend: signal.totalTrend } : item;
   });
 
   signalBoard = holdings.filter(item => item.ticker !== "CASH");

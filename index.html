@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>My Portfolio Monitor 2026</title>
-  <link rel="stylesheet" href="./styles.css?v=20260615-ux-hardening">
+  <link rel="stylesheet" href="./styles.css?v=20260615-smart-dca-final-action">
   <style>
     .layer-text {
       display: inline-block;
@@ -485,7 +485,7 @@
     <button data-jump="goal" type="button"><svg viewBox="0 0 24 24"><path d="M12 21s7-4.2 7-11a7 7 0 0 0-14 0c0 6.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span>Goal</span></button>
   </nav>
 
-  <script src="./script.js?v=20260615-ux-hardening"></script>
+  <script src="./script.js?v=20260615-smart-dca-final-action"></script>
   <script>
     (() => {
       const normalizeLayerName = (value) => {
@@ -536,39 +536,8 @@
         banner.dataset.state = live ? "live" : saved ? "saved" : "loading";
       };
 
-      const cleanDcaReason = (item, multiplier) => {
-        const signal = typeof cleanSignal === "function" ? cleanSignal(item.signal) : item.signal || "HOLD";
-        const rsi7 = moneyToNumber(item.rsi7);
-        const rsi14 = moneyToNumber(item.rsi14);
-        if (!multiplier) return `Skip: ${signal}; RSI ${rsi7.toFixed(1)}/${rsi14.toFixed(1)} is not a clean buy setup`;
-        if (multiplier === 1) return "1.0x: RSI dip or BUY DIP signal; best opportunity tier today";
-        if (multiplier === 0.75) return "0.75x: accumulation signal is good, but not a full-size entry";
-        if (multiplier === 0.5) return "0.5x: bullish follow; use medium size to avoid chasing price";
-        return "0.25x: weaker setup; use only a small starter size";
-      };
-
       const renderSmartDcaPatch = () => {
-        if (typeof buildDcaPlan !== "function" || typeof parseBudgetInput !== "function") return;
-        const input = document.getElementById("dcaBudgetInput");
-        const budget = parseBudgetInput(input?.value || "");
-        const plan = buildDcaPlan(budget.usd);
-        const rows = budget.usd > 0 ? plan.picks.filter((item) => item.amountUsd > 0) : plan.picks;
-        const summary = document.getElementById("dcaBudgetSummary");
-        const list = document.getElementById("smartDcaList");
-        if (summary) {
-          summary.innerHTML = budget.usd > 0
-            ? `<span class="dca-summary-title">Today's plan: use ${formatUsdPatch(plan.usedUsd)} from ${formatUsdPatch(budget.usd)} and keep ${formatUsdPatch(plan.leftoverUsd)} in cash</span><span class="dca-figures"><b>Budget ${formatUsdPatch(budget.usd)}</b><b>Use ${formatUsdPatch(plan.usedUsd)}</b><b>Cash left ${formatUsdPatch(plan.leftoverUsd)}</b><b>Min ${formatUsdPatch(1.5)}</b></span>`
-            : "Enter USD only, such as 10 or $10. Ranking uses Signal + RSI.";
-        }
-        if (list) {
-          list.innerHTML = rows.map((item, index) => {
-            const reason = cleanDcaReason(item, item.multiplier);
-            const dime = item.belowMin ? " - below DIME minimum" : "";
-            const detail = typeof signalReason === "function" ? signalReason(item) : `Daily: RSI7 ${moneyToNumber(item.rsi7).toFixed(1)}, RSI14 ${moneyToNumber(item.rsi14).toFixed(1)}`;
-            return `<div class="mini-row dca-plan-row"><span>${index + 1}. <strong>${item.ticker}</strong><small>${item.multiplier}x - ${detail} - ${reason}${dime}</small></span><strong>${budget.usd > 0 ? formatUsdPatch(item.amountUsd) : `${item.multiplier}x`}</strong></div>`;
-          }).join("") || `<div class="empty">No RSI-based buy setup today. Keep cash.</div>`;
-        }
-        if (typeof renderTodaySignal === "function") renderTodaySignal(rows[0], budget.usd);
+        if (typeof renderSmartDca === "function") renderSmartDca();
       };
 
       const renderMobileSummaryPatch = () => {
