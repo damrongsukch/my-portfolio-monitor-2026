@@ -791,6 +791,10 @@ body[data-theme="light"] .filter-tabs button {
   font-weight: 700;
   text-anchor: middle;
 }
+
+.performance-number.negative {
+  color: var(--red);
+}
 .monthly-label,
 .monthly-year {
   text-anchor: middle;
