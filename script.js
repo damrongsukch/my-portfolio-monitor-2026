@@ -111,6 +111,7 @@ function setSignedTone(id, value) { const el = document.getElementById(id); if (
 function formatCurrencyFromThb(valueThb) { const amount = numberFrom(valueThb); if (currencyMode === "USD") return `$${(amount / fxRate()).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; return formatThb(amount); }
 function signedCurrencyFromThb(valueThb) { const amount = numberFrom(valueThb); const sign = amount < 0 ? "-" : "+"; const absolute = Math.abs(amount); const text = currencyMode === "USD" ? `$${(absolute / fxRate()).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : formatThb(absolute); return `${sign}${text}`; }
 function formatCurrencyFromUsd(valueUsd) { const amount = numberFrom(valueUsd); if (currencyMode === "USD") return `$${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; return formatThb(amount * fxRate()); }
+function signedCurrencyFromUsd(valueUsd) { const amount = numberFrom(valueUsd); const sign = amount < 0 ? "-" : "+"; return `${sign}${formatCurrencyFromUsd(Math.abs(amount))}`; }
 function holdingGainThb(item) { const pct = numberFrom(item.pl) / 100; if (Number.isFinite(numberFrom(item.costBasisUsd)) && numberFrom(item.costBasisUsd) > 0) return (numberFrom(item.valueUsd) - numberFrom(item.costBasisUsd)) * fxRate(); return pct > -0.99 ? numberFrom(item.value) - (numberFrom(item.value) / (1 + pct)) : 0; }
 function assetKind(ticker) { return /SPMO|SCHD|QQQI|IAUI|MLPI/i.test(ticker) ? "ETF" : "US stock"; }
 function activeTargetKey() { return /MODE\s*B|MODE_B|\bB\b/i.test(kpis.marketMode) ? "targetB" : "targetA"; }
@@ -163,6 +164,7 @@ function compareHoldings(a, b) {
   const valueFor = item => {
     if (holdingsSort.key === "target") return targetGap(item);
     if (holdingsSort.key === "pl") return numberFrom(item.pl);
+    if (holdingsSort.key === "dayPl") return numberFrom(item.dayChangePercent);
     if (holdingsSort.key === "rsi") return numberFrom(item.rsi7);
     if (holdingsSort.key === "signal") return dcaMultiplier(item) * 100 - numberFrom(item.rsi7);
     if (holdingsSort.key === "shares") return numberFrom(item.shares);
@@ -296,17 +298,21 @@ function renderHoldings(filter = activeFilter, query = document.getElementById("
   }).sort(compareHoldings);
   setHtml("holdingsBody", rows.map((item) => {
     const plClass = String(item.pl).startsWith("-") ? "negative" : item.pl === "-" ? "neutral" : "positive";
+    const dayPlClass = signedClass(item.dayChangePercent);
     const layer = layerClass(item.layer);
     const gain = signedCurrencyFromThb(holdingGainThb(item));
-    return `<tr class="holding-row compact ${plClass}"><td><span class="ticker-cell holding-asset">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="layer-text ${layer}">${layer.toUpperCase()}</b></strong><small>${numberFrom(item.shares).toFixed(6)} shares</small></span></span></td><td class="price-cell"><strong>${formatCurrencyFromUsd(item.currentPriceUsd || item.price)}</strong><small>Avg ${formatCurrencyFromUsd(item.avgCostUsd)}</small></td><td class="value-cell">${formatCurrencyFromThb(item.value)}</td><td class="gain-cell ${plClass}"><strong>${gain}</strong><small>${plusText(item.pl, percentText)}</small></td><td>${targetMeter(item)}</td><td>${signalBadge(item.signal)}</td><td>${indicatorCell(item)}</td></tr>`;
-  }).join("") || `<tr><td colspan="7"><div class="empty">No holdings match. Clear the search or choose All.</div></td></tr>`);
+    const dayGain = signedCurrencyFromUsd(item.dayChangeUsd);
+    return `<tr class="holding-row compact ${plClass}"><td><span class="ticker-cell holding-asset">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="layer-text ${layer}">${layer.toUpperCase()}</b></strong><small>${numberFrom(item.shares).toFixed(6)} shares</small></span></span></td><td class="price-cell"><strong>${formatCurrencyFromUsd(item.currentPriceUsd || item.price)}</strong><small>Avg ${formatCurrencyFromUsd(item.avgCostUsd)}</small></td><td class="value-cell">${formatCurrencyFromThb(item.value)}</td><td class="gain-cell day-gain-cell ${dayPlClass}"><strong>${dayGain}</strong><small>${plusText(item.dayChangePercent, percentText)}</small></td><td class="gain-cell ${plClass}"><strong>${gain}</strong><small>${plusText(item.pl, percentText)}</small></td><td>${targetMeter(item)}</td><td>${signalBadge(item.signal)}</td><td>${indicatorCell(item)}</td></tr>`;
+  }).join("") || `<tr><td colspan="8"><div class="empty">No holdings match. Clear the search or choose All.</div></td></tr>`);
   setHtml("mobileHoldings", rows.map(item => {
     const plClass = String(item.pl).startsWith("-") ? "negative" : item.pl === "-" ? "neutral" : "positive";
+    const dayPlClass = signedClass(item.dayChangePercent);
     const layer = layerClass(item.layer);
     const gain = signedCurrencyFromThb(holdingGainThb(item));
     const signal = signalMeta(item.signal);
     const gainPercent = plusText(item.pl, percentText);
-    return `<article class="mobile-holding-card compact ${plClass}"><div class="mobile-holding-strip"><div class="mobile-asset">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="layer-text ${layer}">${layer.toUpperCase()}</b></strong><small>${numberFrom(item.shares).toFixed(6)} shares</small></span></div><div class="mobile-gain ${plClass}"><strong>${gain}</strong><small>${gainPercent}</small></div><div class="mobile-stat mobile-price"><span>Price</span><strong>${formatCurrencyFromUsd(item.currentPriceUsd || item.price)}</strong></div><div class="mobile-stat mobile-avg"><span>Avg</span><strong>${formatCurrencyFromUsd(item.avgCostUsd)}</strong></div><div class="mobile-stat mobile-value"><span>Value</span><strong>${formatCurrencyFromThb(item.value)}</strong></div>${targetMeter(item, "mobile-target")}</div><div class="mobile-holding-detail"><span>RSI ${rsiPair(item)}</span><span class="mobile-signal ${signal.cls}" tabindex="0" title="${signal.help}">${cleanSignal(item.signal)}</span></div></article>`;
+    const daySummary = `${signedCurrencyFromUsd(item.dayChangeUsd)} (${plusText(item.dayChangePercent, percentText)})`;
+    return `<article class="mobile-holding-card compact ${plClass}"><div class="mobile-holding-strip"><div class="mobile-asset">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="layer-text ${layer}">${layer.toUpperCase()}</b></strong><small>${numberFrom(item.shares).toFixed(6)} shares</small></span></div><div class="mobile-gain ${plClass}"><strong>${gain}</strong><small>${gainPercent}</small></div><div class="mobile-stat mobile-price"><span>Price</span><strong>${formatCurrencyFromUsd(item.currentPriceUsd || item.price)}</strong></div><div class="mobile-stat mobile-avg"><span>Avg</span><strong>${formatCurrencyFromUsd(item.avgCostUsd)}</strong></div><div class="mobile-stat mobile-value"><span>Value</span><strong>${formatCurrencyFromThb(item.value)}</strong></div>${targetMeter(item, "mobile-target")}</div><div class="mobile-holding-detail"><span class="mobile-day-change">Day <b class="${dayPlClass}">${daySummary}</b></span><span>RSI ${rsiPair(item)}</span><span class="mobile-signal ${signal.cls}" tabindex="0" title="${signal.help}">${cleanSignal(item.signal)}</span></div></article>`;
   }).join("") || `<div class="empty">No holdings match. Clear the search or choose All.</div>`);
 }
 
@@ -479,6 +485,8 @@ function applyLiveData(datasets) {
     currentPriceUsd: numberFrom(rowAny(row, ["Current_Price_USD", "Current Price USD", "Price"], 0)),
     valueUsd: numberFrom(rowAny(row, ["Market_Value_USD", "Market Value USD"], 0)),
     costBasisUsd: numberFrom(rowAny(row, ["Cost_Basis_USD", "Cost Basis USD"], 0)),
+    dayChangePercent: percentText(rowAny(row, ["Day_Change_Percent", "Day Change Percent", "Day Change %"], "0.00%")),
+    dayChangeUsd: numberFrom(rowAny(row, ["Day_Change_Total_USD", "Day Change Total USD", "Day Gain Loss USD"], 0)),
     value: numberFrom(row.Market_Value_THB),
     valueText: moneyText(row.Market_Value_THB),
     pl: percentText(row.PL_Percent),
@@ -518,6 +526,8 @@ function enrichHoldingsFromSheet(rows) {
       currentPriceUsd: numberFrom(row.Current_Price_USD),
       valueUsd: numberFrom(row.Market_Value_USD),
       costBasisUsd: numberFrom(row.Cost_Basis_USD),
+      dayChangePercent: percentText(rowAny(row, ["Day_Change_Percent", "Day Change Percent", "Day Change %"], item.dayChangePercent || "0.00%")),
+      dayChangeUsd: numberFrom(rowAny(row, ["Day_Change_Total_USD", "Day Change Total USD", "Day Gain Loss USD"], item.dayChangeUsd || 0)),
       targetA: numberFrom(rowAny(row, ["Target_A", "Target A", "Target Weight A"], item.targetA || 0)),
       targetB: numberFrom(rowAny(row, ["Target_B", "Target B", "Target Weight B"], item.targetB || 0)),
       targetWeight: numberFrom(rowAny(row, ["Target_Weight", "Target Weight", "Target"], item.targetWeight || 0))

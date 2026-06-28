@@ -1170,7 +1170,7 @@ body[data-theme="light"] .health-ring span {
 
 table {
   width: 100%;
-  min-width: 820px;
+  min-width: 920px;
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0 10px;
@@ -1188,13 +1188,20 @@ td {
   text-overflow: ellipsis;
 }
 
-th:nth-child(1) { width: 22%; }
+th:nth-child(1) { width: 20%; }
 th:nth-child(2) { width: 13%; }
-th:nth-child(3) { width: 13%; }
-th:nth-child(4) { width: 15%; }
-th:nth-child(5) { width: 16%; }
-th:nth-child(6) { width: 12%; }
-th:nth-child(7) { width: 9%; }
+th:nth-child(3) { width: 11%; }
+th:nth-child(4) { width: 12%; }
+th:nth-child(5) { width: 12%; }
+th:nth-child(6) { width: 13%; }
+th:nth-child(7) { width: 11%; }
+th:nth-child(8) { width: 8%; }
+
+.holdings-card th,
+.holdings-card td {
+  padding-right: 6px;
+  padding-left: 6px;
+}
 
 th {
   color: var(--muted);
@@ -1206,10 +1213,10 @@ th {
 
 th:nth-child(1),
 td:nth-child(1),
-th:nth-child(6),
-td:nth-child(6),
 th:nth-child(7),
-td:nth-child(7) {
+td:nth-child(7),
+th:nth-child(8),
+td:nth-child(8) {
   text-align: left;
 }
 
@@ -1248,6 +1255,7 @@ td:nth-child(7) {
 }
 
 .holdings-card tbody td:nth-child(4) strong,
+.holdings-card tbody td:nth-child(5) strong,
 .mobile-holding-meta > strong {
   display: grid;
   gap: 2px;
@@ -1255,6 +1263,7 @@ td:nth-child(7) {
 }
 
 .holdings-card tbody td:nth-child(4) small,
+.holdings-card tbody td:nth-child(5) small,
 .mobile-holding-meta > strong small {
   font-size: 12px;
   font-weight: 800;
@@ -1313,10 +1322,14 @@ td:nth-child(7) {
 
 .price-cell,
 .gain-cell {
-  display: grid;
-  gap: 3px;
-  justify-items: end;
   font-variant-numeric: tabular-nums lining-nums;
+}
+
+.price-cell strong,
+.price-cell small,
+.gain-cell strong,
+.gain-cell small {
+  display: block;
 }
 
 .price-cell strong,
@@ -1889,6 +1902,15 @@ tfoot td {
 
 .mobile-holding-detail span {
   white-space: nowrap;
+}
+
+.mobile-day-change {
+  flex-basis: 100%;
+}
+
+.mobile-day-change b {
+  margin-left: 3px;
+  font-weight: 800;
 }
 
 .mobile-signal.buy,
