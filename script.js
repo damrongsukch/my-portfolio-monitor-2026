@@ -1,4 +1,4 @@
-﻿let navRows = [
+let navRows = [
   [46098, 66.25, 65.55, 0, 0],
   [46105, 227.75, 711.88, 0.002, 0],
   [46112, 291.42, 1853.86, -0.005, 0],
@@ -316,6 +316,21 @@ function renderHoldings(filter = activeFilter, query = document.getElementById("
   }).join("") || `<div class="empty">No holdings match. Clear the search or choose All.</div>`);
 }
 
+function renderMobileSummary() {
+  const el = document.getElementById("mobileSummary");
+  if (!el) return;
+  const top = signalBoard
+    .filter(item => item.ticker && item.ticker !== "CASH")
+    .map(item => ({ ...item, multiplier: dcaMultiplier(item) }))
+    .filter(item => item.multiplier > 0)
+    .sort((a, b) => b.multiplier - a.multiplier || numberFrom(a.priority || 99) - numberFrom(b.priority || 99))[0];
+  el.innerHTML = [
+    ["Value", kpis.portfolioValue],
+    ["Return", plusText(kpis.totalReturn, percentText)],
+    ["Cash", kpis.cash],
+    ["Top Buy", top ? `${top.ticker} ${top.multiplier.toFixed(2)}x` : "Wait"]
+  ].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
+}
 function renderSignals() { const vixValue = numberFrom(kpis.vix), fearGreedValue = numberFrom(kpis.greedFear); const indicators = [["VIX", kpis.vix, vixValue <= 20 ? "positive" : "warning"], ["Fear & Greed Index", kpis.greedFear, fearGreedValue >= 55 ? "warning" : fearGreedValue <= 45 ? "negative" : "neutral"], ["S&P500 Trend", kpis.sp500Trend, /above|bull|up/i.test(kpis.sp500Trend) ? "positive" : "warning"], ["Market Breadth", kpis.marketBreadth, numberFrom(kpis.marketBreadth) >= 55 ? "positive" : "warning"], ["10Y Bond Yield", kpis.bondYield, "neutral"]]; setHtml("signalsList", indicators.map(([label, value, tone]) => `<div class="indicator-row"><span>${label}</span><span class="indicator-value"><strong class="${tone}">${value}</strong></span></div>`).join("")); }
 function fxRate() { const usdValue = holdings.filter(item => item.ticker !== "CASH").reduce((sum, item) => sum + numberFrom(item.shares) * numberFrom(item.price), 0); const thbValue = holdings.filter(item => item.ticker !== "CASH").reduce((sum, item) => sum + numberFrom(item.value), 0); return usdValue > 0 && thbValue > 0 ? thbValue / usdValue : 32.6; }
 function parseBudgetInput(value, fx = fxRate()) { const text = String(value || "").trim().toLowerCase(); const amount = numberFrom(text); if (!amount) return { input: text, usd: 0, thb: 0, currency: "USD" }; return { input: text, usd: amount, thb: amount * fx, currency: "USD" }; }
@@ -534,7 +549,7 @@ function enrichHoldingsFromSheet(rows) {
     };
   });
 }
-function renderAll() { renderKpis(); renderSparklines(); renderNavChart(); renderAllocation(); renderMonthly(); renderHoldings(activeFilter); renderSignals(); renderSmartDca(); renderHealth(); renderAlerts(); renderGoal(); }
+function renderAll() { renderKpis(); renderSparklines(); renderNavChart(); renderAllocation(); renderMonthly(); renderHoldings(activeFilter); renderMobileSummary(); renderSignals(); renderSmartDca(); renderHealth(); renderAlerts(); renderGoal(); }
 async function loadLiveData() {
   document.body.classList.add("is-loading");
   const syncBanner = document.getElementById("syncBanner");
