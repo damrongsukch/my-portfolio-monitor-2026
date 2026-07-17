@@ -935,6 +935,18 @@ body[data-theme="light"] .dca-input-row input {
   line-height: 1.35;
 }
 
+.dca-rule-note,
+.dca-empty-hint {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.dca-rule-note {
+  color: var(--soft);
+}
 .dca-summary-title {
   display: block;
   color: var(--soft);
@@ -1767,6 +1779,33 @@ tfoot td {
   color: var(--muted);
   font-size: 10px;
   font-weight: 750;
+}
+
+.mobile-expand {
+  justify-self: start;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: rgba(15, 23, 42, 0.52);
+  color: var(--soft);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mobile-expand[aria-expanded="true"] {
+  color: var(--green);
+  border-color: rgba(33, 223, 103, 0.45);
+  background: rgba(33, 223, 103, 0.12);
+}
+
+.mobile-holding-card.is-expanded {
+  border-color: rgba(56, 189, 248, 0.28);
+}
+
+.mobile-holding-detail[hidden] {
+  display: none;
 }
 
 .mobile-holding-strip strong {

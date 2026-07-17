@@ -312,7 +312,7 @@ function renderHoldings(filter = activeFilter, query = document.getElementById("
     const signal = signalMeta(item.signal);
     const gainPercent = plusText(item.pl, percentText);
     const daySummary = `${signedCurrencyFromUsd(item.dayChangeUsd)} (${plusText(item.dayChangePercent, percentText)})`;
-    return `<article class="mobile-holding-card compact ${plClass}"><div class="mobile-holding-strip"><div class="mobile-asset">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="layer-text ${layer}">${layer.toUpperCase()}</b></strong><small>${numberFrom(item.shares).toFixed(6)} shares</small></span></div><div class="mobile-gain ${plClass}"><strong>${gain}</strong><small>${gainPercent}</small></div><div class="mobile-stat mobile-price"><span>Price</span><strong>${formatCurrencyFromUsd(item.currentPriceUsd || item.price)}</strong></div><div class="mobile-stat mobile-avg"><span>Avg</span><strong>${formatCurrencyFromUsd(item.avgCostUsd)}</strong></div><div class="mobile-stat mobile-value"><span>Value</span><strong>${formatCurrencyFromThb(item.value)}</strong></div>${targetMeter(item, "mobile-target")}</div><div class="mobile-holding-detail"><span class="mobile-day-change">Day <b class="${dayPlClass}">${daySummary}</b></span><span>RSI ${rsiPair(item)}</span><span class="mobile-signal ${signal.cls}" tabindex="0" title="${signal.help}">${cleanSignal(item.signal)}</span></div></article>`;
+    return `<article class="mobile-holding-card compact ${plClass}" data-ticker="${item.ticker}"><div class="mobile-holding-strip"><div class="mobile-asset">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="layer-text ${layer}">${layer.toUpperCase()}</b></strong><small>${numberFrom(item.shares).toFixed(6)} shares</small></span></div><div class="mobile-gain ${plClass}"><strong>${gain}</strong><small>${gainPercent}</small></div><div class="mobile-stat mobile-price"><span>Price</span><strong>${formatCurrencyFromUsd(item.currentPriceUsd || item.price)}</strong></div><div class="mobile-stat mobile-avg"><span>Avg</span><strong>${formatCurrencyFromUsd(item.avgCostUsd)}</strong></div><div class="mobile-stat mobile-value"><span>Value</span><strong>${formatCurrencyFromThb(item.value)}</strong></div>${targetMeter(item, "mobile-target")}<button class="mobile-expand" type="button" aria-expanded="false" aria-label="Show ${item.ticker} details">Details</button></div><div class="mobile-holding-detail" hidden><span class="mobile-day-change">Day <b class="${dayPlClass}">${daySummary}</b></span><span>RSI ${rsiPair(item)}</span><span class="mobile-signal ${signal.cls}" tabindex="0" title="${signal.help}">${cleanSignal(item.signal)}</span></div></article>`;
   }).join("") || `<div class="empty">No holdings match. Clear the search or choose All.</div>`);
 }
 
@@ -398,7 +398,18 @@ function renderTodaySignal(best, budgetUsd) {
   setText("todaySignal", budgetUsd > 0 ? "Sizing Ready" : `${best.ticker} ${best.multiplier}x`);
   setHtml("todaySignalText", `<span class="signal-summary">${signal}</span><span class="signal-chips"><b>${best.ticker}</b><b>${best.multiplier.toFixed(2)}x</b><b>Score ${best.rankScore.toFixed(0)}</b><b>RSI ${rsiPair(best)}</b><b>${gap > 0 ? `Under +${gap.toFixed(1)}%` : gap < 0 ? `Over ${Math.abs(gap).toFixed(1)}%` : "On target"}</b></span><span class="signal-note">${best.reason}</span>`);
 }
-function renderSmartDca() { const input = document.getElementById("dcaBudgetInput"); const budget = parseBudgetInput(input?.value || ""); const plan = buildDcaPlan(budget.usd); const rows = budget.usd > 0 ? plan.picks.filter(item => item.amountUsd > 0) : plan.picks; setHtml("dcaBudgetSummary", budget.usd > 0 ? `<span class="dca-summary-title">Final Action sizing: allocate ${formatUsd(plan.usedUsd)} from ${formatUsd(budget.usd)} and keep ${formatUsd(plan.leftoverUsd)} in cash</span><span class="dca-figures"><b>Budget ${formatUsd(budget.usd)}</b><b>Allocate ${formatUsd(plan.usedUsd)}</b><b>Cash left ${formatUsd(plan.leftoverUsd)}</b><b>Min ${formatUsd(MIN_ORDER_USD)}</b></span>` : "Enter USD. Sizing follows Final_Action; target gap, priority and RSI rank equal-size signals."); setHtml("smartDcaList", rows.map((item, index) => `<div class="mini-row dca-plan-row"><span>${index + 1}. <strong>${item.ticker}</strong><small>${cleanSignal(item.signal)} · Score ${item.rankScore.toFixed(0)} · ${item.reason}${item.belowMin ? " · below DIME minimum" : ""}</small></span><strong>${budget.usd > 0 ? formatUsd(item.amountUsd) : `${item.multiplier.toFixed(2)}x`}<small>${item.multiplier.toFixed(2)}x weight</small></strong></div>`).join("") || `<div class="empty">No eligible Final Action today. Keep cash.</div>`); renderTodaySignal(rows[0], budget.usd); }
+function renderSmartDca() {
+  const input = document.getElementById("dcaBudgetInput");
+  const budget = parseBudgetInput(input?.value || "");
+  const plan = buildDcaPlan(budget.usd);
+  const rows = budget.usd > 0 ? plan.picks.filter(item => item.amountUsd > 0) : plan.picks;
+  const ruleNote = `<span class="dca-rule-note">Signal order: Final_Action first, then Signal, then EMA_Signal. Ranking uses target gap, priority and RSI.</span>`;
+  setHtml("dcaBudgetSummary", budget.usd > 0
+    ? `${ruleNote}<span class="dca-summary-title">Final_Action sizing: allocate ${formatUsd(plan.usedUsd)} from ${formatUsd(budget.usd)} and keep ${formatUsd(plan.leftoverUsd)} in cash.</span><span class="dca-figures"><b>Budget ${formatUsd(budget.usd)}</b><b>Allocate ${formatUsd(plan.usedUsd)}</b><b>Cash left ${formatUsd(plan.leftoverUsd)}</b><b>Min ${formatUsd(MIN_ORDER_USD)}</b></span>`
+    : `${ruleNote}<span class="dca-empty-hint">Enter USD. Sizing follows explicit BUY 0.25x / 0.50x / 0.75x / 1.00x from the sheet when available.</span>`);
+  setHtml("smartDcaList", rows.map((item, index) => `<div class="mini-row dca-plan-row"><span>${index + 1}. <strong>${item.ticker}</strong><small>${cleanSignal(item.signal)} - Score ${item.rankScore.toFixed(0)} - ${item.reason}${item.belowMin ? " - below DIME minimum" : ""}</small></span><strong>${budget.usd > 0 ? formatUsd(item.amountUsd) : `${item.multiplier.toFixed(2)}x`}<small>${item.multiplier.toFixed(2)}x weight</small></strong></div>`).join("") || `<div class="empty">No eligible Final_Action today. Keep cash.</div>`);
+  renderTodaySignal(rows[0], budget.usd);
+}
 function renderHealth() { const growth = holdings.filter(item => /growth/i.test(item.layer)).reduce((sum, item) => sum + item.weight, 0); const alpha = holdings.filter(item => /alpha/i.test(item.layer)).reduce((sum, item) => sum + item.weight, 0); const cash = holdings.find(item => item.ticker === "CASH"); const cashWeight = cash ? cash.weight : 0; const score = Math.max(6.4, Math.min(9.4, 9.2 - Math.max(0, growth - 58) * .06 - Math.max(0, alpha - 8) * .08 + Math.min(cashWeight, 4) * .03)); setText("healthScore", score.toFixed(1)); setHtml("healthMetrics", [["Diversification", Math.min(9.2, 7.2 + holdings.length * .18).toFixed(1)], ["Risk Control", score.toFixed(1)], ["Momentum", /MODE A/i.test(kpis.marketMode) ? "9.0" : "7.6"], ["Cash Buffer", Math.max(6.5, Math.min(9.0, 7 + cashWeight / 2)).toFixed(1)]].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("")); }
 function renderAlerts() { const rows = []; holdings.forEach(item => { const r = numberFrom(item.pl); const signal = cleanSignal(item.signal); const status = targetStatus(item); if (/strong buy|buy|accumulate/i.test(signal)) rows.push({ title: `${item.ticker} has an active entry signal`, text: `${signal} from the Looker signal sheet. Check live market conditions before buying.`, tone: "positive" }); if (status.gap >= 1.5) rows.push({ title: `${item.ticker} is under target`, text: `${kpis.marketMode} target is ${targetWeight(item).toFixed(1)}%, current weight is ${numberFrom(item.weight).toFixed(1)}%.`, tone: "positive" }); if (status.gap <= -2) rows.push({ title: `${item.ticker} is over target`, text: `${kpis.marketMode} target is ${targetWeight(item).toFixed(1)}%, current weight is ${numberFrom(item.weight).toFixed(1)}%.`, tone: "caution" }); if (r > 25) rows.push({ title: `${item.ticker} is extended`, text: `Position return is ${item.pl}. Avoid chasing and review target weight.`, tone: "caution" }); if (r < -5) rows.push({ title: `${item.ticker} needs drawdown review`, text: `Position return is ${item.pl}. Review thesis and allocation gap.`, tone: "caution" }); }); document.querySelectorAll(".alert-dot").forEach(button => button.dataset.count = String(Math.min(rows.length, 9))); setHtml("alertsList", rows.slice(0, 5).map(row => `<div class="alert-row"><div><strong>${row.title}</strong><p>${row.text}</p></div><span class="badge ${row.tone}">${row.tone}</span></div>`).join("") || `<div class="empty">No major alerts from the latest sheet snapshot.</div>`); }
 function projectGoalSeries(startValue, monthlyDca, annualReturn, totalMonths) {
@@ -560,6 +571,7 @@ async function loadLiveData() {
   setText("syncStatusText", "Connecting to Google Sheet...");
   setText("portfolioSyncMeta", "Portfolio loading");
   setText("signalSyncMeta", "Signals loading");
+  setText("navSyncMeta", "NAV loading");
   const retryButton = document.getElementById("syncRetryButton");
   if (retryButton) retryButton.hidden = true;
   try {
@@ -586,6 +598,7 @@ async function loadLiveData() {
     setText("syncStatusText", signalsLive ? "Google Sheet synced" : "Portfolio synced, signals unavailable");
     setText("portfolioSyncMeta", `Portfolio ${portfolioUpdatedAt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`);
     setText("signalSyncMeta", signalsLive ? `Signals ${now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}` : "Signals fallback active");
+    setText("navSyncMeta", `NAV ${now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`);
     setText("sideSync", "Live");
     setText("marketOpenLabel", "Sheet Live");
     if (syncBanner) syncBanner.dataset.state = signalsLive ? "live" : "partial";
@@ -600,6 +613,7 @@ async function loadLiveData() {
     setText("syncStatusText", "Live sync unavailable. Showing saved data.");
     setText("portfolioSyncMeta", "Portfolio saved snapshot");
     setText("signalSyncMeta", "Signals saved snapshot");
+    setText("navSyncMeta", "NAV saved snapshot");
     if (retryButton) retryButton.hidden = false;
     renderAll();
   } finally {
@@ -645,6 +659,18 @@ function bindInteractions() {
   document.getElementById("themeToggle")?.addEventListener("click", () => setTheme(document.body.dataset.theme === "light" ? "dark" : "light"));
   document.getElementById("currencyToggle")?.addEventListener("click", () => setCurrencyMode(currencyMode === "THB" ? "USD" : "THB"));
   document.getElementById("dcaBudgetInput")?.addEventListener("input", renderSmartDca);
+  document.getElementById("mobileHoldings")?.addEventListener("click", event => {
+    const button = event.target.closest(".mobile-expand");
+    if (!button) return;
+    const card = button.closest(".mobile-holding-card");
+    const detail = card?.querySelector(".mobile-holding-detail");
+    if (!card || !detail) return;
+    const expanded = !card.classList.contains("is-expanded");
+    card.classList.toggle("is-expanded", expanded);
+    detail.hidden = !expanded;
+    button.setAttribute("aria-expanded", String(expanded));
+    button.textContent = expanded ? "Hide" : "Details";
+  });
   ["goalMonthlyDca", "goalAnnualReturn", "goalMonths"].forEach(id => document.getElementById(id)?.addEventListener("input", renderGoal));
   document.getElementById("useCashButton")?.addEventListener("click", () => {
     const input = document.getElementById("dcaBudgetInput");
