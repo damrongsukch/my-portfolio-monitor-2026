@@ -274,7 +274,40 @@ function buildMonthlyContributions(nav, monthlyRows) {
     return { label: monthLabel(key), value: grouped.get(key) || 0 };
   });
 }
-function renderMonthly() { const svg = document.getElementById("monthlyChart"); if (!svg || !monthly.length) return; renderMonthlySummary(); const width = 760, height = 320, padding = { top: 38, right: 24, bottom: 58, left: 24 }, max = Math.max(...monthly.map(item => item.value), 1), plotH = height - padding.top - padding.bottom, gap = (width - padding.left - padding.right) / monthly.length, barW = Math.min(34, gap * .5); svg.setAttribute("viewBox", `0 0 ${width} ${height}`); svg.innerHTML = monthly.map((item, index) => { const x = padding.left + index * gap + gap / 2 - barW / 2, h = item.value > 0 ? Math.max(4, (item.value / max) * plotH) : 2, y = padding.top + plotH - h, labelX = x + barW / 2; return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" fill="#25e05d" opacity="${item.value > 0 ? "1" : ".2"}" rx="5"/><text class="axis-text monthly-value" x="${labelX.toFixed(1)}" y="${(y - 8).toFixed(1)}">${monthlyAmount(item.value)}</text><text class="muted-text monthly-label" x="${labelX.toFixed(1)}" y="${height - 25}">${item.label.split(" ")[0]}</text><text class="muted-text monthly-year" x="${labelX.toFixed(1)}" y="${height - 10}">${item.label.split(" ")[1] || ""}</text>`; }).join(""); }
+function renderMonthly() {
+  const svg = document.getElementById("monthlyChart");
+  if (!svg || !monthly.length) return;
+  renderMonthlySummary();
+  const width = 760;
+  const height = 320;
+  const padding = { top: 38, right: 34, bottom: 58, left: 24 };
+  const monthlyTotal = monthly.reduce((sum, item) => sum + numberFrom(item.value), 0);
+  const openingCapital = Math.max(0, numberFrom(kpis.invested) - monthlyTotal);
+  let runningCapital = openingCapital;
+  const investedSeries = monthly.map(item => {
+    runningCapital += numberFrom(item.value);
+    return runningCapital;
+  });
+  const max = Math.max(...monthly.map(item => item.value), ...investedSeries, 1);
+  const plotH = height - padding.top - padding.bottom;
+  const gap = (width - padding.left - padding.right) / monthly.length;
+  const barW = Math.min(34, gap * .5);
+  const pointFor = (value, index) => [
+    padding.left + index * gap + gap / 2,
+    padding.top + (1 - numberFrom(value) / max) * plotH
+  ];
+  const investedPoints = investedSeries.map(pointFor);
+  const bars = monthly.map((item, index) => {
+    const x = padding.left + index * gap + gap / 2 - barW / 2;
+    const h = item.value > 0 ? Math.max(4, (item.value / max) * plotH) : 2;
+    const y = padding.top + plotH - h;
+    const labelX = x + barW / 2;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" fill="#25e05d" opacity="${item.value > 0 ? "1" : ".2"}" rx="5"/><text class="axis-text monthly-value" x="${labelX.toFixed(1)}" y="${(y - 8).toFixed(1)}">${monthlyAmount(item.value)}</text><text class="muted-text monthly-label" x="${labelX.toFixed(1)}" y="${height - 25}">${item.label.split(" ")[0]}</text><text class="muted-text monthly-year" x="${labelX.toFixed(1)}" y="${height - 10}">${item.label.split(" ")[1] || ""}</text>`;
+  }).join("");
+  const lastPoint = investedPoints.at(-1);
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.innerHTML = `${bars}<path class="monthly-invested-line" d="${pathFromPoints(investedPoints)}"/><circle class="monthly-invested-dot" cx="${lastPoint[0].toFixed(1)}" cy="${lastPoint[1].toFixed(1)}" r="4"/><text class="monthly-invested-end" x="${(lastPoint[0] - 7).toFixed(1)}" y="${(lastPoint[1] - 9).toFixed(1)}">THB ${monthlyAmount(investedSeries.at(-1))}</text>`;
+}
 function signalMeta(signal) {
   const text = cleanSignal(signal);
   const normalized = text.toLowerCase();
@@ -343,6 +376,29 @@ function axisThb(value) { const amount = numberFrom(value); if (amount >= 100000
 function fullAmount(value) { return Math.round(numberFrom(value)).toLocaleString("en-US"); }
 function monthAxisLabel(month) { if (!month) return "Now"; return month % 12 === 0 ? `M${month} (Y${month / 12})` : `M${month}`; }
 function sheetDate(value) { if (value instanceof Date) return value; if (typeof value === "number") return new Date(Date.UTC(1899, 11, 30) + value * 86400000); const parsed = new Date(String(value || "")); return Number.isNaN(parsed.getTime()) ? new Date() : parsed; }
+function validSheetDate(value) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  if (typeof value === "number") {
+    const date = new Date(Date.UTC(1899, 11, 30) + value * 86400000);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  const parsed = new Date(String(value || ""));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+function dataFreshness(now = new Date()) {
+  const latest = navRows.map(row => validSheetDate(row[0])).filter(Boolean).sort((a, b) => b - a)[0];
+  if (!latest) return { label: "Market data date unavailable", stale: true, ageHours: Infinity };
+  const ageHours = Math.max(0, (now.getTime() - latest.getTime()) / 3600000);
+  const ageLabel = ageHours < 1 ? "just updated" : ageHours < 24 ? `${Math.floor(ageHours)}h old` : `${Math.floor(ageHours / 24)}d old`;
+  const dateLabel = latest.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return { label: `Market data ${dateLabel} • ${ageLabel}`, stale: ageHours > 24, ageHours };
+}
+function updateFreshnessUi(freshness) {
+  const meta = document.getElementById("freshnessMeta");
+  if (!meta) return;
+  meta.textContent = freshness.label;
+  meta.classList.toggle("stale", freshness.stale);
+}
 function xirr() { return null; }
 function dcaSizing(item) {
   const signal = cleanSignal(item.signal).toUpperCase();
@@ -410,7 +466,28 @@ function renderSmartDca() {
   setHtml("smartDcaList", rows.map((item, index) => `<div class="mini-row dca-plan-row"><span>${index + 1}. <strong>${item.ticker}</strong><small>${cleanSignal(item.signal)} - Score ${item.rankScore.toFixed(0)} - ${item.reason}${item.belowMin ? " - below DIME minimum" : ""}</small></span><strong>${budget.usd > 0 ? formatUsd(item.amountUsd) : `${item.multiplier.toFixed(2)}x`}<small>${item.multiplier.toFixed(2)}x weight</small></strong></div>`).join("") || `<div class="empty">No eligible Final_Action today. Keep cash.</div>`);
   renderTodaySignal(rows[0], budget.usd);
 }
-function renderHealth() { const growth = holdings.filter(item => /growth/i.test(item.layer)).reduce((sum, item) => sum + item.weight, 0); const alpha = holdings.filter(item => /alpha/i.test(item.layer)).reduce((sum, item) => sum + item.weight, 0); const cash = holdings.find(item => item.ticker === "CASH"); const cashWeight = cash ? cash.weight : 0; const score = Math.max(6.4, Math.min(9.4, 9.2 - Math.max(0, growth - 58) * .06 - Math.max(0, alpha - 8) * .08 + Math.min(cashWeight, 4) * .03)); setText("healthScore", score.toFixed(1)); setHtml("healthMetrics", [["Diversification", Math.min(9.2, 7.2 + holdings.length * .18).toFixed(1)], ["Risk Control", score.toFixed(1)], ["Momentum", /MODE A/i.test(kpis.marketMode) ? "9.0" : "7.6"], ["Cash Buffer", Math.max(6.5, Math.min(9.0, 7 + cashWeight / 2)).toFixed(1)]].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("")); }
+function renderHealth() {
+  const activeHoldings = holdings.filter(item => item.ticker !== "CASH" && numberFrom(item.shares) > 0);
+  const growth = holdings.filter(item => /growth/i.test(item.layer)).reduce((sum, item) => sum + item.weight, 0);
+  const alpha = holdings.filter(item => /alpha/i.test(item.layer)).reduce((sum, item) => sum + item.weight, 0);
+  const cash = holdings.find(item => item.ticker === "CASH");
+  const cashWeight = cash ? cash.weight : 0;
+  const diversification = Math.min(9.2, 7.2 + activeHoldings.length * .18);
+  const riskControl = Math.max(6.4, Math.min(9.4, 9.2 - Math.max(0, growth - 58) * .06 - Math.max(0, alpha - 8) * .08 + Math.min(cashWeight, 4) * .03));
+  const momentum = /MODE A/i.test(kpis.marketMode) ? 9 : 7.6;
+  const cashBuffer = Math.max(6.5, Math.min(9, 7 + cashWeight / 2));
+  const score = (diversification + riskControl + momentum + cashBuffer) / 4;
+  setText("healthScore", score.toFixed(1));
+  const ring = document.querySelector(".health-ring");
+  if (ring) ring.style.setProperty("--health-fill", `${Math.round(score * 10)}%`);
+  const metrics = [
+    ["Diversification", diversification, `${activeHoldings.length} active holdings; capped at 9.2`],
+    ["Risk Control", riskControl, `Growth ${growth.toFixed(1)}%, Alpha ${alpha.toFixed(1)}%, Cash ${cashWeight.toFixed(1)}%`],
+    ["Momentum", momentum, `Based on ${kpis.marketMode}`],
+    ["Cash Buffer", cashBuffer, `Cash weight ${cashWeight.toFixed(1)}%`]
+  ];
+  setHtml("healthMetrics", metrics.map(([label, value, help]) => `<div title="${help}"><span>${label}</span><strong>${value.toFixed(1)}</strong></div>`).join(""));
+}
 function renderAlerts() { const rows = []; holdings.forEach(item => { const r = numberFrom(item.pl); const signal = cleanSignal(item.signal); const status = targetStatus(item); if (/strong buy|buy|accumulate/i.test(signal)) rows.push({ title: `${item.ticker} has an active entry signal`, text: `${signal} from the Looker signal sheet. Check live market conditions before buying.`, tone: "positive" }); if (status.gap >= 1.5) rows.push({ title: `${item.ticker} is under target`, text: `${kpis.marketMode} target is ${targetWeight(item).toFixed(1)}%, current weight is ${numberFrom(item.weight).toFixed(1)}%.`, tone: "positive" }); if (status.gap <= -2) rows.push({ title: `${item.ticker} is over target`, text: `${kpis.marketMode} target is ${targetWeight(item).toFixed(1)}%, current weight is ${numberFrom(item.weight).toFixed(1)}%.`, tone: "caution" }); if (r > 25) rows.push({ title: `${item.ticker} is extended`, text: `Position return is ${item.pl}. Avoid chasing and review target weight.`, tone: "caution" }); if (r < -5) rows.push({ title: `${item.ticker} needs drawdown review`, text: `Position return is ${item.pl}. Review thesis and allocation gap.`, tone: "caution" }); }); document.querySelectorAll(".alert-dot").forEach(button => button.dataset.count = String(Math.min(rows.length, 9))); setHtml("alertsList", rows.slice(0, 5).map(row => `<div class="alert-row"><div><strong>${row.title}</strong><p>${row.text}</p></div><span class="badge ${row.tone}">${row.tone}</span></div>`).join("") || `<div class="empty">No major alerts from the latest sheet snapshot.</div>`); }
 function projectGoalSeries(startValue, monthlyDca, annualReturn, totalMonths) {
   const months = Math.max(1, Math.round(totalMonths));
@@ -569,51 +646,61 @@ async function loadLiveData() {
   setText("marketOpenLabel", "Sheet Loading");
   setText("updatedAt", "Refreshing portfolio data");
   setText("syncStatusText", "Connecting to Google Sheet...");
-  setText("portfolioSyncMeta", "Portfolio loading");
+  setText("portfolioSyncMeta", "KPI loading • Holdings loading");
   setText("signalSyncMeta", "Signals loading");
-  setText("navSyncMeta", "NAV loading");
+  setText("navSyncMeta", "NAV loading • Monthly loading");
+  setText("freshnessMeta", "Freshness checking");
   const retryButton = document.getElementById("syncRetryButton");
   if (retryButton) retryButton.hidden = true;
+  let sheetState = {};
   try {
-    const [kpi, holdingsData, nav, monthlyData] = await Promise.all([
-      fetchSheet(DATA_SHEETS.kpi),
-      fetchSheet(DATA_SHEETS.holdings),
-      fetchSheet(DATA_SHEETS.nav),
-      fetchSheet(DATA_SHEETS.monthly)
-    ]);
-    const portfolioUpdatedAt = new Date();
-    let signalsData = [["Ticker", "Signal", "RSI7", "RSI14"]];
-    let signalsLive = false;
-    try {
-      signalsData = await fetchSheet(DATA_SHEETS.signals);
-      signalsLive = true;
-    } catch (signalError) {
-      console.warn("Signal sync failed", signalError);
+    const sheetEntries = [
+      ["kpi", DATA_SHEETS.kpi],
+      ["holdings", DATA_SHEETS.holdings],
+      ["nav", DATA_SHEETS.nav],
+      ["monthly", DATA_SHEETS.monthly],
+      ["signals", DATA_SHEETS.signals]
+    ];
+    const results = await Promise.allSettled(sheetEntries.map(([, sheet]) => fetchSheet(sheet)));
+    sheetState = Object.fromEntries(sheetEntries.map(([key], index) => [key, results[index].status === "fulfilled" ? "live" : "unavailable"]));
+    const coreReady = ["kpi", "holdings", "nav", "monthly"].every(key => sheetState[key] === "live");
+    if (!coreReady) {
+      const missing = ["kpi", "holdings", "nav", "monthly"].filter(key => sheetState[key] !== "live");
+      throw new Error(`Incomplete sheet sync: ${missing.join(", ")}`);
     }
-    applyLiveData({ kpi, holdings: holdingsData, nav, monthly: monthlyData, signals: signalsData });
-    enrichHoldingsFromSheet(holdingsData);
+    const datasets = Object.fromEntries(sheetEntries.map(([key], index) => [key, results[index].status === "fulfilled" ? results[index].value : [["Ticker", "Signal", "RSI7", "RSI14"]]]));
+    applyLiveData(datasets);
+    enrichHoldingsFromSheet(datasets.holdings);
     renderAll();
     const now = new Date();
-    setText("updatedAt", `Updated ${now.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`);
-    setText("syncStatusText", signalsLive ? "Google Sheet synced" : "Portfolio synced, signals unavailable");
-    setText("portfolioSyncMeta", `Portfolio ${portfolioUpdatedAt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`);
-    setText("signalSyncMeta", signalsLive ? `Signals ${now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}` : "Signals fallback active");
-    setText("navSyncMeta", `NAV ${now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`);
-    setText("sideSync", "Live");
-    setText("marketOpenLabel", "Sheet Live");
-    if (syncBanner) syncBanner.dataset.state = signalsLive ? "live" : "partial";
+    const freshness = dataFreshness(now);
+    const signalsLive = sheetState.signals === "live";
+    updateFreshnessUi(freshness);
+    setText("updatedAt", `Fetched ${now.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} • ${freshness.label.replace("Market data ", "Data ")}`);
+    setText("syncStatusText", !signalsLive ? "Portfolio synced, signals unavailable" : freshness.stale ? "Google Sheet synced • Market data is stale" : "Google Sheet synced");
+    setText("portfolioSyncMeta", "KPI live • Holdings live");
+    setText("signalSyncMeta", signalsLive ? "Signals live" : "Signals unavailable • fallback active");
+    setText("navSyncMeta", "NAV live • Monthly live");
+    setText("sideSync", freshness.stale ? "Stale" : signalsLive ? "Live" : "Partial");
+    setText("marketOpenLabel", freshness.stale ? "Sheet Stale" : signalsLive ? "Sheet Live" : "Sheet Partial");
+    if (syncBanner) syncBanner.dataset.state = !signalsLive ? "partial" : freshness.stale ? "stale" : "live";
+    if (retryButton) retryButton.hidden = signalsLive && !freshness.stale;
     const meter = document.getElementById("syncMeter");
-    if (meter) meter.style.width = "92%";
+    if (meter) meter.style.width = signalsLive ? "100%" : "76%";
   } catch (error) {
     console.warn(error);
+    const statusText = key => sheetState[key] === "live" ? "live" : "unavailable";
+    const anyLive = Object.values(sheetState).includes("live");
+    const freshness = dataFreshness(new Date());
+    updateFreshnessUi(freshness);
     setText("updatedAt", "Using saved data. Check sheet publish access.");
-    setText("sideSync", "Saved");
-    setText("marketOpenLabel", "Saved Data");
-    if (syncBanner) syncBanner.dataset.state = "saved";
-    setText("syncStatusText", "Live sync unavailable. Showing saved data.");
-    setText("portfolioSyncMeta", "Portfolio saved snapshot");
-    setText("signalSyncMeta", "Signals saved snapshot");
-    setText("navSyncMeta", "NAV saved snapshot");
+    setText("sideSync", anyLive ? "Partial" : "Saved");
+    setText("marketOpenLabel", anyLive ? "Sheet Partial" : "Saved Data");
+    if (syncBanner) syncBanner.dataset.state = anyLive ? "partial" : "saved";
+    setText("syncStatusText", anyLive ? "Sync incomplete. Showing the last complete snapshot." : "Live sync unavailable. Showing saved data.");
+    setText("portfolioSyncMeta", `KPI ${statusText("kpi")} • Holdings ${statusText("holdings")}`);
+    setText("signalSyncMeta", `Signals ${statusText("signals")}`);
+    setText("navSyncMeta", `NAV ${statusText("nav")} • Monthly ${statusText("monthly")}`);
     if (retryButton) retryButton.hidden = false;
     renderAll();
   } finally {

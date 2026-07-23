@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg?v=20260702b">
   <link rel="shortcut icon" href="./assets/favicon.ico?v=20260702b">
   <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=20260702b">
-  <link rel="stylesheet" href="./styles.css?v=20260723-mobile-detail-row">
+  <link rel="stylesheet" href="./styles.css?v=20260723-ux-data-status">
 </head>
 <body data-theme="dark">
   <div class="app-shell">
@@ -106,6 +106,7 @@
           <span id="portfolioSyncMeta">Portfolio loading</span>
           <span id="signalSyncMeta">Signals loading</span>
           <span id="navSyncMeta">NAV loading</span>
+          <span id="freshnessMeta">Freshness checking</span>
           <button id="syncRetryButton" type="button" hidden>Retry sync</button>
         </div>
       </section>
@@ -221,7 +222,19 @@
             </article>
 
             <article class="card health-card">
-              <span class="eyebrow">Portfolio health</span>
+              <div class="health-head">
+                <span class="eyebrow">Portfolio health</span>
+                <details class="health-method">
+                  <summary aria-label="How Portfolio Health scores are calculated" title="How scores are calculated">i</summary>
+                  <div class="health-method-panel">
+                    <strong>Score guide</strong>
+                    <p><b>Diversification</b> rewards more active holdings, capped at 9.2.</p>
+                    <p><b>Risk Control</b> adjusts for Growth, Alpha and cash concentration.</p>
+                    <p><b>Momentum</b> follows the current Market Mode.</p>
+                    <p><b>Cash Buffer</b> increases with available cash weight.</p>
+                  </div>
+                </details>
+              </div>
               <div class="health-layout">
                 <div class="health-ring"><strong id="healthScore">8.6</strong><span>/10</span></div>
                 <div id="healthMetrics" class="health-metrics"></div>
@@ -302,6 +315,7 @@
               <div id="monthlySummary" class="monthly-summary" aria-label="Monthly DCA summary"></div>
             </div>
             <svg id="monthlyChart" class="bar-chart" viewBox="0 0 640 280" role="img" aria-label="Monthly NAV chart"></svg>
+            <div class="monthly-legend" aria-label="Monthly chart legend"><span><i class="contribution"></i>Monthly DCA</span><span><i class="invested"></i>Invested capital</span></div>
           </article>
           <article class="card alerts-card">
             <div class="section-head">
@@ -373,6 +387,6 @@
     <button data-jump="goal" type="button"><svg viewBox="0 0 24 24"><path d="M12 21s7-4.2 7-11a7 7 0 0 0-14 0c0 6.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span>Goal</span></button>
   </nav>
 
-  <script src="./script.js?v=20260723-mobile-detail-row"></script>
+  <script src="./script.js?v=20260723-ux-data-status"></script>
 </body>
 </html>
