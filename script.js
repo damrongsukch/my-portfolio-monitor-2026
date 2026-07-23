@@ -312,7 +312,7 @@ function renderHoldings(filter = activeFilter, query = document.getElementById("
     const signal = signalMeta(item.signal);
     const gainPercent = plusText(item.pl, percentText);
     const daySummary = `${signedCurrencyFromUsd(item.dayChangeUsd)} (${plusText(item.dayChangePercent, percentText)})`;
-    return `<article class="mobile-holding-card compact ${plClass}" data-ticker="${item.ticker}"><div class="mobile-holding-strip"><div class="mobile-asset">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="layer-text ${layer}">${layer.toUpperCase()}</b></strong><small>${numberFrom(item.shares).toFixed(6)} shares</small></span></div><div class="mobile-gain ${plClass}"><strong>${gain}</strong><small>${gainPercent}</small></div><div class="mobile-stat mobile-price"><span>Price</span><strong>${formatCurrencyFromUsd(item.currentPriceUsd || item.price)}</strong></div><div class="mobile-stat mobile-avg"><span>Avg</span><strong>${formatCurrencyFromUsd(item.avgCostUsd)}</strong></div><div class="mobile-stat mobile-value"><span>Value</span><strong>${formatCurrencyFromThb(item.value)}</strong></div>${targetMeter(item, "mobile-target")}<button class="mobile-expand" type="button" aria-expanded="false" aria-label="Show ${item.ticker} details">Details</button></div><div class="mobile-holding-detail" hidden><span class="mobile-day-change">Day <b class="${dayPlClass}">${daySummary}</b></span><span>RSI ${rsiPair(item)}</span><span class="mobile-signal ${signal.cls}" tabindex="0" title="${signal.help}">${cleanSignal(item.signal)}</span></div></article>`;
+    return `<article class="mobile-holding-card compact ${plClass}" data-ticker="${item.ticker}"><div class="mobile-holding-strip"><div class="mobile-asset">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="layer-text ${layer}">${layer.toUpperCase()}</b></strong><small>${numberFrom(item.shares).toFixed(6)} shares</small></span></div><div class="mobile-gain ${plClass}"><strong>${gain}</strong><small>${gainPercent}</small></div><div class="mobile-stat mobile-price"><span>Price</span><strong>${formatCurrencyFromUsd(item.currentPriceUsd || item.price)}</strong></div><div class="mobile-stat mobile-avg"><span>Avg</span><strong>${formatCurrencyFromUsd(item.avgCostUsd)}</strong></div><div class="mobile-stat mobile-value"><span>Value</span><strong>${formatCurrencyFromThb(item.value)}</strong></div>${targetMeter(item, "mobile-target")}</div><div class="mobile-holding-detail"><span class="mobile-day-change">Day <b class="${dayPlClass}">${daySummary}</b></span><span>RSI ${rsiPair(item)}</span><span class="mobile-signal ${signal.cls}" tabindex="0" title="${signal.help}">${cleanSignal(item.signal)}</span></div></article>`;
   }).join("") || `<div class="empty">No holdings match. Clear the search or choose All.</div>`);
 }
 
@@ -659,18 +659,6 @@ function bindInteractions() {
   document.getElementById("themeToggle")?.addEventListener("click", () => setTheme(document.body.dataset.theme === "light" ? "dark" : "light"));
   document.getElementById("currencyToggle")?.addEventListener("click", () => setCurrencyMode(currencyMode === "THB" ? "USD" : "THB"));
   document.getElementById("dcaBudgetInput")?.addEventListener("input", renderSmartDca);
-  document.getElementById("mobileHoldings")?.addEventListener("click", event => {
-    const button = event.target.closest(".mobile-expand");
-    if (!button) return;
-    const card = button.closest(".mobile-holding-card");
-    const detail = card?.querySelector(".mobile-holding-detail");
-    if (!card || !detail) return;
-    const expanded = !card.classList.contains("is-expanded");
-    card.classList.toggle("is-expanded", expanded);
-    detail.hidden = !expanded;
-    button.setAttribute("aria-expanded", String(expanded));
-    button.textContent = expanded ? "Hide" : "Details";
-  });
   ["goalMonthlyDca", "goalAnnualReturn", "goalMonths"].forEach(id => document.getElementById(id)?.addEventListener("input", renderGoal));
   document.getElementById("useCashButton")?.addEventListener("click", () => {
     const input = document.getElementById("dcaBudgetInput");

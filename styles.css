@@ -1781,33 +1781,6 @@ tfoot td {
   font-weight: 750;
 }
 
-.mobile-expand {
-  justify-self: start;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 999px;
-  padding: 5px 10px;
-  background: rgba(15, 23, 42, 0.52);
-  color: var(--soft);
-  font-size: 10px;
-  font-weight: 800;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.mobile-expand[aria-expanded="true"] {
-  color: var(--green);
-  border-color: rgba(33, 223, 103, 0.45);
-  background: rgba(33, 223, 103, 0.12);
-}
-
-.mobile-holding-card.is-expanded {
-  border-color: rgba(56, 189, 248, 0.28);
-}
-
-.mobile-holding-detail[hidden] {
-  display: none;
-}
-
 .mobile-holding-strip strong {
   display: block;
   margin-top: 2px;
@@ -1933,9 +1906,11 @@ tfoot td {
 }
 
 .mobile-holding-detail {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 10px;
+  display: grid;
+  grid-template-columns: max-content max-content max-content;
+  align-items: center;
+  justify-content: start;
+  gap: 8px;
   padding-top: 2px;
 }
 
@@ -1944,7 +1919,7 @@ tfoot td {
 }
 
 .mobile-day-change {
-  flex-basis: 100%;
+  min-width: 0;
 }
 
 .mobile-day-change b {
