@@ -385,13 +385,23 @@ function validSheetDate(value) {
   const parsed = new Date(String(value || ""));
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
-function dataFreshness(now = new Date()) {
+function marketBusinessDaysSince(latest, now) {
+  const cursor = new Date(latest.getFullYear(), latest.getMonth(), latest.getDate());
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let days = 0;
+  while (cursor < today) {
+    cursor.setDate(cursor.getDate() + 1);
+    if (cursor.getDay() !== 0 && cursor.getDay() !== 6) days += 1;
+  }
+  return days;
+}
+function dataFreshness(now = new Date(), syncVerb = "Synced") {
   const latest = navRows.map(row => validSheetDate(row[0])).filter(Boolean).sort((a, b) => b - a)[0];
-  if (!latest) return { label: "Market data date unavailable", stale: true, ageHours: Infinity };
-  const ageHours = Math.max(0, (now.getTime() - latest.getTime()) / 3600000);
-  const ageLabel = ageHours < 1 ? "just updated" : ageHours < 24 ? `${Math.floor(ageHours)}h old` : `${Math.floor(ageHours / 24)}d old`;
-  const dateLabel = latest.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  return { label: `Market data ${dateLabel} • ${ageLabel}`, stale: ageHours > 24, ageHours };
+  const syncLabel = `${syncVerb} ${now.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}`;
+  if (!latest) return { label: `Market close unavailable • ${syncLabel}`, stale: true, businessDays: Infinity };
+  const businessDays = marketBusinessDaysSince(latest, now);
+  const marketLabel = latest.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return { label: `Market close ${marketLabel} • ${syncLabel}`, stale: businessDays > 1, businessDays };
 }
 function updateFreshnessUi(freshness) {
   const meta = document.getElementById("freshnessMeta");
@@ -676,7 +686,7 @@ async function loadLiveData() {
     const freshness = dataFreshness(now);
     const signalsLive = sheetState.signals === "live";
     updateFreshnessUi(freshness);
-    setText("updatedAt", `Fetched ${now.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} • ${freshness.label.replace("Market data ", "Data ")}`);
+    setText("updatedAt", freshness.label);
     setText("syncStatusText", !signalsLive ? "Portfolio synced, signals unavailable" : freshness.stale ? "Google Sheet synced • Market data is stale" : "Google Sheet synced");
     setText("portfolioSyncMeta", "KPI live • Holdings live");
     setText("signalSyncMeta", signalsLive ? "Signals live" : "Signals unavailable • fallback active");
@@ -691,7 +701,7 @@ async function loadLiveData() {
     console.warn(error);
     const statusText = key => sheetState[key] === "live" ? "live" : "unavailable";
     const anyLive = Object.values(sheetState).includes("live");
-    const freshness = dataFreshness(new Date());
+    const freshness = dataFreshness(new Date(), "Checked");
     updateFreshnessUi(freshness);
     setText("updatedAt", "Using saved data. Check sheet publish access.");
     setText("sideSync", anyLive ? "Partial" : "Saved");
