@@ -1645,6 +1645,7 @@ tfoot td {
 
 
 .layer-text.Core { color: var(--green); }
+.layer-text.Defense { color: #2dd4bf; }
 .layer-text.Growth { color: var(--amber); }
 .layer-text.Safe,
 .layer-text.Income { color: var(--blue); }
@@ -1662,6 +1663,13 @@ tfoot td {
   color: var(--amber);
   border-color: var(--amber);
   background: rgba(247, 190, 18, 0.12);
+}
+
+.holding-asset strong b.layer-text.Defense,
+.mobile-asset strong b.layer-text.Defense {
+  color: #2dd4bf;
+  border-color: #2dd4bf;
+  background: rgba(45, 212, 191, 0.12);
 }
 
 .holding-asset strong b.layer-text.Income,
