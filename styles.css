@@ -2488,6 +2488,16 @@ body[data-theme="light"] .goal-controls input {
   line-height: 1.45;
 }
 
+.health-method-panel > small {
+  display: block;
+  margin-top: 11px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  color: var(--soft);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
 .health-method-panel b {
   color: var(--soft);
 }
@@ -2499,7 +2509,7 @@ body[data-theme="light"] .health-method-panel {
 .monthly-invested-line {
   fill: none;
   stroke: #38bdf8;
-  stroke-width: 3;
+  stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -2913,5 +2923,147 @@ body[data-theme="light"] .health-method-panel {
   .benchmark-strip div + div {
     border-left: 0;
     padding-left: 0;
+  }
+}
+/* Original design: focused UX detail preview */
+.holdings-card .table-wrap {
+  scrollbar-gutter: stable;
+}
+
+.holdings-card thead th {
+  border-top: 0;
+  border-bottom-color: rgba(148, 163, 184, 0.2);
+  background: rgba(10, 17, 24, 0.96);
+}
+
+.holdings-card tbody td,
+.holdings-card tfoot td {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.holdings-card thead th:nth-child(5),
+.holdings-card tbody td:nth-child(5) {
+  border-left: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.holdings-card tbody tr {
+  transition: background-color 160ms ease;
+}
+
+.holdings-card tbody tr:hover {
+  background: rgba(74, 163, 255, 0.075);
+}
+
+@media (min-width: 1101px) and (max-width: 1320px) {
+  .holdings-card table {
+    min-width: 1160px;
+  }
+
+  .holdings-card .table-wrap {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+  }
+}
+
+@media (max-width: 1024px) {
+  .mobile-holdings {
+    gap: 12px;
+  }
+
+  .mobile-holding-card.compact {
+    gap: 11px;
+  }
+
+  .mobile-stat {
+    padding-top: 2px;
+  }
+
+  .mobile-stat > span {
+    font-weight: 650;
+  }
+
+  .mobile-holding-detail {
+    width: 100%;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, .72fr) minmax(0, 1fr);
+    justify-content: stretch;
+    gap: 8px;
+    padding-right: 2px;
+    padding-left: 2px;
+    font-size: 11px;
+  }
+
+  .mobile-holding-detail > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mobile-rsi {
+    text-align: center;
+  }
+
+  .mobile-signal {
+    text-align: right;
+  }
+}
+
+@media (max-width: 480px) {
+  .mobile-holding-detail {
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, .76fr) minmax(0, .9fr);
+    font-size: 10.5px;
+  }
+}
+/* Mobile holdings frame alignment */
+@media (max-width: 1024px) {
+  .holdings-card {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .holdings-card .section-head,
+  .holdings-card .filter-tabs,
+  .mobile-holdings,
+  .mobile-holding-card,
+  .mobile-holding-strip {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .mobile-holdings {
+    overflow: hidden;
+  }
+
+  .mobile-holding-card.compact {
+    padding: 14px;
+    overflow: hidden;
+  }
+
+  .mobile-holding-detail {
+    width: 100%;
+    max-width: 100%;
+    grid-template-columns: minmax(0, 1.4fr) minmax(62px, .72fr) minmax(0, 1fr);
+    box-sizing: border-box;
+  }
+
+  .mobile-holding-detail > span,
+  .mobile-asset > span,
+  .mobile-gain,
+  .mobile-stat,
+  .mobile-target {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .holdings-card {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .mobile-holding-detail {
+    grid-template-columns: minmax(0, 1.45fr) minmax(58px, .72fr) minmax(0, .92fr);
   }
 }
