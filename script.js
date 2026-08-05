@@ -38,9 +38,12 @@ let signals = [
 ];
 
 let monthly = [
-  { label: "Mar '26", value: 869.76 },
-  { label: "Apr '26", value: 3044.47 },
-  { label: "May '26", value: 4896.87 }
+  { label: "Mar '26", value: 1506.42 },
+  { label: "Apr '26", value: 1092.99 },
+  { label: "May '26", value: 2403.46 },
+  { label: "Jun '26", value: 5411.99 },
+  { label: "Jul '26", value: 3628.52 },
+  { label: "Aug '26", value: 3346.99 }
 ];
 
 let kpis = {
@@ -67,7 +70,7 @@ let kpis = {
 };
 
 const SHEET_ID = "1rV26pJqw8rMNO0nplvE9K0gsMCotfZ4dgvXs5kgRFDk";
-const DATA_SHEETS = { kpi: "Looker_KPI", holdings: "Looker_Holdings", nav: "Looker_NAV", monthly: "Looker_Monthly", signals: "Looker_Signals" };
+const DATA_SHEETS = { kpi: "Looker_KPI", holdings: "Looker_Holdings", nav: "Looker_NAV", monthly: "Looker_Monthly", trades: "Trade_Log", signals: "Looker_Signals" };
 const colors = ["#25e05d", "#f6c21a", "#4aa3ff", "#ff5148", "#b57cff", "#13b981", "#94a3b8", "#38bdf8", "#fb7185", "#a3e635", "#f97316", "#22d3ee", "#e879f9", "#facc15", "#60a5fa", "#34d399"];
 const MIN_ORDER_USD = 1.5;
 const GOAL_INFLATION_RATE = 3;
@@ -246,19 +249,30 @@ function renderMonthlySummary() {
   const startLabel = activeMonths[0]?.label || "-";
   setHtml("monthlySummary", `
     <div class="monthly-summary-item"><span>Start</span><strong>${startLabel}</strong></div>
-    <div class="monthly-summary-item primary"><span>Avg active</span><strong>THB ${monthlyAmount(average)}</strong></div>
-    <div class="monthly-summary-item"><span>Month</span><strong>${activeMonths.length}</strong></div>
-    <div class="monthly-summary-item"><span>12M total</span><strong>THB ${monthlyAmount(total)}</strong></div>
+    <div class="monthly-summary-item primary"><span>Avg buy</span><strong>THB ${monthlyAmount(average)}</strong></div>
+    <div class="monthly-summary-item"><span>Active months</span><strong>${activeMonths.length}</strong></div>
+    <div class="monthly-summary-item"><span>Buy total</span><strong>THB ${monthlyAmount(total)}</strong></div>
   `);
 }
-function buildMonthlyContributions(nav, monthlyRows) {
+function buildMonthlyPurchases(tradeRows, nav, monthlyRows) {
   const grouped = new Map();
-  nav.forEach(row => {
-    const date = sheetDate(row[0]);
-    if (Number.isNaN(date.getTime())) return;
-    const invested = numberFrom(row[1]);
-    grouped.set(monthKey(date), (grouped.get(monthKey(date)) || 0) + invested);
+  tradeRows.forEach(row => {
+    const type = String(rowAny(row, ["Transaction Type", "Transaction_Type", "Type"], "")).trim().toLowerCase();
+    if (type !== "buy") return;
+    const date = validSheetDate(rowAny(row, ["Date", "Transaction Date"], ""));
+    if (!date) return;
+    const amount = numberFrom(rowAny(row, ["Total Amount (THB)", "Total_Amount_THB", "Total Amount THB"], 0));
+    if (amount <= 0) return;
+    grouped.set(monthKey(date), (grouped.get(monthKey(date)) || 0) + amount);
   });
+  if (!grouped.size) {
+    nav.forEach(row => {
+      const date = validSheetDate(row[0]);
+      if (!date) return;
+      const invested = numberFrom(row[1]);
+      grouped.set(monthKey(date), (grouped.get(monthKey(date)) || 0) + invested);
+    });
+  }
   if (!grouped.size) {
     monthlyRows.forEach(row => {
       const year = Number(rowAny(row, ["Year"], 0)), month = Number(rowAny(row, ["Month"], 0));
@@ -282,8 +296,7 @@ function renderMonthly() {
   const height = 320;
   const padding = { top: 38, right: 34, bottom: 58, left: 24 };
   const monthlyTotal = monthly.reduce((sum, item) => sum + numberFrom(item.value), 0);
-  const openingCapital = Math.max(0, numberFrom(kpis.invested) - monthlyTotal);
-  let runningCapital = openingCapital;
+  let runningCapital = 0;
   const investedSeries = monthly.map(item => {
     runningCapital += numberFrom(item.value);
     return runningCapital;
@@ -629,7 +642,7 @@ function applyLiveData(datasets) {
     kpis.cashWeight = `${cash.weight.toFixed(2)}%`;
   }
   navRows = rowsToObjects(datasets.nav).map(row => [row.Date, numberFrom(row.Daily_Invested_THB), numberFrom(row.Cumulative_NAV_THB), numberFrom(row.Daily_Change_Percent) / 100, numberFrom(row.Drawdown_Percent) / 100]).filter(row => row[2] > 0);
-  monthly = buildMonthlyContributions(navRows, rowsToObjects(datasets.monthly));
+  monthly = buildMonthlyPurchases(rowsToObjects(datasets.trades), navRows, rowsToObjects(datasets.monthly));
 }
 function enrichHoldingsFromSheet(rows) {
   const source = rowsToObjects(rows);
@@ -662,7 +675,7 @@ async function loadLiveData() {
   setText("syncStatusText", "Connecting to Google Sheet...");
   setText("portfolioSyncMeta", "KPI loading • Holdings loading");
   setText("signalSyncMeta", "Signals loading");
-  setText("navSyncMeta", "NAV loading • Monthly loading");
+  setText("navSyncMeta", "NAV loading • Trade Log loading");
   setText("freshnessMeta", "Freshness checking");
   const retryButton = document.getElementById("syncRetryButton");
   if (retryButton) retryButton.hidden = true;
@@ -673,6 +686,7 @@ async function loadLiveData() {
       ["holdings", DATA_SHEETS.holdings],
       ["nav", DATA_SHEETS.nav],
       ["monthly", DATA_SHEETS.monthly],
+      ["trades", DATA_SHEETS.trades],
       ["signals", DATA_SHEETS.signals]
     ];
     const results = await Promise.allSettled(sheetEntries.map(([, sheet]) => fetchSheet(sheet)));
@@ -694,7 +708,7 @@ async function loadLiveData() {
     setText("syncStatusText", !signalsLive ? "Portfolio synced, signals unavailable" : freshness.stale ? "Google Sheet synced • Market data is stale" : "Google Sheet synced");
     setText("portfolioSyncMeta", "KPI live • Holdings live");
     setText("signalSyncMeta", signalsLive ? "Signals live" : "Signals unavailable • fallback active");
-    setText("navSyncMeta", "NAV live • Monthly live");
+    setText("navSyncMeta", `NAV live • Trade Log ${sheetState.trades === "live" ? "live" : "fallback"}`);
     setText("sideSync", freshness.stale ? "Stale" : signalsLive ? "Live" : "Partial");
     setText("marketOpenLabel", freshness.stale ? "Sheet Stale" : signalsLive ? "Sheet Live" : "Sheet Partial");
     if (syncBanner) syncBanner.dataset.state = !signalsLive ? "partial" : freshness.stale ? "stale" : "live";
@@ -714,7 +728,7 @@ async function loadLiveData() {
     setText("syncStatusText", anyLive ? "Sync incomplete. Showing the last complete snapshot." : "Live sync unavailable. Showing saved data.");
     setText("portfolioSyncMeta", `KPI ${statusText("kpi")} • Holdings ${statusText("holdings")}`);
     setText("signalSyncMeta", `Signals ${statusText("signals")}`);
-    setText("navSyncMeta", `NAV ${statusText("nav")} • Monthly ${statusText("monthly")}`);
+    setText("navSyncMeta", `NAV ${statusText("nav")} • Trade Log ${statusText("trades")}`);
     if (retryButton) retryButton.hidden = false;
     renderAll();
   } finally {
