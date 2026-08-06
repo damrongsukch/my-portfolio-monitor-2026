@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg?v=20260702b">
   <link rel="shortcut icon" href="./assets/favicon.ico?v=20260702b">
   <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=20260702b">
-  <link rel="stylesheet" href="./styles.css?v=20260804-mobile-frame">
+  <link rel="stylesheet" href="./styles.css?v=20260806-invested-line">
 </head>
 <body data-theme="dark">
   <div class="app-shell">
@@ -94,7 +94,7 @@
             <svg viewBox="0 0 24 24"><path d="M12 3v2m0 14v2M5.64 5.64l1.41 1.41m9.9 9.9 1.41 1.41M3 12h2m14 0h2M5.64 18.36l1.41-1.41m9.9-9.9 1.41-1.41"/><circle cx="12" cy="12" r="4"/></svg>
           </button>
           <button class="currency-toggle" id="currencyToggle" type="button" aria-label="Toggle THB or USD currency" title="Toggle currency">THB</button>
-          <button class="icon-button" id="refreshButton" type="button" aria-label="Refresh portfolio and signal data" title="Refresh data">
+          <button class="icon-button" id="refreshButton" type="button" aria-label="Refresh portfolio and signal data" title="Refresh now (auto every 60 seconds)">
             <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.4 6.4M3 12A9 9 0 0 1 18.4 5.6"/><path d="M21 4v6h-6M3 20v-6h6"/></svg>
           </button>
         </div>
@@ -176,7 +176,7 @@
             <div class="section-head">
               <div>
                 <span class="eyebrow">Portfolio performance</span>
-                <h2>Equity curve</h2>
+                <h2>Portfolio value</h2>
               </div>
               <div class="period-tabs" aria-label="Period">
                 <button class="active" data-period="YTD" type="button">YTD</button>
@@ -186,7 +186,11 @@
               </div>
             </div>
             <strong class="performance-number" id="performanceNumber">0.00%</strong>
-            <svg id="navChart" class="line-chart" viewBox="0 0 740 300" role="img" aria-label="Portfolio NAV chart"></svg>
+            <div class="performance-legend" aria-label="Portfolio chart legend">
+              <span><i class="value"></i>Portfolio value</span>
+              <span><i class="invested"></i><span id="performanceInvestedLabel">Current invested THB 0.00</span></span>
+            </div>
+            <svg id="navChart" class="line-chart" viewBox="0 0 740 300" role="img" aria-label="Portfolio value history chart"></svg>
             <div class="benchmark-strip">
               <div>
                 <span>vs S&amp;P500 (SPY)</span>
@@ -388,6 +392,6 @@
     <button data-jump="goal" type="button"><svg viewBox="0 0 24 24"><path d="M12 21s7-4.2 7-11a7 7 0 0 0-14 0c0 6.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span>Goal</span></button>
   </nav>
 
-  <script src="./script.js?v=20260804-mobile-frame"></script>
+  <script src="./script.js?v=20260806-invested-line"></script>
 </body>
 </html>

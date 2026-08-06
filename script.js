@@ -74,12 +74,15 @@ const DATA_SHEETS = { kpi: "Looker_KPI", holdings: "Looker_Holdings", nav: "Look
 const colors = ["#25e05d", "#f6c21a", "#4aa3ff", "#ff5148", "#b57cff", "#13b981", "#94a3b8", "#38bdf8", "#fb7185", "#a3e635", "#f97316", "#22d3ee", "#e879f9", "#facc15", "#60a5fa", "#34d399"];
 const MIN_ORDER_USD = 1.5;
 const GOAL_INFLATION_RATE = 3;
+const LIVE_REFRESH_MS = 60000;
 let allocationMode = "sector";
 let activeFilter = "All";
 let performancePeriod = "YTD";
 let currencyMode = "THB";
 let holdingsSort = { key: "preferred", direction: "asc" };
 let indicatorTimeframe = "Daily";
+let liveDataLoading = false;
+let lastLiveSyncMs = 0;
 
 const logoDomains = { VOO: "vanguard.com", SPMO: "invesco.com", VXUS: "vanguard.com", SCHD: "schwab.com", NVDA: "nvidia.com", GOOGL: "google.com", META: "meta.com", MSFT: "microsoft.com", AVGO: "broadcom.com", TSM: "tsmc.com", LLY: "lilly.com", PLTR: "palantir.com", QQQI: "neosfunds.com", IAUI: "neosfunds.com", MLPI: "neosfunds.com", RKLB: "rocketlabusa.com" };
 const logoUrls = { VOO: "./assets/logos/vanguard.svg", VXUS: "./assets/logos/vanguard.svg", SCHD: "./assets/logos/schd.svg", NVDA: "https://cdn.simpleicons.org/nvidia/76B900", META: "https://cdn.simpleicons.org/meta/0866FF", AVGO: "https://cdn.simpleicons.org/broadcom/CC092F", TSM: "./assets/logos/tsmc.png", PLTR: "https://cdn.simpleicons.org/palantir/FFFFFF", QQQI: "./assets/logos/neos.jpg", IAUI: "./assets/logos/neos.jpg", MLPI: "./assets/logos/neos.jpg", RKLB: "./assets/logos/rklb.jpg" };
@@ -194,11 +197,48 @@ function fetchSheet(sheetName) {
 function excelDateToJs(serial) { if (serial instanceof Date) return serial; if (typeof serial === "string") { const parsed = new Date(serial); if (!Number.isNaN(parsed.getTime())) return parsed; } return new Date(Math.floor(Number(serial || 0) - 25569) * 86400000); }
 function pathFromPoints(points) { return points.map((point, index) => `${index ? "L" : "M"}${point[0].toFixed(2)} ${point[1].toFixed(2)}`).join(" "); }
 function drawSparkline(svg, values) { if (!values.length) return; const width = 260, height = 60, min = Math.min(...values), max = Math.max(...values), span = max - min || 1; const points = values.map((value, index) => [4 + (index / Math.max(values.length - 1, 1)) * (width - 8), 8 + (1 - ((value - min) / span)) * (height - 16)]); svg.innerHTML = `<path d="${pathFromPoints(points)}" fill="none" stroke="currentColor" stroke-width="3"/><path d="${pathFromPoints(points)} L${width - 4} ${height} L4 ${height} Z" fill="currentColor" opacity=".12" stroke="none"/>`; }
-function renderSparklines() { const nav = navRows.map(row => row[2]).filter(value => value > 0); document.querySelectorAll("[data-spark]").forEach(svg => drawSparkline(svg, nav)); }
+function renderSparklines() { const nav = completeNavRows().map(row => numberFrom(row[2])).filter(value => value > 0); document.querySelectorAll("[data-spark]").forEach(svg => drawSparkline(svg, nav)); }
 function renderKpis() { const profit = signedCurrencyFromThb(kpis.profit), totalReturn = plusText(kpis.totalReturn, percentText), dailyProfit = signedCurrencyFromThb(kpis.dailyProfit), dailyChange = plusText(kpis.dailyChange, percentText); setText("portfolioValue", formatCurrencyFromThb(kpis.portfolioValue)); setText("investedValue", formatCurrencyFromThb(kpis.invested)); setText("profitLabel", `${profit} (${totalReturn})`); setText("dailyProfitLabel", dailyProfit); setText("dailyChangeLabel", dailyChange); setText("performanceNumber", totalReturn); setText("irrLabel", percentText(kpis.irr)); setText("volatilityLabel", percentText(kpis.volatility)); setText("sharpeLabel", decimalText(kpis.sharpe)); setText("drawdownLabel", percentText(kpis.maxDrawdown)); setText("spyBenchmark", plusText(kpis.benchmarkSpy, percentText)); setText("qqqBenchmark", plusText(kpis.benchmarkQqq, percentText)); setText("cashValue", `Cash ${formatCurrencyFromThb(kpis.cash)}`); setText("tableTotalValue", formatCurrencyFromThb(kpis.portfolioValue)); setText("tableDayProfit", dailyProfit); setText("tableDayChange", dailyChange); setSignedTone("tableDayReturn", kpis.dailyChange); setText("tableTotalProfit", profit); setText("tableTotalReturn", totalReturn); setSignedTone("tableTotalGain", kpis.totalReturn); setText("tableMode", kpis.marketMode); setText("sideMode", kpis.marketMode); setText("sideModeHint", kpis.marketMode.includes("A") ? "Risk on" : "Risk control"); ["profitLabel", "dailyProfitLabel", "dailyChangeLabel", "performanceNumber", "spyBenchmark", "qqqBenchmark", "drawdownLabel"].forEach(id => { const el = document.getElementById(id); if (el) setSignedTone(id, el.textContent); }); }
 function navDateMs(row) { const date = sheetDate(row[0]); return Number.isNaN(date.getTime()) ? 0 : date.getTime(); }
-function filteredNavRows() { const rows = navRows.filter(row => row[2] > 0).sort((a, b) => navDateMs(a) - navDateMs(b)); if (rows.length < 2 || performancePeriod === "ALL") return rows; const last = navDateMs(rows.at(-1)); const days = performancePeriod === "6M" ? 183 : performancePeriod === "1Y" ? 365 : null; if (days) return rows.filter(row => navDateMs(row) >= last - days * 86400000); const year = new Date(last || Date.now()).getFullYear(); return rows.filter(row => new Date(navDateMs(row)).getFullYear() === year); }
-function renderNavChart() { const svg = document.getElementById("navChart"); if (!svg) return; const width = 740, height = 300, padding = { top: 20, right: 24, bottom: 44, left: 58 }; const rows = filteredNavRows(); if (rows.length < 2) return; const cumulativeInvested = []; rows.reduce((sum, row, index) => cumulativeInvested[index] = sum + numberFrom(row[1]), 0); const values = rows.map(row => numberFrom(row[2])); const maxForScale = Math.max(...values, ...cumulativeInvested, 1); const scaleY = value => padding.top + (1 - (value / maxForScale)) * (height - padding.top - padding.bottom); const scaleX = index => padding.left + (index / (rows.length - 1)) * (width - padding.left - padding.right); const navPoints = rows.map((row, index) => [scaleX(index), scaleY(numberFrom(row[2]))]); const investedPoints = cumulativeInvested.map((value, index) => [scaleX(index), scaleY(value)]); const area = `${pathFromPoints(navPoints)} L${navPoints.at(-1)[0]} ${height - padding.bottom} L${navPoints[0][0]} ${height - padding.bottom} Z`; const end = numberFrom(rows.at(-1)[2]); const displayReturn = plusText(kpis.totalReturn, percentText); setText("performanceNumber", displayReturn); setSignedTone("performanceNumber", displayReturn); svg.innerHTML = `<defs><linearGradient id="navGradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#25e05d" stop-opacity=".22"/><stop offset="1" stop-color="#25e05d" stop-opacity="0"/></linearGradient></defs><path class="area-fill" d="${area}"/><path class="invested-line" d="${pathFromPoints(investedPoints)}"/><path class="nav-line" d="${pathFromPoints(navPoints)}"/><circle cx="${navPoints.at(-1)[0]}" cy="${navPoints.at(-1)[1]}" r="5" fill="#25e05d" stroke="#071017" stroke-width="3"/><text class="axis-text" x="${padding.left}" y="${height - 14}">${performancePeriod}</text><text class="axis-text" x="${width - 150}" y="${height - 14}">${formatCurrencyFromThb(end)}</text>`; }
+function completeNavRows() {
+  const rows = navRows.filter(row => numberFrom(row[2]) > 0).sort((a, b) => navDateMs(a) - navDateMs(b)).map(row => [...row]);
+  const currentValue = numberFrom(kpis.portfolioValue);
+  if (!rows.length || currentValue <= 0) return rows;
+
+  const last = rows.at(-1);
+  const lastDate = sheetDate(last[0]);
+  const today = new Date();
+  const sameDay = lastDate.getFullYear() === today.getFullYear() && lastDate.getMonth() === today.getMonth() && lastDate.getDate() === today.getDate();
+  if (sameDay) {
+    last[2] = currentValue;
+  } else {
+    rows.push([today, 0, currentValue, numberFrom(kpis.dailyChange) / 100, 0]);
+  }
+  return rows;
+}
+function filteredNavRows() { const rows = completeNavRows(); if (rows.length < 2 || performancePeriod === "ALL") return rows; const last = navDateMs(rows.at(-1)); const days = performancePeriod === "6M" ? 183 : performancePeriod === "1Y" ? 365 : null; if (days) return rows.filter(row => navDateMs(row) >= last - days * 86400000); const year = new Date(last || Date.now()).getFullYear(); return rows.filter(row => new Date(navDateMs(row)).getFullYear() === year); }
+function renderNavChart() {
+  const svg = document.getElementById("navChart");
+  if (!svg) return;
+  const width = 740, height = 300, padding = { top: 20, right: 24, bottom: 44, left: 58 };
+  const rows = filteredNavRows();
+  if (rows.length < 2) return;
+  const values = rows.map(row => numberFrom(row[2]));
+  const invested = numberFrom(kpis.invested);
+  const maxForScale = Math.max(...values, invested, 1);
+  const scaleY = value => padding.top + (1 - (value / maxForScale)) * (height - padding.top - padding.bottom);
+  const scaleX = index => padding.left + (index / (rows.length - 1)) * (width - padding.left - padding.right);
+  const navPoints = rows.map((row, index) => [scaleX(index), scaleY(numberFrom(row[2]))]);
+  const investedY = scaleY(invested);
+  const investedPoints = [[scaleX(0), investedY], [scaleX(rows.length - 1), investedY]];
+  const area = `${pathFromPoints(navPoints)} L${navPoints.at(-1)[0]} ${height - padding.bottom} L${navPoints[0][0]} ${height - padding.bottom} Z`;
+  const end = numberFrom(rows.at(-1)[2]);
+  const displayReturn = plusText(kpis.totalReturn, percentText);
+  setText("performanceNumber", displayReturn);
+  setText("performanceInvestedLabel", `Current invested ${formatCurrencyFromThb(invested)}`);
+  setSignedTone("performanceNumber", displayReturn);
+  svg.innerHTML = `<defs><linearGradient id="navGradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#25e05d" stop-opacity=".22"/><stop offset="1" stop-color="#25e05d" stop-opacity="0"/></linearGradient></defs><path class="area-fill" d="${area}"/><path class="invested-line" d="${pathFromPoints(investedPoints)}"/><path class="nav-line" d="${pathFromPoints(navPoints)}"/><circle cx="${navPoints.at(-1)[0]}" cy="${navPoints.at(-1)[1]}" r="5" fill="#25e05d" stroke="#071017" stroke-width="3"/><text class="axis-text" x="${padding.left}" y="${height - 14}">${performancePeriod}</text><text class="axis-text" text-anchor="end" x="${width - padding.right}" y="${height - 14}">${formatCurrencyFromThb(end)}</text>`;
+}
 function polarToCartesian(cx, cy, radius, angle) { const radians = (angle - 90) * Math.PI / 180; return { x: cx + radius * Math.cos(radians), y: cy + radius * Math.sin(radians) }; }
 function donutSegment(cx, cy, radius, innerRadius, startAngle, endAngle) { const start = polarToCartesian(cx, cy, radius, endAngle), end = polarToCartesian(cx, cy, radius, startAngle), innerStart = polarToCartesian(cx, cy, innerRadius, endAngle), innerEnd = polarToCartesian(cx, cy, innerRadius, startAngle), largeArc = endAngle - startAngle <= 180 ? 0 : 1; return [`M ${start.x} ${start.y}`, `A ${radius} ${radius} 0 ${largeArc} 0 ${end.x} ${end.y}`, `L ${innerEnd.x} ${innerEnd.y}`, `A ${innerRadius} ${innerRadius} 0 ${largeArc} 1 ${innerStart.x} ${innerStart.y}`, "Z"].join(" "); }
 function allocationEntries() { if (allocationMode === "asset") return holdings.filter(item => item.value > 0 && item.ticker !== "CASH").sort((a, b) => b.value - a.value).map(item => [item.ticker, item.value]); const grouped = holdings.reduce((acc, item) => { if (item.value > 0 && item.ticker !== "CASH") acc[layerClass(item.layer)] = (acc[layerClass(item.layer)] || 0) + item.value; return acc; }, {}); return Object.entries(grouped).filter(([, value]) => value > 0); }
@@ -666,6 +706,8 @@ function enrichHoldingsFromSheet(rows) {
 }
 function renderAll() { renderKpis(); renderSparklines(); renderNavChart(); renderAllocation(); renderMonthly(); renderHoldings(activeFilter); renderMobileSummary(); renderSignals(); renderSmartDca(); renderHealth(); renderAlerts(); renderGoal(); }
 async function loadLiveData() {
+  if (liveDataLoading) return;
+  liveDataLoading = true;
   document.body.classList.add("is-loading");
   const syncBanner = document.getElementById("syncBanner");
   if (syncBanner) syncBanner.dataset.state = "loading";
@@ -732,8 +774,18 @@ async function loadLiveData() {
     if (retryButton) retryButton.hidden = false;
     renderAll();
   } finally {
+    lastLiveSyncMs = Date.now();
+    liveDataLoading = false;
     document.body.classList.remove("is-loading");
   }
+}
+function startLiveAutoRefresh() {
+  window.setInterval(() => { if (!document.hidden) loadLiveData(); }, LIVE_REFRESH_MS);
+  const refreshIfNeeded = () => {
+    if (!document.hidden && Date.now() - lastLiveSyncMs >= LIVE_REFRESH_MS / 2) loadLiveData();
+  };
+  document.addEventListener("visibilitychange", refreshIfNeeded);
+  window.addEventListener("focus", refreshIfNeeded);
 }
 function jumpToAlerts() { const alerts = document.getElementById("alerts"); const card = document.querySelector(".alerts-card"); alerts?.scrollIntoView({ behavior: "smooth", block: "start" }); document.querySelectorAll("[data-jump]").forEach(item => item.classList.toggle("active", item.dataset.jump === "alerts")); if (card) { card.classList.add("flash-focus"); window.setTimeout(() => card.classList.remove("flash-focus"), 1200); } }
 function bindInteractions() {
@@ -795,3 +847,4 @@ initCurrency();
 renderAll();
 bindInteractions();
 loadLiveData();
+startLiveAutoRefresh();

@@ -742,6 +742,32 @@ body[data-theme="light"] .filter-tabs button {
   font-size: 32px;
 }
 
+.performance-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 2px 0 4px;
+  color: var(--soft);
+  font-size: 11px;
+}
+
+.performance-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.performance-legend i {
+  width: 18px;
+  height: 0;
+  border-top: 2px solid var(--green);
+}
+
+.performance-legend i.invested {
+  border-color: rgba(148, 163, 184, .82);
+  border-top-style: dashed;
+}
+
 .benchmark-strip {
   display: grid;
   grid-template-columns: 1fr 1fr;
