@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="SPMO logo">
+  <circle cx="64" cy="64" r="62" fill="#102a56"/>
+  <path d="M25 80 48 51l13 16 12-15 30 28" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="64" y="104" text-anchor="middle" fill="#fff" font-family="Arial,sans-serif" font-size="15" font-weight="700">SPMO</text>
+</svg>
