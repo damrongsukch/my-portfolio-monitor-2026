@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg?v=20260702b">
   <link rel="shortcut icon" href="./assets/favicon.ico?v=20260702b">
   <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=20260702b">
-  <link rel="stylesheet" href="./styles.css?v=20260806-invested-line">
+  <link rel="stylesheet" href="./styles.css?v=20260810-sync-integrity">
 </head>
 <body data-theme="dark">
   <div class="app-shell">
@@ -107,6 +107,7 @@
           <span id="signalSyncMeta">Signals loading</span>
           <span id="navSyncMeta">NAV loading</span>
           <span id="freshnessMeta">Freshness checking</span>
+          <span id="syncIntegrityMeta">Cross-check pending</span>
           <button id="syncRetryButton" type="button" hidden>Retry sync</button>
         </div>
       </section>
@@ -188,7 +189,7 @@
             <strong class="performance-number" id="performanceNumber">0.00%</strong>
             <div class="performance-legend" aria-label="Portfolio chart legend">
               <span><i class="value"></i>Portfolio value</span>
-              <span><i class="invested"></i><span id="performanceInvestedLabel">Current invested THB 0.00</span></span>
+              <span><i class="invested"></i><span id="performanceInvestedLabel">Current cost basis THB 0.00</span></span>
             </div>
             <svg id="navChart" class="line-chart" viewBox="0 0 740 300" role="img" aria-label="Portfolio value history chart"></svg>
             <div class="benchmark-strip">
@@ -392,6 +393,6 @@
     <button data-jump="goal" type="button"><svg viewBox="0 0 24 24"><path d="M12 21s7-4.2 7-11a7 7 0 0 0-14 0c0 6.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span>Goal</span></button>
   </nav>
 
-  <script src="./script.js?v=20260806-invested-line"></script>
+  <script src="./script.js?v=20260810-sync-integrity"></script>
 </body>
 </html>

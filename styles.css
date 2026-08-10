@@ -2179,6 +2179,9 @@ body[data-theme="light"] .dca-figures b {
   white-space: nowrap;
 }
 
+#syncIntegrityMeta.ok { color: var(--green); border-color: rgba(37, 224, 93, 0.28); }
+#syncIntegrityMeta.warning { color: var(--amber); border-color: rgba(246, 194, 26, 0.34); }
+
 #syncRetryButton {
   min-height: 32px;
   padding: 0 10px;

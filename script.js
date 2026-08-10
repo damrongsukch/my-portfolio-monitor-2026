@@ -105,11 +105,9 @@ function layerClass(layer) { const clean = String(layer || "").split("/")[0].tri
 function tickerLogo(ticker) {
   const symbol = String(ticker || "").trim().toUpperCase();
   const fallback = symbol.slice(0, 2) || "--";
-  const domain = logoDomains[symbol];
-  if (!domain) return `<i class="ticker-logo">${fallback}</i>`;
-  const primary = logoUrls[symbol] || `https://logo.clearbit.com/${encodeURIComponent(domain)}?size=128`;
-  const fallbackUrl = logoUrls[symbol] ? `https://logo.clearbit.com/${encodeURIComponent(domain)}?size=128` : `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`;
-  return `<i class="ticker-logo has-logo logo-${symbol.toLowerCase()}" data-text-fallback="${fallback}"><img src="${primary}" alt="${symbol} logo" loading="lazy" referrerpolicy="no-referrer" data-fallback="${fallbackUrl}" onerror="if(this.dataset.fallback){this.src=this.dataset.fallback;this.dataset.fallback=''}else{this.parentElement.classList.remove('has-logo');this.parentElement.textContent=this.parentElement.dataset.textFallback||'${fallback}' }"></i>`;
+  const primary = logoUrls[symbol];
+  if (!primary) return `<i class="ticker-logo">${fallback}</i>`;
+  return `<i class="ticker-logo has-logo logo-${symbol.toLowerCase()}" data-text-fallback="${fallback}"><img src="${primary}" alt="${symbol} logo" loading="lazy" referrerpolicy="no-referrer" onerror="if(this.parentElement){this.parentElement.classList.remove('has-logo');this.parentElement.textContent=this.parentElement.dataset.textFallback||'${fallback}'}"></i>`;
 }
 function setText(id, value) { const el = document.getElementById(id); if (el) el.textContent = value; }
 function setHtml(id, value) { const el = document.getElementById(id); if (el) el.innerHTML = value; }
@@ -235,7 +233,7 @@ function renderNavChart() {
   const end = numberFrom(rows.at(-1)[2]);
   const displayReturn = plusText(kpis.totalReturn, percentText);
   setText("performanceNumber", displayReturn);
-  setText("performanceInvestedLabel", `Current invested ${formatCurrencyFromThb(invested)}`);
+  setText("performanceInvestedLabel", `Current cost basis ${formatCurrencyFromThb(invested)}`);
   setSignedTone("performanceNumber", displayReturn);
   svg.innerHTML = `<defs><linearGradient id="navGradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#25e05d" stop-opacity=".22"/><stop offset="1" stop-color="#25e05d" stop-opacity="0"/></linearGradient></defs><path class="area-fill" d="${area}"/><path class="invested-line" d="${pathFromPoints(investedPoints)}"/><path class="nav-line" d="${pathFromPoints(navPoints)}"/><circle cx="${navPoints.at(-1)[0]}" cy="${navPoints.at(-1)[1]}" r="5" fill="#25e05d" stroke="#071017" stroke-width="3"/><text class="axis-text" x="${padding.left}" y="${height - 14}">${performancePeriod}</text><text class="axis-text" text-anchor="end" x="${width - padding.right}" y="${height - 14}">${formatCurrencyFromThb(end)}</text>`;
 }
@@ -451,16 +449,36 @@ function marketBusinessDaysSince(latest, now) {
 function dataFreshness(now = new Date(), syncVerb = "Synced") {
   const latest = navRows.map(row => validSheetDate(row[0])).filter(Boolean).sort((a, b) => b - a)[0];
   const syncLabel = `${syncVerb} ${now.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}`;
-  if (!latest) return { label: `Market close unavailable • ${syncLabel}`, stale: true, businessDays: Infinity };
+  if (!latest) return { label: `Market close unavailable | ${syncLabel}`, stale: true, businessDays: Infinity };
   const businessDays = marketBusinessDaysSince(latest, now);
   const marketLabel = latest.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  return { label: `Market close ${marketLabel} • ${syncLabel}`, stale: businessDays > 1, businessDays };
+  return { label: `Market close ${marketLabel} | ${syncLabel}`, stale: businessDays > 1, businessDays };
 }
 function updateFreshnessUi(freshness) {
   const meta = document.getElementById("freshnessMeta");
   if (!meta) return;
   meta.textContent = freshness.label;
   meta.classList.toggle("stale", freshness.stale);
+}
+function syncIntegrityIssues() {
+  const issues = [];
+  const portfolioValue = numberFrom(kpis.portfolioValue);
+  const holdingsValue = holdings.filter(item => item.ticker !== "CASH").reduce((sum, item) => sum + numberFrom(item.value), 0);
+  if (portfolioValue > 0 && holdingsValue > 0) {
+    const gap = Math.abs(portfolioValue - holdingsValue);
+    if (gap > Math.max(100, portfolioValue * 0.015)) issues.push("KPI/Holdings gap " + formatCurrencyFromThb(gap));
+  }
+  const latest = navRows.map(row => validSheetDate(row[0])).filter(Boolean).sort((a, b) => b - a)[0];
+  if (latest && marketBusinessDaysSince(latest, new Date()) > 1) issues.push("NAV behind market close");
+  return issues;
+}
+function updateSyncIntegrityUi() {
+  const meta = document.getElementById("syncIntegrityMeta");
+  if (!meta) return;
+  const issues = syncIntegrityIssues();
+  meta.textContent = issues.length ? "Check: " + issues.join(" | ") : "Cross-check passed";
+  meta.classList.toggle("warning", issues.length > 0);
+  meta.classList.toggle("ok", issues.length === 0);
 }
 function xirr() { return null; }
 function dcaSizing(item) {
@@ -715,9 +733,9 @@ async function loadLiveData() {
   setText("marketOpenLabel", "Sheet Loading");
   setText("updatedAt", "Refreshing portfolio data");
   setText("syncStatusText", "Connecting to Google Sheet...");
-  setText("portfolioSyncMeta", "KPI loading • Holdings loading");
+  setText("portfolioSyncMeta", "KPI loading | Holdings loading");
   setText("signalSyncMeta", "Signals loading");
-  setText("navSyncMeta", "NAV loading • Trade Log loading");
+  setText("navSyncMeta", "NAV loading | Trade Log loading");
   setText("freshnessMeta", "Freshness checking");
   const retryButton = document.getElementById("syncRetryButton");
   if (retryButton) retryButton.hidden = true;
@@ -742,15 +760,16 @@ async function loadLiveData() {
     applyLiveData(datasets);
     enrichHoldingsFromSheet(datasets.holdings);
     renderAll();
+    updateSyncIntegrityUi();
     const now = new Date();
     const freshness = dataFreshness(now);
     const signalsLive = sheetState.signals === "live";
     updateFreshnessUi(freshness);
     setText("updatedAt", freshness.label);
-    setText("syncStatusText", !signalsLive ? "Portfolio synced, signals unavailable" : freshness.stale ? "Google Sheet synced • Market data is stale" : "Google Sheet synced");
-    setText("portfolioSyncMeta", "KPI live • Holdings live");
-    setText("signalSyncMeta", signalsLive ? "Signals live" : "Signals unavailable • fallback active");
-    setText("navSyncMeta", `NAV live • Trade Log ${sheetState.trades === "live" ? "live" : "fallback"}`);
+    setText("syncStatusText", !signalsLive ? "Portfolio synced, signals unavailable" : freshness.stale ? "Google Sheet synced | Market data is stale" : "Google Sheet synced");
+    setText("portfolioSyncMeta", "KPI live | Holdings live");
+    setText("signalSyncMeta", signalsLive ? "Signals live" : "Signals unavailable | fallback active");
+    setText("navSyncMeta", `NAV live | Trade Log ${sheetState.trades === "live" ? "live" : "fallback"}`);
     setText("sideSync", freshness.stale ? "Stale" : signalsLive ? "Live" : "Partial");
     setText("marketOpenLabel", freshness.stale ? "Sheet Stale" : signalsLive ? "Sheet Live" : "Sheet Partial");
     if (syncBanner) syncBanner.dataset.state = !signalsLive ? "partial" : freshness.stale ? "stale" : "live";
@@ -768,11 +787,12 @@ async function loadLiveData() {
     setText("marketOpenLabel", anyLive ? "Sheet Partial" : "Saved Data");
     if (syncBanner) syncBanner.dataset.state = anyLive ? "partial" : "saved";
     setText("syncStatusText", anyLive ? "Sync incomplete. Showing the last complete snapshot." : "Live sync unavailable. Showing saved data.");
-    setText("portfolioSyncMeta", `KPI ${statusText("kpi")} • Holdings ${statusText("holdings")}`);
+    setText("portfolioSyncMeta", `KPI ${statusText("kpi")} | Holdings ${statusText("holdings")}`);
     setText("signalSyncMeta", `Signals ${statusText("signals")}`);
-    setText("navSyncMeta", `NAV ${statusText("nav")} • Trade Log ${statusText("trades")}`);
+    setText("navSyncMeta", `NAV ${statusText("nav")} | Trade Log ${statusText("trades")}`);
     if (retryButton) retryButton.hidden = false;
     renderAll();
+    updateSyncIntegrityUi();
   } finally {
     lastLiveSyncMs = Date.now();
     liveDataLoading = false;
