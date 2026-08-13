@@ -508,6 +508,19 @@ function dcaReason(item, multiplier) {
   return `${sizing.source}: ${multiplier.toFixed(2)}x; ${gap > 0 ? `under target ${gap.toFixed(1)}%` : gap < 0 ? `over target ${Math.abs(gap).toFixed(1)}%` : "on target"}; priority ${numberFrom(item.priority || 99)}; ${cap}`;
 }
 
+function dcaReasonChips(item) {
+  const sizing = dcaSizing(item);
+  const gap = targetGap(item);
+  const rsi7 = numberFrom(item.rsi7);
+  const target = gap > 0 ? `Under ${gap.toFixed(1)}%` : gap < 0 ? `Over ${Math.abs(gap).toFixed(1)}%` : "On target";
+  const rsi = rsi7 < 30 ? `RSI7 ${rsi7.toFixed(1)} low` : rsi7 > 70 ? `RSI7 ${rsi7.toFixed(1)} high` : `RSI7 ${rsi7.toFixed(1)}`;
+  const cap = Number.isFinite(item.smartDcaUsd) ? `Cap ${formatUsd(item.smartDcaUsd)}` : "No cap";
+  return [sizing.source, target, rsi, `Priority ${numberFrom(item.priority || 99)}`, cap];
+}
+function dcaReasonMarkup(item) {
+  return `<span class="dca-reason-chips">${dcaReasonChips(item).map(label => `<b>${label}</b>`).join("")}</span>`;
+}
+
 function buildDcaPlan(budgetUsd) {
   const fx = fxRate();
   const candidates = signalBoard.filter(item => item.ticker && item.ticker !== "CASH").map(item => ({ ...item, multiplier: dcaMultiplier(item), smartDcaUsd: numberFrom(item.smartDcaUsd) || Infinity, targetGap: targetGap(item), rankScore: dcaRankScore(item) })).filter(item => item.multiplier > 0).sort((a, b) => b.rankScore - a.rankScore || numberFrom(a.priority || 99) - numberFrom(b.priority || 99)).slice(0, 3);
@@ -533,7 +546,7 @@ function renderTodaySignal(best, budgetUsd) {
   const gap = targetGap(best);
   const signal = cleanSignal(best.signal);
   setText("todaySignal", budgetUsd > 0 ? "Sizing Ready" : `${best.ticker} ${best.multiplier}x`);
-  setHtml("todaySignalText", `<span class="signal-summary">${signal}</span><span class="signal-chips"><b>${best.ticker}</b><b>${best.multiplier.toFixed(2)}x</b><b>Score ${best.rankScore.toFixed(0)}</b><b>RSI ${rsiPair(best)}</b><b>${gap > 0 ? `Under +${gap.toFixed(1)}%` : gap < 0 ? `Over ${Math.abs(gap).toFixed(1)}%` : "On target"}</b></span><span class="signal-note">${best.reason}</span>`);
+  setHtml("todaySignalText", `<span class="signal-summary">${signal}</span><span class="signal-chips"><b>${best.ticker}</b><b>${best.multiplier.toFixed(2)}x</b><b>Score ${best.rankScore.toFixed(0)}</b><b>RSI ${rsiPair(best)}</b><b>${gap > 0 ? `Under +${gap.toFixed(1)}%` : gap < 0 ? `Over ${Math.abs(gap).toFixed(1)}%` : "On target"}</b></span>${dcaReasonMarkup(best)}`);
 }
 function renderSmartDca() {
   const input = document.getElementById("dcaBudgetInput");
@@ -544,7 +557,7 @@ function renderSmartDca() {
   setHtml("dcaBudgetSummary", budget.usd > 0
     ? `${ruleNote}<span class="dca-summary-title">Final_Action sizing: allocate ${formatUsd(plan.usedUsd)} from ${formatUsd(budget.usd)} and keep ${formatUsd(plan.leftoverUsd)} in cash.</span><span class="dca-figures"><b>Budget ${formatUsd(budget.usd)}</b><b>Allocate ${formatUsd(plan.usedUsd)}</b><b>Cash left ${formatUsd(plan.leftoverUsd)}</b><b>Min ${formatUsd(MIN_ORDER_USD)}</b></span>`
     : `${ruleNote}<span class="dca-empty-hint">Enter USD. Sizing follows explicit BUY 0.25x / 0.50x / 0.75x / 1.00x from the sheet when available.</span>`);
-  setHtml("smartDcaList", rows.map((item, index) => `<div class="mini-row dca-plan-row"><span>${index + 1}. <strong>${item.ticker}</strong><small>${cleanSignal(item.signal)} - Score ${item.rankScore.toFixed(0)} - ${item.reason}${item.belowMin ? " - below DIME minimum" : ""}</small></span><strong>${budget.usd > 0 ? formatUsd(item.amountUsd) : `${item.multiplier.toFixed(2)}x`}<small>${item.multiplier.toFixed(2)}x weight</small></strong></div>`).join("") || `<div class="empty">No eligible Final_Action today. Keep cash.</div>`);
+  setHtml("smartDcaList", rows.map((item, index) => `<div class="mini-row dca-plan-row"><span>${index + 1}. <strong>${item.ticker}</strong><small class="dca-action-line">${cleanSignal(item.signal)} <b>Score ${item.rankScore.toFixed(0)}</b></small>${dcaReasonMarkup(item)}${item.belowMin ? `<small class="dca-minimum-warning">Below DIME minimum</small>` : ""}</span><strong>${budget.usd > 0 ? formatUsd(item.amountUsd) : `${item.multiplier.toFixed(2)}x`}<small>${item.multiplier.toFixed(2)}x weight</small></strong></div>`).join("") || `<div class="empty">No eligible Final_Action today. Keep cash.</div>`);
   renderTodaySignal(rows[0], budget.usd);
 }
 function renderHealth() {
@@ -567,7 +580,7 @@ function renderHealth() {
     ["Momentum", momentum, `Based on ${kpis.marketMode}`],
     ["Cash Buffer", cashBuffer, `Cash weight ${cashWeight.toFixed(1)}%`]
   ];
-  setHtml("healthMetrics", metrics.map(([label, value, help]) => `<div title="${help}"><span>${label}</span><strong>${value.toFixed(1)}</strong></div>`).join(""));
+  setHtml("healthMetrics", metrics.map(([label, value, help]) => `<div class="health-metric" title="${help}"><span><b>${label}</b><small>${help}</small></span><strong>${value.toFixed(1)}</strong></div>`).join(""));
   const latestHealthDate = navRows.map(row => validSheetDate(row[0])).filter(Boolean).sort((a, b) => b - a)[0];
   setText("healthAsOf", latestHealthDate
     ? `Scored using market close ${latestHealthDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}.`
