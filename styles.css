@@ -3166,3 +3166,23 @@ body[data-theme="light"] .health-method-panel {
     grid-template-columns: minmax(0, 1.45fr) minmax(58px, .72fr) minmax(0, .92fr);
   }
 }
+/* Keep both RSI values visible on mobile */
+@media (max-width: 1024px) {
+  .mobile-holding-detail {
+    grid-template-columns: minmax(0, 1fr) max-content max-content;
+  }
+
+  .mobile-day-change {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mobile-rsi,
+  .mobile-signal {
+    min-width: max-content;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+  }
+}
