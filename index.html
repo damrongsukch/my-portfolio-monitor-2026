@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg?v=20260702b">
   <link rel="shortcut icon" href="./assets/favicon.ico?v=20260702b">
   <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=20260702b">
-  <link rel="stylesheet" href="./styles.css?v=20260818-mobile-rsi">
+  <link rel="stylesheet" href="./styles.css?v=20260823-planners">
 </head>
 <body data-theme="dark">
   <div class="app-shell">
@@ -265,6 +265,18 @@
               <p id="dcaBudgetSummary">Enter budget to simulate sizing.</p>
             </div>
             <div id="smartDcaList" class="mini-list"></div>
+            <div class="dca-divider"></div>
+            <section class="rebalance-planner" aria-labelledby="rebalanceTitle">
+              <div class="rebalance-heading">
+                <div>
+                  <span class="eyebrow">Rebalance planner</span>
+                  <h3 id="rebalanceTitle">Buy toward target</h3>
+                </div>
+                <label>Budget (USD)<input id="rebalanceBudgetInput" type="number" min="0" step="5" value="50"></label>
+              </div>
+              <p id="rebalanceSummary">Uses current weights and active MODE target. It never suggests selling.</p>
+              <div id="rebalanceList" class="rebalance-list"></div>
+            </section>
           </article>
 
         </section>
@@ -313,7 +325,7 @@
         </section>
 
         <section class="lower-grid" id="alerts">
-          <article class="card">
+          <article class="card monthly-card">
             <div class="section-head">
               <div>
                 <span class="eyebrow">Monthly performance</span>
@@ -332,6 +344,27 @@
               </div>
             </div>
             <div id="alertsList" class="alert-list"></div>
+          </article>
+          <article class="card price-alert-card">
+            <section class="price-alert-panel" aria-labelledby="priceAlertsTitle">
+              <div class="price-alert-heading">
+                <div>
+                  <span class="eyebrow">Price alerts</span>
+                  <h3 id="priceAlertsTitle">Watch levels</h3>
+                </div>
+                <span class="price-alert-note">Saved on this device</span>
+              </div>
+              <form class="price-alert-form" id="priceAlertForm">
+                <select id="priceAlertTicker" aria-label="Ticker for price alert"></select>
+                <select id="priceAlertDirection" aria-label="Price alert direction">
+                  <option value="below">Below</option>
+                  <option value="above">Above</option>
+                </select>
+                <label><span class="sr-only">Target price in USD</span><input id="priceAlertTarget" type="number" min="0.01" step="0.01" placeholder="Target USD" required></label>
+                <button type="submit">Add</button>
+              </form>
+              <div id="priceAlertList" class="price-alert-list"></div>
+            </section>
           </article>
         </section>
 
@@ -361,6 +394,11 @@
                 <span>Inflation 3% (Included)</span>
                 <span>Reinvested (Included)</span>
               </div>
+              <div class="goal-compare-controls">
+                <span>What-if comparison</span>
+                <label>Extra DCA (%)<input id="goalExtraDca" type="number" min="0" max="300" step="5" value="25"></label>
+                <label>Return change (pp)<input id="goalReturnShift" type="number" min="-30" max="30" step="0.5" value="-3"></label>
+              </div>
             </div>
             <div class="goal-visual">
               <div class="goal-summary">
@@ -372,6 +410,7 @@
                 <div><span>Principal</span><strong id="goalPrincipalValue">THB 0.00</strong><small>Current portfolio + DCA</small></div>
                 <div><span>Estimated profit</span><strong id="goalProfitValue">THB 0.00</strong><small>Safe scenario</small></div>
               </div>
+              <div class="goal-whatif" id="goalWhatIf" aria-live="polite"></div>
               <svg id="goalChart" class="goal-chart" viewBox="0 0 760 340" role="img" aria-label="My Goal return simulation chart"></svg>
               <div class="goal-legend">
                 <span><i class="bear"></i>Bear Case</span>
@@ -394,6 +433,6 @@
     <button data-jump="goal" type="button"><svg viewBox="0 0 24 24"><path d="M12 21s7-4.2 7-11a7 7 0 0 0-14 0c0 6.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span>Goal</span></button>
   </nav>
 
-  <script src="./script.js?v=20260813-ux-clarity"></script>
+  <script src="./script.js?v=20260823-planners"></script>
 </body>
 </html>

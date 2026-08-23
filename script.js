@@ -75,6 +75,7 @@ const colors = ["#25e05d", "#f6c21a", "#4aa3ff", "#ff5148", "#b57cff", "#13b981"
 const MIN_ORDER_USD = 1.5;
 const GOAL_INFLATION_RATE = 3;
 const LIVE_REFRESH_MS = 60000;
+const PRICE_ALERTS_STORAGE_KEY = "portfolioPriceAlerts";
 let allocationMode = "sector";
 let activeFilter = "All";
 let performancePeriod = "YTD";
@@ -560,6 +561,26 @@ function renderSmartDca() {
   setHtml("smartDcaList", rows.map((item, index) => `<div class="mini-row dca-plan-row"><span>${index + 1}. <strong>${item.ticker}</strong><small class="dca-action-line">${cleanSignal(item.signal)} <b>Score ${item.rankScore.toFixed(0)}</b></small>${dcaReasonMarkup(item)}${item.belowMin ? `<small class="dca-minimum-warning">Below DIME minimum</small>` : ""}</span><strong>${budget.usd > 0 ? formatUsd(item.amountUsd) : `${item.multiplier.toFixed(2)}x`}<small>${item.multiplier.toFixed(2)}x weight</small></strong></div>`).join("") || `<div class="empty">No eligible Final_Action today. Keep cash.</div>`);
   renderTodaySignal(rows[0], budget.usd);
 }
+function holdingValueUsd(item) { const direct = numberFrom(item.valueUsd); return direct > 0 ? direct : numberFrom(item.value) / Math.max(fxRate(), 1); }
+function buildRebalancePlan(budgetUsd) {
+  const budget = Math.max(0, numberFrom(budgetUsd));
+  const eligible = holdings.filter(item => item.ticker && item.ticker !== "CASH" && targetWeight(item) > 0);
+  const totalValue = eligible.reduce((sum, item) => sum + holdingValueUsd(item), 0);
+  const targets = eligible.map(item => ({ ...item, currentUsd: holdingValueUsd(item), deficitUsd: Math.max(0, (totalValue + budget) * targetWeight(item) / 100 - holdingValueUsd(item)) })).filter(item => item.deficitUsd > .01);
+  const totalDeficit = targets.reduce((sum, item) => sum + item.deficitUsd, 0);
+  const picks = targets.map(item => ({ ...item, amountUsd: totalDeficit ? Math.min(item.deficitUsd, budget * item.deficitUsd / totalDeficit) : 0 })).filter(item => item.amountUsd > .01).sort((a, b) => b.amountUsd - a.amountUsd);
+  const allocated = picks.reduce((sum, item) => sum + item.amountUsd, 0);
+  return { budget, totalDeficit, picks, allocated, cash: Math.max(0, budget - allocated) };
+}
+function renderRebalancePlanner() {
+  const input = document.getElementById("rebalanceBudgetInput");
+  const budget = numberFrom(input?.value || 0);
+  const plan = buildRebalancePlan(budget);
+  setHtml("rebalanceSummary", budget > 0
+    ? `MODE target: allocate <strong>${formatUsd(plan.allocated)}</strong> of ${formatUsd(plan.budget)} to reduce underweight positions. No sell orders are suggested.`
+    : `Enter a USD budget to see purchases that move the portfolio toward ${kpis.marketMode} targets.`);
+  setHtml("rebalanceList", plan.picks.slice(0, 4).map(item => `<div class="rebalance-row"><span><strong>${item.ticker}</strong><small>${targetStatus(item).label} ${Math.max(0, targetGap(item)).toFixed(1)}% · target ${targetWeight(item).toFixed(1)}%</small></span><strong>${formatUsd(item.amountUsd)}<small>${(item.amountUsd / Math.max(plan.budget, 1) * 100).toFixed(0)}% of budget</small></strong></div>`).join("") || `<div class="empty">No underweight target positions available for this budget.</div>`);
+}
 function renderHealth() {
   const activeHoldings = holdings.filter(item => item.ticker !== "CASH" && numberFrom(item.shares) > 0);
   const growth = holdings.filter(item => /growth/i.test(item.layer)).reduce((sum, item) => sum + item.weight, 0);
@@ -586,7 +607,43 @@ function renderHealth() {
     ? `Scored using market close ${latestHealthDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}.`
     : "Based on the latest synced portfolio.");
 }
-function renderAlerts() { const rows = []; holdings.forEach(item => { const r = numberFrom(item.pl); const signal = cleanSignal(item.signal); const status = targetStatus(item); if (/strong buy|buy|accumulate/i.test(signal)) rows.push({ title: `${item.ticker} has an active entry signal`, text: `${signal} from the Looker signal sheet. Check live market conditions before buying.`, tone: "positive" }); if (status.gap >= 1.5) rows.push({ title: `${item.ticker} is under target`, text: `${kpis.marketMode} target is ${targetWeight(item).toFixed(1)}%, current weight is ${numberFrom(item.weight).toFixed(1)}%.`, tone: "positive" }); if (status.gap <= -2) rows.push({ title: `${item.ticker} is over target`, text: `${kpis.marketMode} target is ${targetWeight(item).toFixed(1)}%, current weight is ${numberFrom(item.weight).toFixed(1)}%.`, tone: "caution" }); if (r > 25) rows.push({ title: `${item.ticker} is extended`, text: `Position return is ${item.pl}. Avoid chasing and review target weight.`, tone: "caution" }); if (r < -5) rows.push({ title: `${item.ticker} needs drawdown review`, text: `Position return is ${item.pl}. Review thesis and allocation gap.`, tone: "caution" }); }); document.querySelectorAll(".alert-dot").forEach(button => button.dataset.count = String(Math.min(rows.length, 9))); setHtml("alertsList", rows.slice(0, 5).map(row => `<div class="alert-row"><div><strong>${row.title}</strong><p>${row.text}</p></div><span class="badge ${row.tone}">${row.tone}</span></div>`).join("") || `<div class="empty">No major alerts from the latest sheet snapshot.</div>`); }
+function alertPriceUsd(item) { return numberFrom(item.currentPriceUsd || item.price); }
+function defaultPriceAlerts() { return holdings.filter(item => item.ticker && alertPriceUsd(item) > 0).slice(0, 2).map((item, index) => ({ id: `${item.ticker}-${index}`, ticker: item.ticker, direction: index ? "above" : "below", target: Number((alertPriceUsd(item) * (index ? 1.08 : .94)).toFixed(2)) })); }
+function readPriceAlerts() { try { const stored = JSON.parse(localStorage.getItem(PRICE_ALERTS_STORAGE_KEY) || "null"); return Array.isArray(stored) ? stored : defaultPriceAlerts(); } catch (error) { return defaultPriceAlerts(); } }
+function savePriceAlerts(alerts) { try { localStorage.setItem(PRICE_ALERTS_STORAGE_KEY, JSON.stringify(alerts)); } catch (error) { console.warn(error); } }
+function renderPriceAlerts() {
+  const select = document.getElementById("priceAlertTicker");
+  const list = document.getElementById("priceAlertList");
+  if (!select || !list) return;
+  const previousTicker = select.value;
+  const priced = holdings.filter(item => item.ticker && alertPriceUsd(item) > 0);
+  select.innerHTML = priced.map(item => `<option value="${item.ticker}">${item.ticker} · &#36;${alertPriceUsd(item).toFixed(2)}</option>`).join("");
+  if (priced.some(item => item.ticker === previousTicker)) select.value = previousTicker;
+  const alerts = readPriceAlerts().filter(alert => priced.some(item => item.ticker === alert.ticker));
+  if (!alerts.length && priced.length) { const seeded = defaultPriceAlerts(); savePriceAlerts(seeded); return renderPriceAlerts(); }
+  list.innerHTML = alerts.map(alert => {
+    const item = priced.find(row => row.ticker === alert.ticker);
+    const current = alertPriceUsd(item);
+    const triggered = alert.direction === "below" ? current <= alert.target : current >= alert.target;
+    return `<div class="price-alert-row ${triggered ? "triggered" : "ready"}"><span><strong>${alert.ticker}</strong><small>&#36;${current.toFixed(2)} now · ${alert.direction} &#36;${Number(alert.target).toFixed(2)}</small></span><b>${triggered ? "Triggered" : "Watching"}</b><button type="button" data-remove-price-alert="${alert.id}" aria-label="Remove ${alert.ticker} price alert" title="Remove alert">×</button></div>`;
+  }).join("") || `<div class="empty">Add a price level to start watching.</div>`;
+}
+function renderAlerts() {
+  const rows = [];
+  holdings.forEach(item => {
+    const r = numberFrom(item.pl);
+    const signal = cleanSignal(item.signal);
+    const status = targetStatus(item);
+    if (/strong buy|buy|accumulate/i.test(signal)) rows.push({ title: `${item.ticker} has an active entry signal`, text: `${signal} from the Looker signal sheet. Check live market conditions before buying.`, tone: "positive" });
+    if (status.gap >= 1.5) rows.push({ title: `${item.ticker} is under target`, text: `${kpis.marketMode} target is ${targetWeight(item).toFixed(1)}%, current weight is ${numberFrom(item.weight).toFixed(1)}%.`, tone: "positive" });
+    if (status.gap <= -2) rows.push({ title: `${item.ticker} is over target`, text: `${kpis.marketMode} target is ${targetWeight(item).toFixed(1)}%, current weight is ${numberFrom(item.weight).toFixed(1)}%.`, tone: "caution" });
+    if (r > 25) rows.push({ title: `${item.ticker} is extended`, text: `Position return is ${item.pl}. Avoid chasing and review target weight.`, tone: "caution" });
+    if (r < -5) rows.push({ title: `${item.ticker} needs drawdown review`, text: `Position return is ${item.pl}. Review thesis and allocation gap.`, tone: "caution" });
+  });
+  document.querySelectorAll(".alert-dot").forEach(button => button.dataset.count = String(Math.min(rows.length, 9)));
+  setHtml("alertsList", rows.slice(0, 5).map(row => `<div class="alert-row"><div><strong>${row.title}</strong><p>${row.text}</p></div><span class="badge ${row.tone}">${row.tone}</span></div>`).join("") || `<div class="empty">No major alerts from the latest sheet snapshot.</div>`);
+  renderPriceAlerts();
+}
 function projectGoalSeries(startValue, monthlyDca, annualReturn, totalMonths) {
   const months = Math.max(1, Math.round(totalMonths));
   const monthlyReturn = Math.pow(1 + annualReturn / 100, 1 / 12) - 1;
@@ -617,12 +674,18 @@ function renderGoal() {
   const endBear = bear.at(-1).value, endSafe = safe.at(-1).value, endBull = bull.at(-1).value;
   const principal = startValue + monthlyDca * months;
   const estimatedProfit = endSafe - principal;
+  const extraDcaPercent = Math.max(0, numberFrom(document.getElementById("goalExtraDca")?.value || 25));
+  const returnShift = numberFrom(document.getElementById("goalReturnShift")?.value || -3);
+  const boostDca = monthlyDca * (1 + extraDcaPercent / 100);
+  const boostEnd = projectGoalSeries(startValue, boostDca, realReturn, months).at(-1).value;
+  const stressEnd = projectGoalSeries(startValue, monthlyDca, realReturn + returnShift, months).at(-1).value;
   setHtml("goalBaseValue", `Current portfolio <strong>${formatThb(startValue)}</strong>`);
   setText("goalBearValue", shortThb(endBear));
   setText("goalSafeValue", shortThb(endSafe));
   setText("goalBullValue", shortThb(endBull));
   setText("goalPrincipalValue", formatThb(principal));
   setText("goalProfitValue", formatThb(estimatedProfit));
+  setHtml("goalWhatIf", `<div class="goal-whatif-head"><span>What-if at ${monthAxisLabel(months)}</span><small>Adjust the inputs on the left</small></div><div class="goal-whatif-grid"><div><span>Base plan</span><strong>${shortThb(endSafe)}</strong><small>${realReturn.toFixed(1)}% real return</small></div><div><span>+${extraDcaPercent.toFixed(0)}% DCA</span><strong>${shortThb(boostEnd)}</strong><small class="positive">${signedCurrencyFromThb(boostEnd - endSafe)} vs base</small></div><div><span>${returnShift >= 0 ? "+" : ""}${returnShift.toFixed(1)}pp return</span><strong>${shortThb(stressEnd)}</strong><small class="${stressEnd >= endSafe ? "positive" : "negative"}">${signedCurrencyFromThb(stressEnd - endSafe)} vs base</small></div></div>`);
   const svg = document.getElementById("goalChart");
   if (!svg) return;
   const width = 760, height = 340, padding = { top: 34, right: 72, bottom: 46, left: 54 };
@@ -735,7 +798,7 @@ function enrichHoldingsFromSheet(rows) {
     };
   });
 }
-function renderAll() { renderKpis(); renderSparklines(); renderNavChart(); renderAllocation(); renderMonthly(); renderHoldings(activeFilter); renderMobileSummary(); renderSignals(); renderSmartDca(); renderHealth(); renderAlerts(); renderGoal(); }
+function renderAll() { renderKpis(); renderSparklines(); renderNavChart(); renderAllocation(); renderMonthly(); renderHoldings(activeFilter); renderMobileSummary(); renderSignals(); renderSmartDca(); renderRebalancePlanner(); renderHealth(); renderAlerts(); renderGoal(); }
 async function loadLiveData() {
   if (liveDataLoading) return;
   liveDataLoading = true;
@@ -859,7 +922,26 @@ function bindInteractions() {
   document.getElementById("themeToggle")?.addEventListener("click", () => setTheme(document.body.dataset.theme === "light" ? "dark" : "light"));
   document.getElementById("currencyToggle")?.addEventListener("click", () => setCurrencyMode(currencyMode === "THB" ? "USD" : "THB"));
   document.getElementById("dcaBudgetInput")?.addEventListener("input", renderSmartDca);
-  ["goalMonthlyDca", "goalAnnualReturn", "goalMonths"].forEach(id => document.getElementById(id)?.addEventListener("input", renderGoal));
+  document.getElementById("rebalanceBudgetInput")?.addEventListener("input", renderRebalancePlanner);
+  ["goalMonthlyDca", "goalAnnualReturn", "goalMonths", "goalExtraDca", "goalReturnShift"].forEach(id => document.getElementById(id)?.addEventListener("input", renderGoal));
+  document.getElementById("priceAlertForm")?.addEventListener("submit", event => {
+    event.preventDefault();
+    const ticker = document.getElementById("priceAlertTicker")?.value;
+    const direction = document.getElementById("priceAlertDirection")?.value === "above" ? "above" : "below";
+    const target = numberFrom(document.getElementById("priceAlertTarget")?.value);
+    if (!ticker || target <= 0) return;
+    const alerts = readPriceAlerts();
+    alerts.push({ id: `${ticker}-${Date.now()}`, ticker, direction, target });
+    savePriceAlerts(alerts);
+    document.getElementById("priceAlertTarget").value = "";
+    renderPriceAlerts();
+  });
+  document.getElementById("priceAlertList")?.addEventListener("click", event => {
+    const button = event.target.closest("[data-remove-price-alert]");
+    if (!button) return;
+    savePriceAlerts(readPriceAlerts().filter(alert => alert.id !== button.dataset.removePriceAlert));
+    renderPriceAlerts();
+  });
   document.getElementById("useCashButton")?.addEventListener("click", () => {
     const input = document.getElementById("dcaBudgetInput");
     if (!input) return;
