@@ -948,6 +948,7 @@ function bindInteractions() {
     input.value = `$${(numberFrom(kpis.cash) / fxRate()).toFixed(2)}`;
     renderSmartDca();
   });
+  document.querySelectorAll("[data-page]").forEach(button => button.addEventListener("click", () => { window.location.href = "./history.html"; }));
   document.querySelectorAll("[data-jump]").forEach(button => button.addEventListener("click", () => {
     if (button.dataset.jump === "overview") window.scrollTo({ top: 0, behavior: "smooth" });
     else document.getElementById(button.dataset.jump)?.scrollIntoView({ behavior: "smooth", block: "start" });
