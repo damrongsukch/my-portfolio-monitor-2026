@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#071017">
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="./assets/favicon.ico">
+  <title>Transaction History | My Portfolio Monitor 2026</title>
+  <link rel="stylesheet" href="./styles.css?v=20260824-history">
+  <link rel="stylesheet" href="./history.css?v=20260824-history">
+</head>
+<body class="history-page">
+  <header class="history-topbar">
+    <a class="history-brand" href="./index.html" aria-label="Back to dashboard"><span class="history-mark">↗</span><span><strong>My Portfolio</strong><small>Monitor 2026</small></span></a>
+    <div class="history-title"><span class="eyebrow">Transaction history</span><h1>Activity ledger</h1></div>
+    <a class="history-back" href="./index.html">Dashboard</a>
+  </header>
+  <main class="history-shell">
+    <section class="history-hero">
+      <div><span class="eyebrow">Trade Log</span><h2>All portfolio transactions</h2><p>Review every order recorded in your Google Sheet.</p></div>
+      <span id="historyStatus" class="history-status">Loading Trade Log...</span>
+    </section>
+    <section class="history-summary" id="historySummary" aria-live="polite"></section>
+    <section class="history-ledger">
+      <div class="history-toolbar">
+        <label><span>Month</span><select id="historyMonthFilter"></select></label>
+        <label><span>Asset</span><select id="historyTickerFilter"></select></label>
+        <label><span>Type</span><select id="historyTypeFilter"><option value="All">All activity</option><option value="Buy">Buys</option><option value="Sell">Sells</option></select></label>
+        <button id="historyClearFilters" type="button">Clear filters</button>
+      </div>
+      <div class="history-count" id="historyCount"></div>
+      <div class="history-table-wrap"><table class="history-table"><colgroup><col class="history-col-date"><col class="history-col-asset"><col class="history-col-type"><col class="history-col-shares"><col class="history-col-price"><col class="history-col-change"><col class="history-col-total"></colgroup><thead><tr><th>Date</th><th>Asset</th><th>Type</th><th>Shares</th><th>Price / share</th><th>Price change</th><th>Total</th></tr></thead><tbody id="historyTableBody"></tbody></table></div>
+      <div id="historyMobileList" class="history-mobile-list"></div>
+      <nav class="history-pagination" aria-label="Transaction history pages"><button id="historyPrevious" type="button">Previous</button><span id="historyPageLabel"></span><button id="historyNext" type="button">Next</button></nav>
+    </section>
+  </main>
+  <script src="./history.js?v=20260824-history"></script>
+</body>
+</html>
