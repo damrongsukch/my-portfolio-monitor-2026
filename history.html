@@ -7,8 +7,8 @@
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
   <link rel="alternate icon" href="./assets/favicon.ico">
   <title>Transaction History | My Portfolio Monitor 2026</title>
-  <link rel="stylesheet" href="./styles.css?v=20260824-history">
-  <link rel="stylesheet" href="./history.css?v=20260824-history">
+  <link rel="stylesheet" href="./styles.css?v=20260828-history-preview">
+  <link rel="stylesheet" href="./history.css?v=20260828-history-preview">
 </head>
 <body class="history-page">
   <header class="history-topbar">
@@ -22,7 +22,18 @@
       <span id="historyStatus" class="history-status">Loading Trade Log...</span>
     </section>
     <section class="history-summary" id="historySummary" aria-live="polite"></section>
+    <section class="history-insights" id="historyInsights" aria-live="polite">
+      <article class="history-insight-card">
+        <div class="history-insight-head"><div><span class="eyebrow">Monthly summary</span><h3 id="historyMonthTitle">Loading...</h3></div></div>
+        <div class="history-mini-grid" id="historyMonthStats"></div>
+      </article>
+      <article class="history-insight-card">
+        <div class="history-insight-head"><div><span class="eyebrow">Cost added by asset</span><h3>Capital allocation</h3></div></div>
+        <div class="history-asset-spend" id="historyAssetSpend"></div>
+      </article>
+    </section>
     <section class="history-ledger">
+      <div class="history-quick-filters" id="historyQuickFilters" aria-label="Quick date filters"><button type="button" class="active" data-range="all">All</button><button type="button" data-range="this-month">This month</button><button type="button" data-range="30d">Last 30 days</button><button type="button" data-range="90d">Last 90 days</button></div>
       <div class="history-toolbar">
         <label><span>Month</span><select id="historyMonthFilter"></select></label>
         <label><span>Asset</span><select id="historyTickerFilter"></select></label>
@@ -30,11 +41,11 @@
         <button id="historyClearFilters" type="button">Clear filters</button>
       </div>
       <div class="history-count" id="historyCount"></div>
-      <div class="history-table-wrap"><table class="history-table"><colgroup><col class="history-col-date"><col class="history-col-asset"><col class="history-col-type"><col class="history-col-shares"><col class="history-col-price"><col class="history-col-change"><col class="history-col-total"></colgroup><thead><tr><th>Date</th><th>Asset</th><th>Type</th><th>Shares</th><th>Price / share</th><th>Price change</th><th>Total</th></tr></thead><tbody id="historyTableBody"></tbody></table></div>
+      <div class="history-table-wrap"><table class="history-table"><colgroup><col class="history-col-date"><col class="history-col-asset"><col class="history-col-type"><col class="history-col-shares"><col class="history-col-price"><col class="history-col-change"><col class="history-col-total"></colgroup><thead><tr><th>Date</th><th>Asset</th><th>Type</th><th>Shares</th><th>Buy / Current</th><th>Unrealized P/L</th><th>Total</th></tr></thead><tbody id="historyTableBody"></tbody></table></div>
       <div id="historyMobileList" class="history-mobile-list"></div>
       <nav class="history-pagination" aria-label="Transaction history pages"><button id="historyPrevious" type="button">Previous</button><span id="historyPageLabel"></span><button id="historyNext" type="button">Next</button></nav>
     </section>
   </main>
-  <script src="./history.js?v=20260824-history"></script>
+  <script src="./history.js?v=20260828-history-preview"></script>
 </body>
 </html>

@@ -15,7 +15,7 @@ Personal US stock/ETF portfolio dashboard powered by Google Sheets. The app is a
 
 ## Current Repository
 
-- Local path: `C:\Users\golf_\OneDrive\Documents\My Portfolio Monitor 2026`
+- Local path: `C:\Users\golf_\OneDrive\Desktop\Projects\My Portfolio Monitor 2026`
 - Git remote: `https://github.com/damrongsukch/my-portfolio-monitor-2026.git`
 - Main site: `https://damrongsukch.github.io/my-portfolio-monitor-2026/`
 - Branch: `main`
@@ -29,6 +29,7 @@ Personal US stock/ETF portfolio dashboard powered by Google Sheets. The app is a
 - `assets/` - local logo files for tickers
 - `PRODUCT.md` - product/design intent notes, currently untracked
 - `PROJECT_CONTEXT.md` - this handoff/context file
+- `PORTFOLIO_HISTORY.md` - dated portfolio snapshots, allocation changes, and comparison rules
 
 ## Data Source
 
@@ -53,6 +54,10 @@ Expected sheet responsibilities:
 - `Looker_NAV` - NAV/history for equity curve
 - `Looker_Monthly` - monthly contribution / month rhythm chart
 - `Looker_Signals` - signal board, RSI, priority, Smart DCA cap, Final_Action
+## Return Methods
+
+Return Methods / TWR / NWR preview was removed by user preference. Do not re-add unless explicitly requested. Current performance tracking stays with Equity curve, KPI return, Monthly Buy Activity, and History total profit.
+
 
 ## Signal Priority
 
@@ -98,8 +103,10 @@ Key UI rules established through prior iterations:
 - Allocation donut center should show stock count, e.g. `12 Stocks` and `Invested`, based on actual holdings count
 - Allocation legend should show all tickers, not collapse into `Others`
 - RSI text color:
-  - RSI below 30: red
-  - RSI above 70: green
+  - RSI above 70: red / overbought
+  - RSI below 30: green / oversold opportunity
+  - RSI 30-49.9: yellow / watch
+  - RSI 50-70: neutral text
 - Monthly Performance should show:
   - Start month
   - Avg active monthly contribution
@@ -159,4 +166,8 @@ These may exist locally and should not be committed unless the user explicitly a
 - Mention exactly what changed and whether it was deployed
 - If deployment is requested and checks pass, commit and push to `main`
 - Do not over-explain generic finance; focus on the actual dashboard and sheet logic
+
+## Portfolio Analysis History
+
+Read `PORTFOLIO_HISTORY.md` before comparing portfolio growth or recommending allocation changes. Add a dated snapshot only after confirming the dashboard shows `Sheet Live`, and separate new DCA contributions from investment gains.
 

@@ -78,7 +78,7 @@ const LIVE_REFRESH_MS = 60000;
 const PRICE_ALERTS_STORAGE_KEY = "portfolioPriceAlerts";
 let allocationMode = "sector";
 let activeFilter = "All";
-let performancePeriod = "YTD";
+let performancePeriod = "ALL";
 let currencyMode = "THB";
 let holdingsSort = { key: "preferred", direction: "asc" };
 let indicatorTimeframe = "Daily";
@@ -148,9 +148,11 @@ function targetMeter(item, className = "holding-target") {
 function indicatorTrend(item) { return cleanSignal(item.totalTrend || item.signal || "Trend n/a"); }
 function rsiTone(value) {
   const rsi = numberFrom(value);
-  if (rsi < 30) return "low";
-  if (rsi > 70) return "high";
-  return "mid";
+  if (!Number.isFinite(rsi) || rsi <= 0) return "neutral";
+  if (rsi > 70) return "overbought";
+  if (rsi < 30) return "oversold";
+  if (rsi < 50) return "watch";
+  return "neutral";
 }
 function rsiValue(value) {
   const rsi = numberFrom(value);
@@ -215,28 +217,70 @@ function completeNavRows() {
   }
   return rows;
 }
-function filteredNavRows() { const rows = completeNavRows(); if (rows.length < 2 || performancePeriod === "ALL") return rows; const last = navDateMs(rows.at(-1)); const days = performancePeriod === "6M" ? 183 : performancePeriod === "1Y" ? 365 : null; if (days) return rows.filter(row => navDateMs(row) >= last - days * 86400000); const year = new Date(last || Date.now()).getFullYear(); return rows.filter(row => new Date(navDateMs(row)).getFullYear() === year); }
+function navRowsWithInvested() {
+  const rows = completeNavRows();
+  const targetInvested = numberFrom(kpis.invested);
+  const rawContributions = rows.map(row => Math.max(0, numberFrom(row[1])));
+  const rawTotal = rawContributions.reduce((sum, value) => sum + value, 0);
+  const scale = rawTotal > 0 && targetInvested > 0 ? targetInvested / rawTotal : 1;
+  let runningInvested = 0;
+  return rows.map((row, index) => {
+    runningInvested += rawContributions[index] * scale;
+    return { row, invested: runningInvested || targetInvested };
+  });
+}
+function filteredNavSeries() {
+  const series = navRowsWithInvested();
+  if (series.length < 2 || performancePeriod === "ALL") return series;
+  const last = navDateMs(series.at(-1).row);
+  const daysByPeriod = { "1M": 31, "3M": 92, "6M": 183 };
+  const days = daysByPeriod[performancePeriod];
+  if (!days) return series;
+  const filtered = series.filter(item => navDateMs(item.row) >= last - days * 86400000);
+  return filtered.length >= 2 ? filtered : series.slice(-2);
+}
+function filteredNavRows() {
+  return filteredNavSeries().map(item => item.row);
+}
+function periodReturnText() {
+  return plusText(kpis.totalReturn, percentText);
+}
+function periodRangeText(rows) {
+  if (!rows || rows.length < 2) return `Current cost basis ${formatCurrencyFromThb(kpis.invested)}`;
+  const start = sheetDate(rows[0][0]).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const end = sheetDate(rows.at(-1)[0]).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return `${performancePeriod} range ${start} - ${end}`;
+}
 function renderNavChart() {
   const svg = document.getElementById("navChart");
   if (!svg) return;
   const width = 740, height = 300, padding = { top: 20, right: 24, bottom: 44, left: 58 };
-  const rows = filteredNavRows();
+  const series = filteredNavSeries();
+  const rows = series.map(item => item.row);
   if (rows.length < 2) return;
   const values = rows.map(row => numberFrom(row[2]));
-  const invested = numberFrom(kpis.invested);
-  const maxForScale = Math.max(...values, invested, 1);
-  const scaleY = value => padding.top + (1 - (value / maxForScale)) * (height - padding.top - padding.bottom);
+  const investedValues = series.map(item => item.invested);
+  const scaleValues = [...values, ...investedValues].filter(value => Number.isFinite(value));
+  const minValue = Math.min(...scaleValues);
+  const maxValue = Math.max(...scaleValues);
+  const rawSpan = Math.max(maxValue - minValue, maxValue * 0.015, 1);
+  const domainMin = Math.max(0, minValue - rawSpan * 0.35);
+  const domainMax = maxValue + rawSpan * 0.18;
+  const scaleY = value => padding.top + (1 - ((value - domainMin) / Math.max(domainMax - domainMin, 1))) * (height - padding.top - padding.bottom);
   const scaleX = index => padding.left + (index / (rows.length - 1)) * (width - padding.left - padding.right);
   const navPoints = rows.map((row, index) => [scaleX(index), scaleY(numberFrom(row[2]))]);
-  const investedY = scaleY(invested);
-  const investedPoints = [[scaleX(0), investedY], [scaleX(rows.length - 1), investedY]];
+  const investedPoints = investedValues.map((value, index) => [scaleX(index), scaleY(value)]);
+  const yTicks = [domainMax, domainMin + (domainMax - domainMin) / 2, domainMin]
+    .map(value => ({ value, y: scaleY(value) }));
+  const yAxis = yTicks.map(tick => `<g><line class="chart-grid" x1="${padding.left}" x2="${width - padding.right}" y1="${tick.y.toFixed(1)}" y2="${tick.y.toFixed(1)}"/><text class="axis-text y-axis-text" x="${padding.left - 10}" y="${(tick.y + 4).toFixed(1)}" text-anchor="end">${monthlyAmount(tick.value)}</text></g>`).join("");
   const area = `${pathFromPoints(navPoints)} L${navPoints.at(-1)[0]} ${height - padding.bottom} L${navPoints[0][0]} ${height - padding.bottom} Z`;
   const end = numberFrom(rows.at(-1)[2]);
-  const displayReturn = plusText(kpis.totalReturn, percentText);
+  const displayReturn = periodReturnText();
   setText("performanceNumber", displayReturn);
-  setText("performanceInvestedLabel", `Current cost basis ${formatCurrencyFromThb(invested)}`);
+  setText("performanceInvestedLabel", "Invested capital");
+  setText("performanceRangeLabel", `${periodRangeText(rows)} | Cost basis ${formatCurrencyFromThb(kpis.invested)}`);
   setSignedTone("performanceNumber", displayReturn);
-  svg.innerHTML = `<defs><linearGradient id="navGradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#25e05d" stop-opacity=".22"/><stop offset="1" stop-color="#25e05d" stop-opacity="0"/></linearGradient></defs><path class="area-fill" d="${area}"/><path class="invested-line" d="${pathFromPoints(investedPoints)}"/><path class="nav-line" d="${pathFromPoints(navPoints)}"/><circle cx="${navPoints.at(-1)[0]}" cy="${navPoints.at(-1)[1]}" r="5" fill="#25e05d" stroke="#071017" stroke-width="3"/><text class="axis-text" x="${padding.left}" y="${height - 14}">${performancePeriod}</text><text class="axis-text" text-anchor="end" x="${width - padding.right}" y="${height - 14}">${formatCurrencyFromThb(end)}</text>`;
+  svg.innerHTML = `<defs><linearGradient id="navGradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#25e05d" stop-opacity=".22"/><stop offset="1" stop-color="#25e05d" stop-opacity="0"/></linearGradient></defs>${yAxis}<path class="area-fill" d="${area}"/><path class="invested-line" d="${pathFromPoints(investedPoints)}"/><path class="nav-line" d="${pathFromPoints(navPoints)}"/><circle cx="${navPoints.at(-1)[0]}" cy="${navPoints.at(-1)[1]}" r="5" fill="#25e05d" stroke="#071017" stroke-width="3"/><text class="axis-text" x="${padding.left}" y="${height - 14}">${performancePeriod}</text><text class="axis-text" text-anchor="end" x="${width - padding.right}" y="${height - 14}">${formatCurrencyFromThb(end)}</text>`;
 }
 function polarToCartesian(cx, cy, radius, angle) { const radians = (angle - 90) * Math.PI / 180; return { x: cx + radius * Math.cos(radians), y: cy + radius * Math.sin(radians) }; }
 function donutSegment(cx, cy, radius, innerRadius, startAngle, endAngle) { const start = polarToCartesian(cx, cy, radius, endAngle), end = polarToCartesian(cx, cy, radius, startAngle), innerStart = polarToCartesian(cx, cy, innerRadius, endAngle), innerEnd = polarToCartesian(cx, cy, innerRadius, startAngle), largeArc = endAngle - startAngle <= 180 ? 0 : 1; return [`M ${start.x} ${start.y}`, `A ${radius} ${radius} 0 ${largeArc} 0 ${end.x} ${end.y}`, `L ${innerEnd.x} ${innerEnd.y}`, `A ${innerRadius} ${innerRadius} 0 ${largeArc} 1 ${innerStart.x} ${innerStart.y}`, "Z"].join(" "); }
@@ -331,9 +375,12 @@ function renderMonthly() {
   const svg = document.getElementById("monthlyChart");
   if (!svg || !monthly.length) return;
   renderMonthlySummary();
-  const width = 760;
-  const height = 320;
-  const padding = { top: 38, right: 34, bottom: 58, left: 24 };
+  const isCompact = window.matchMedia("(max-width: 680px)").matches;
+  const width = isCompact ? 640 : 960;
+  const height = isCompact ? 270 : 250;
+  const padding = isCompact
+    ? { top: 34, right: 30, bottom: 54, left: 22 }
+    : { top: 28, right: 46, bottom: 48, left: 28 };
   const monthlyTotal = monthly.reduce((sum, item) => sum + numberFrom(item.value), 0);
   let runningCapital = 0;
   const investedSeries = monthly.map(item => {
@@ -343,7 +390,7 @@ function renderMonthly() {
   const max = Math.max(...monthly.map(item => item.value), ...investedSeries, 1);
   const plotH = height - padding.top - padding.bottom;
   const gap = (width - padding.left - padding.right) / monthly.length;
-  const barW = Math.min(34, gap * .5);
+  const barW = Math.min(isCompact ? 30 : 38, gap * .52);
   const pointFor = (value, index) => [
     padding.left + index * gap + gap / 2,
     padding.top + (1 - numberFrom(value) / max) * plotH
@@ -358,7 +405,7 @@ function renderMonthly() {
   }).join("");
   const lastPoint = investedPoints.at(-1);
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-  svg.innerHTML = `${bars}<path class="monthly-invested-line" d="${pathFromPoints(investedPoints)}"/><circle class="monthly-invested-dot" cx="${lastPoint[0].toFixed(1)}" cy="${lastPoint[1].toFixed(1)}" r="4"/><text class="monthly-invested-end" x="${(lastPoint[0] - 7).toFixed(1)}" y="${(lastPoint[1] - 9).toFixed(1)}">THB ${monthlyAmount(investedSeries.at(-1))}</text>`;
+  svg.innerHTML = `${bars}<path class="monthly-invested-line" d="${pathFromPoints(investedPoints)}"/><circle class="monthly-invested-dot" cx="${lastPoint[0].toFixed(1)}" cy="${lastPoint[1].toFixed(1)}" r="4"/><text class="monthly-invested-end" x="${(lastPoint[0] - 12).toFixed(1)}" y="${Math.max(18, lastPoint[1] - 14).toFixed(1)}">THB ${monthlyAmount(investedSeries.at(-1))}</text>`;
 }
 function signalMeta(signal) {
   const text = cleanSignal(signal);
@@ -481,7 +528,6 @@ function updateSyncIntegrityUi() {
   meta.classList.toggle("warning", issues.length > 0);
   meta.classList.toggle("ok", issues.length === 0);
 }
-function xirr() { return null; }
 function dcaSizing(item) {
   const signal = cleanSignal(item.signal).toUpperCase();
   if (/WAIT|HOLD|REDUCE|SELL|NO BUY|AVOID/.test(signal)) return { multiplier: 0, source: item.signalSource || "Signal" };
@@ -883,7 +929,21 @@ function startLiveAutoRefresh() {
   document.addEventListener("visibilitychange", refreshIfNeeded);
   window.addEventListener("focus", refreshIfNeeded);
 }
-function jumpToAlerts() { const alerts = document.getElementById("alerts"); const card = document.querySelector(".alerts-card"); alerts?.scrollIntoView({ behavior: "smooth", block: "start" }); document.querySelectorAll("[data-jump]").forEach(item => item.classList.toggle("active", item.dataset.jump === "alerts")); if (card) { card.classList.add("flash-focus"); window.setTimeout(() => card.classList.remove("flash-focus"), 1200); } }
+function setActiveNavigation(target) {
+  document.querySelectorAll("[data-jump]").forEach(item => item.classList.toggle("active", item.dataset.jump === target));
+}
+function setAppView(view, target = "overview", smooth = true) {
+  const nextView = view === "portfolio" ? "portfolio" : "overview";
+  document.body.dataset.view = nextView;
+  setActiveNavigation(nextView === "portfolio" ? "portfolio" : target);
+  const behavior = smooth ? "smooth" : "auto";
+  window.requestAnimationFrame(() => {
+    if (nextView === "portfolio") document.getElementById("portfolio")?.scrollIntoView({ behavior, block: "start" });
+    else if (target === "overview") window.scrollTo({ top: 0, behavior });
+    else document.getElementById(target)?.scrollIntoView({ behavior, block: "start" });
+  });
+}
+function jumpToAlerts() { const card = document.querySelector(".alerts-card"); setAppView("overview", "alerts"); if (card) { card.classList.add("flash-focus"); window.setTimeout(() => card.classList.remove("flash-focus"), 1200); } }
 function bindInteractions() {
   const search = document.getElementById("holdingSearch");
   document.querySelector(".holdings-card thead")?.addEventListener("click", event => {
@@ -908,7 +968,7 @@ function bindInteractions() {
     const button = event.target.closest("button");
     if (!button) return;
     performancePeriod = button.dataset.period || button.textContent.trim() || "YTD";
-    document.querySelectorAll(".period-tabs button").forEach(tab => tab.classList.toggle("active", tab === button));
+    document.querySelectorAll(".period-tabs button").forEach(tab => { const selected = tab === button; tab.classList.toggle("active", selected); tab.setAttribute("aria-pressed", String(selected)); });
     renderNavChart();
   });
   document.getElementById("allocationView")?.addEventListener("change", event => {
@@ -950,9 +1010,8 @@ function bindInteractions() {
   });
   document.querySelectorAll("[data-page]").forEach(button => button.addEventListener("click", () => { window.location.href = "./history.html"; }));
   document.querySelectorAll("[data-jump]").forEach(button => button.addEventListener("click", () => {
-    if (button.dataset.jump === "overview") window.scrollTo({ top: 0, behavior: "smooth" });
-    else document.getElementById(button.dataset.jump)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    document.querySelectorAll("[data-jump]").forEach(item => item.classList.toggle("active", item.dataset.jump === button.dataset.jump));
+    const target = button.dataset.jump || "overview";
+    setAppView(target === "portfolio" ? "portfolio" : "overview", target);
   }));
 }
 function setTheme(theme) { document.body.dataset.theme = theme; try { localStorage.setItem("portfolioTheme", theme); } catch (error) { console.warn(error); } }
@@ -962,5 +1021,6 @@ initTheme();
 initCurrency();
 renderAll();
 bindInteractions();
+setAppView(window.location.hash === "#portfolio" ? "portfolio" : "overview", window.location.hash === "#portfolio" ? "portfolio" : "overview", false);
 loadLiveData();
 startLiveAutoRefresh();

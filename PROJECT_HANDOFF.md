@@ -9,7 +9,7 @@ My Portfolio Monitor 2026 is a static portfolio dashboard powered by published G
 - Repository: `https://github.com/damrongsukch/my-portfolio-monitor-2026`
 - Production: `https://damrongsukch.github.io/my-portfolio-monitor-2026/`
 - Default branch: `main`
-- Current local path: `C:\Users\golf_\OneDrive\Documents\My Portfolio Monitor 2026`
+- Current local path: `C:\Users\golf_\OneDrive\Desktop\Projects\My Portfolio Monitor 2026`
 - Stack: HTML, CSS, vanilla JavaScript, SVG charts, Google Sheets GViz JSONP
 
 ## Source Of Truth
