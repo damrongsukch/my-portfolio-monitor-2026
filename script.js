@@ -935,15 +935,22 @@ function startLiveAutoRefresh() {
 function setActiveNavigation(target) {
   document.querySelectorAll("[data-jump]").forEach(item => item.classList.toggle("active", item.dataset.jump === target));
 }
+function scrollToSection(target, behavior) {
+  const element = target === "alerts" ? document.querySelector(".alerts-card") : document.getElementById(target);
+  if (!element) return;
+  const topbar = document.querySelector(".topbar")?.getBoundingClientRect().height || 78;
+  const offset = topbar + 16;
+  const top = Math.max(0, element.getBoundingClientRect().top + window.scrollY - offset);
+  window.scrollTo({ top, behavior });
+}
 function setAppView(view, target = "overview", smooth = true) {
   const nextView = view === "portfolio" ? "portfolio" : "overview";
   document.body.dataset.view = nextView;
   setActiveNavigation(nextView === "portfolio" ? "portfolio" : target);
   const behavior = smooth ? "smooth" : "auto";
   window.requestAnimationFrame(() => {
-    if (nextView === "portfolio") document.getElementById("portfolio")?.scrollIntoView({ behavior, block: "start" });
-    else if (target === "overview") window.scrollTo({ top: 0, behavior });
-    else document.getElementById(target)?.scrollIntoView({ behavior, block: "start" });
+    if (nextView === "portfolio" || target === "overview") window.scrollTo({ top: 0, behavior });
+    else scrollToSection(target, behavior);
   });
 }
 function jumpToAlerts() { const card = document.querySelector(".alerts-card"); setAppView("overview", "alerts"); if (card) { card.classList.add("flash-focus"); window.setTimeout(() => card.classList.remove("flash-focus"), 1200); } }
