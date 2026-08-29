@@ -11,7 +11,7 @@ Personal US stock/ETF portfolio dashboard powered by Google Sheets. The app is a
 - Portfolio holdings with shares, price, average cost, value, gain/loss, target weight, signal, RSI 7/14
 - Smart DCA candidates from the sheet signal board
 - Monthly DCA rhythm and average active monthly contribution
-- Return simulator / My Goal scenarios
+- Return simulator / My Goal scenarios on the standalone `goal.html` page
 
 ## Current Repository
 
@@ -23,7 +23,8 @@ Personal US stock/ETF portfolio dashboard powered by Google Sheets. The app is a
 
 ## Main Files
 
-- `index.html` - page structure, sidebar/bottom nav, inline compatibility patches, cache-busted CSS/JS links
+- `index.html` - main dashboard structure, sidebar/bottom nav, inline compatibility patches, cache-busted CSS/JS links
+- `goal.html` - standalone My Goal / return simulator page
 - `styles.css` - all responsive styling, desktop/mobile layouts, holdings cards, charts, theme
 - `script.js` - data loading, Google Sheet parsing, rendering, Smart DCA, holdings, charts, goal simulator
 - `assets/` - local logo files for tickers
@@ -92,6 +93,7 @@ User preference: professional premium, clear, practical, not playful.
 
 Key UI rules established through prior iterations:
 
+- My Goal / Return simulator is intentionally split into `goal.html`; sidebar and mobile Goal nav should open that page instead of scrolling within `index.html`.
 - Desktop holdings should look sharp, table-like, and premium
 - Mobile holdings should be stacked and readable with no overlapping text
 - Mobile holdings order: asset info, gain/loss, Price / Avg / Value, target meter, RSI + signal
@@ -170,4 +172,3 @@ These may exist locally and should not be committed unless the user explicitly a
 ## Portfolio Analysis History
 
 Read `PORTFOLIO_HISTORY.md` before comparing portfolio growth or recommending allocation changes. Add a dated snapshot only after confirming the dashboard shows `Sheet Live`, and separate new DCA contributions from investment gains.
-

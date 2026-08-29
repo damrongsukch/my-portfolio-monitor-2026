@@ -724,14 +724,17 @@ function renderGoal() {
   const returnShift = numberFrom(document.getElementById("goalReturnShift")?.value || -3);
   const boostDca = monthlyDca * (1 + extraDcaPercent / 100);
   const boostEnd = projectGoalSeries(startValue, boostDca, realReturn, months).at(-1).value;
-  const stressEnd = projectGoalSeries(startValue, monthlyDca, realReturn + returnShift, months).at(-1).value;
+  const stressReturn = realReturn + returnShift;
+  const stressEnd = projectGoalSeries(startValue, monthlyDca, stressReturn, months).at(-1).value;
+  const nominalStressReturn = annualReturn + returnShift;
+  setHtml("goalReturnShiftLabel", `Stress return <small>${annualReturn.toFixed(1)}% -> ${nominalStressReturn.toFixed(1)}%</small>`);
   setHtml("goalBaseValue", `Current portfolio <strong>${formatThb(startValue)}</strong>`);
   setText("goalBearValue", shortThb(endBear));
   setText("goalSafeValue", shortThb(endSafe));
   setText("goalBullValue", shortThb(endBull));
   setText("goalPrincipalValue", formatThb(principal));
   setText("goalProfitValue", formatThb(estimatedProfit));
-  setHtml("goalWhatIf", `<div class="goal-whatif-head"><span>What-if at ${monthAxisLabel(months)}</span><small>Adjust the inputs on the left</small></div><div class="goal-whatif-grid"><div><span>Base plan</span><strong>${shortThb(endSafe)}</strong><small>${realReturn.toFixed(1)}% real return</small></div><div><span>+${extraDcaPercent.toFixed(0)}% DCA</span><strong>${shortThb(boostEnd)}</strong><small class="positive">${signedCurrencyFromThb(boostEnd - endSafe)} vs base</small></div><div><span>${returnShift >= 0 ? "+" : ""}${returnShift.toFixed(1)}pp return</span><strong>${shortThb(stressEnd)}</strong><small class="${stressEnd >= endSafe ? "positive" : "negative"}">${signedCurrencyFromThb(stressEnd - endSafe)} vs base</small></div></div>`);
+  setHtml("goalWhatIf", `<div class="goal-whatif-head"><span>What-if at ${monthAxisLabel(months)}</span><small>Adjust the inputs on the left</small></div><div class="goal-whatif-grid"><div><span>Base plan</span><strong>${shortThb(endSafe)}</strong><small>${realReturn.toFixed(1)}% real return</small></div><div><span>+${extraDcaPercent.toFixed(0)}% DCA</span><strong>${shortThb(boostEnd)}</strong><small class="positive">${signedCurrencyFromThb(boostEnd - endSafe)} vs base</small></div><div><span>${annualReturn.toFixed(1)}% -> ${nominalStressReturn.toFixed(1)}%</span><strong>${shortThb(stressEnd)}</strong><small class="${stressEnd >= endSafe ? "positive" : "negative"}">${signedCurrencyFromThb(stressEnd - endSafe)} vs base</small></div></div>`);
   const svg = document.getElementById("goalChart");
   if (!svg) return;
   const width = 760, height = 340, padding = { top: 34, right: 72, bottom: 46, left: 54 };
@@ -1008,9 +1011,16 @@ function bindInteractions() {
     input.value = `$${(numberFrom(kpis.cash) / fxRate()).toFixed(2)}`;
     renderSmartDca();
   });
-  document.querySelectorAll("[data-page]").forEach(button => button.addEventListener("click", () => { window.location.href = "./history.html"; }));
+  document.querySelectorAll("[data-page]").forEach(button => button.addEventListener("click", () => {
+    const page = button.dataset.page;
+    window.location.href = page === "goal" ? "./goal.html" : "./history.html?v=20260829-polish-125";
+  }));
   document.querySelectorAll("[data-jump]").forEach(button => button.addEventListener("click", () => {
     const target = button.dataset.jump || "overview";
+    if (document.body.classList.contains("goal-page")) {
+      window.location.href = target === "overview" ? "./index.html" : `./index.html#${target}`;
+      return;
+    }
     setAppView(target === "portfolio" ? "portfolio" : "overview", target);
   }));
 }
@@ -1021,6 +1031,9 @@ initTheme();
 initCurrency();
 renderAll();
 bindInteractions();
-setAppView(window.location.hash === "#portfolio" ? "portfolio" : "overview", window.location.hash === "#portfolio" ? "portfolio" : "overview", false);
+if (!document.body.classList.contains("goal-page")) {
+  const initialTarget = ["portfolio", "analysis", "dca", "alerts"].includes(window.location.hash.slice(1)) ? window.location.hash.slice(1) : "overview";
+  setAppView(initialTarget === "portfolio" ? "portfolio" : "overview", initialTarget, false);
+}
 loadLiveData();
 startLiveAutoRefresh();
