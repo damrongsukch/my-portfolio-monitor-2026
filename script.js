@@ -911,9 +911,9 @@ function renderInterestWatchlist() {
     const rangePos = watchlistRangePosition(price, low52, high52);
     const opportunityData = watchlistOpportunity(price, savedTarget, sweetSpot, low52, high52);
     const opportunity = `<span class="watchlist-opportunity ${opportunityData.tone}">${opportunityData.label}</span>`;
-    const details = [...stockDetailStats(item, price, hasRsi), ["52W low/high", low52 > 0 && high52 > 0 ? `${formatUsd(low52)} / ${formatUsd(high52)}` : "Not set"], ["Target price", savedTarget > 0 ? formatUsd(savedTarget) : "Not set"], ["Nearest support (20D)", nearestSupport > 0 ? formatUsd(nearestSupport) : "Not set"], ["Sweet spot", sweetSpot > 0 ? formatUsd(sweetSpot) : "Not set"]].map(([label, value]) => `<span><small>${label}</small><b>${value}</b></span>`).join("");
+    const details = [["Price", price > 0 ? formatUsd(price) : "Not set"], ["52W low/high", low52 > 0 && high52 > 0 ? `${formatUsd(low52)} / ${formatUsd(high52)}` : "Not set"], ["Target price", savedTarget > 0 ? formatUsd(savedTarget) : "Not set"], ["Nearest support (20D)", nearestSupport > 0 ? formatUsd(nearestSupport) : "Not set"], ["Sweet spot", sweetSpot > 0 ? formatUsd(sweetSpot) : "Not set"]].map(([label, value]) => `<span><small>${label}</small><b>${value}</b></span>`).join("");
     const footer = `<div class="watchlist-row-actions">${opportunity}<div class="watchlist-link-row">${watchlistLinksHtml(item.ticker)}</div></div>`;
-    return `<article class="watchlist-stock-row ${signedClass(day)}"><div class="watchlist-stock-main">${tickerLogo(item.ticker)}<span><strong>${item.ticker}</strong><small>${name}</small><em>${item.held ? "Already in portfolio" : savedReason || "Watching"} &middot; ${theme}</em></span></div><div class="watchlist-stock-body"><div class="watchlist-stock-meta"><span><b>${priceText}</b><small>${dayText}</small></span><span><b>${signal}</b><small>${trend}</small></span><span class="watchlist-rsi-meta"><b>RSI 7 / 14: ${hasRsi ? rsiPair(item) : "n/a"}</b><small>${indicatorTimeframe}</small></span></div><div class="watchlist-detail-grid">${details}</div>${saved.note ? `<div class="watchlist-note">${escapeHtml(saved.note)}</div>` : ""}${rangePos != null ? `<div class="watchlist-range" style="--watch-range:${rangePos.toFixed(0)}%"><span><b></b></span><small>52W range ${rangePos.toFixed(0)}%</small></div>` : ""}${footer}</div></article>`;
+    return `<article class="watchlist-stock-row ${signedClass(day)}"><div class="watchlist-stock-main">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="watchlist-type-chip">${assetKind(item.ticker)}</b></strong><small>${name}</small><em>${item.held ? "Already in portfolio" : savedReason || "Watching"} &middot; ${theme}</em></span></div><div class="watchlist-stock-body"><div class="watchlist-stock-meta"><span><b>${priceText}</b><small>${dayText}</small></span><span><b>${signal}</b><small>${trend}</small></span><span class="watchlist-rsi-meta"><b>RSI 7 / 14: ${hasRsi ? rsiPair(item) : "n/a"}</b><small>${indicatorTimeframe}</small></span></div><div class="watchlist-detail-grid">${details}</div>${saved.note ? `<div class="watchlist-note">${escapeHtml(saved.note)}</div>` : ""}${rangePos != null ? `<div class="watchlist-range" style="--watch-range:${rangePos.toFixed(0)}%"><span><b></b></span><small>52W range ${rangePos.toFixed(0)}%</small></div>` : ""}${footer}</div></article>`;
   }).join("") || `<div class="empty">Add tickers you are interested in. If the ticker exists in Looker_Signals or holdings, live data will show here.</div>`;
   const suggestions = document.getElementById("watchlistSuggestions");
   if (suggestions) suggestions.innerHTML = watchlistSignalCandidates().map(item => `<button type="button" data-add-watch="${item.ticker}">${item.ticker}<small>${cleanSignal(item.signal)}</small></button>`).join("") || `<span class="empty-inline">No new signal candidates outside the current portfolio.</span>`;
@@ -1349,11 +1349,4 @@ if (!document.body.classList.contains("goal-page")) {
 }
 loadLiveData();
 startLiveAutoRefresh();
-
-
-
-
-
-
-
 

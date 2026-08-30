@@ -4483,7 +4483,9 @@ body:not([data-view="portfolio"]) .holdings-card .sort-head::after {
 .watchlist-stock-row { grid-template-columns: minmax(190px, .65fr) minmax(0, 2.35fr); }
 .watchlist-stock-meta { grid-template-columns: minmax(112px, .8fr) minmax(160px, 1fr) minmax(160px, .95fr); }
 .watchlist-stock-meta > span { min-width: 0; }
-.watchlist-rsi-meta b { white-space: nowrap; }
+.watchlist-rsi-meta b { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.watchlist-stock-meta .watchlist-rsi-meta .rsi-value,
+.watchlist-stock-meta .watchlist-rsi-meta .rsi-separator { display: inline; }
 .watchlist-detail-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 @media (max-width: 1100px) {
 .watchlist-stock-row { grid-template-columns: 1fr; }
@@ -4514,3 +4516,23 @@ body[data-view="portfolio"] .dashboard-grid { display: grid; }
 body[data-view="portfolio"] .dashboard-grid > :not(.holdings-card) { display: none !important; }
 body[data-view="portfolio"] .dashboard-grid > .holdings-card { display: block !important; }
 
+
+/* Watchlist identity and inline RSI */
+.watchlist-stock-main strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.watchlist-type-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 6px;
+  border: 1px solid rgba(62, 176, 255, .38);
+  border-radius: 999px;
+  color: #9bd4ff;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
