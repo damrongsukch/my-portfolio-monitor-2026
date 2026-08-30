@@ -4499,3 +4499,12 @@ body:not([data-view="portfolio"]) .holdings-card .sort-head::after {
 .watchlist-detail-grid small { font-size: 9px; }
 }
 
+
+/* Keep Watchlist status and research links on one mobile row */
+@media (max-width: 700px) {
+.watchlist-row-actions { flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 6px; }
+.watchlist-opportunity { flex: 0 0 auto; min-height: 26px; padding: 4px 7px; font-size: 10px; white-space: nowrap; }
+.watchlist-link-row { flex: 1 1 auto; flex-wrap: nowrap; justify-content: flex-end; gap: 5px; min-width: 0; }
+.watchlist-link-row a { min-height: 26px; padding: 0 7px; font-size: 10px; white-space: nowrap; }
+}
+
