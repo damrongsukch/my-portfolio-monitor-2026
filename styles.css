@@ -3883,7 +3883,7 @@ body:not([data-view="portfolio"]) .holdings-card .sort-head::after {
 }
 
 .drift-value {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 820;
 }
 
