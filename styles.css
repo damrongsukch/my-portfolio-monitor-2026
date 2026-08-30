@@ -4508,3 +4508,9 @@ body:not([data-view="portfolio"]) .holdings-card .sort-head::after {
 .watchlist-link-row a { min-height: 26px; padding: 0 7px; font-size: 10px; white-space: nowrap; }
 }
 
+
+/* Portfolio view: keep the parent grid visible so mobile holdings can render */
+body[data-view="portfolio"] .dashboard-grid { display: grid; }
+body[data-view="portfolio"] .dashboard-grid > :not(.holdings-card) { display: none !important; }
+body[data-view="portfolio"] .dashboard-grid > .holdings-card { display: block !important; }
+
