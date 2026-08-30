@@ -90,7 +90,7 @@ let sheetWatchlistRows = [];
 
 const logoDomains = { VOO: "vanguard.com", SPMO: "invesco.com", VXUS: "vanguard.com", SCHD: "schwab.com", NVDA: "nvidia.com", GOOGL: "google.com", META: "meta.com", MSFT: "microsoft.com", AVGO: "broadcom.com", TSM: "tsmc.com", LLY: "lilly.com", PLTR: "palantir.com", QQQI: "neosfunds.com", IAUI: "neosfunds.com", MLPI: "neosfunds.com", RKLB: "rocketlabusa.com" };
 const logoUrls = { VOO: "./assets/logos/vanguard.svg", SPMO: "./assets/logos/spmo.png", VXUS: "./assets/logos/vanguard.svg", SCHD: "./assets/logos/schd.svg", NVDA: "https://cdn.simpleicons.org/nvidia/76B900", GOOGL: "./assets/logos/google.svg", META: "https://cdn.simpleicons.org/meta/0866FF", AVGO: "https://cdn.simpleicons.org/broadcom/CC092F", TSM: "./assets/logos/tsmc.png", LLY: "./assets/logos/lly.svg", PLTR: "https://cdn.simpleicons.org/palantir/FFFFFF", QQQI: "./assets/logos/neos.jpg", IAUI: "./assets/logos/neos.jpg", MLPI: "./assets/logos/neos.jpg", RKLB: "./assets/logos/rklb.jpg" };
-const watchlistLogoUrls = { GLDM: "./assets/logos/watchlist/gldm.gif", META: "./assets/logos/watchlist/meta.ico", MSFT: "./assets/logos/watchlist/msft.ico", PLTR: "./assets/logos/watchlist/pltr.ico", RKLB: "./assets/logos/watchlist/rklb.ico", MLPD: "./assets/logos/watchlist/mlpd.ico" };
+const watchlistLogoUrls = { GLDM: "./assets/logos/watchlist/gldm.gif", MLPI: "./assets/logos/watchlist/mlpi.png", MSFT: "./assets/logos/watchlist/msft.ico", AVGO: "./assets/logos/watchlist/avgo.png", META: "./assets/logos/watchlist/meta.ico", PLTR: "./assets/logos/watchlist/pltr.ico", RKLB: "./assets/logos/watchlist/rklb.ico", AMD: "./assets/logos/watchlist/amd.png", SPCX: "./assets/logos/watchlist/spcx.png", QDTE: "./assets/logos/watchlist/roundhill.svg", SPYI: "./assets/logos/watchlist/spyi.png", DIVO: "./assets/logos/watchlist/divo.png", IWMI: "./assets/logos/watchlist/iwmi.png", NIHI: "./assets/logos/watchlist/nihi.png", MLPD: "./assets/logos/watchlist/mlpd.ico", ROCQ: "./assets/logos/watchlist/roundhill.svg", O: "./assets/logos/watchlist/o.png", DRAM: "./assets/logos/watchlist/roundhill.svg" };
 const preferredHoldingOrder = ["VOO", "SPMO", "VXUS", "SCHD", "IAUI", "QQQI", "NVDA", "GOOGL", "TSM", "LLY"];
 const preferredHoldingRank = new Map(preferredHoldingOrder.map((ticker, index) => [ticker, index]));
 const watchlistProfiles = {
@@ -1349,6 +1349,7 @@ if (!document.body.classList.contains("goal-page")) {
 }
 loadLiveData();
 startLiveAutoRefresh();
+
 
 
 
