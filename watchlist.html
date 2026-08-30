@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071017">
+  <title>Watchlist | My Portfolio Monitor 2026</title>
+  <link rel="icon" href="./assets/favicon.ico?v=20260702b" sizes="any">
+  <link rel="icon" type="image/png" href="./assets/favicon-32.png?v=20260702b" sizes="32x32">
+  <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg?v=20260702b">
+  <link rel="shortcut icon" href="./assets/favicon.ico?v=20260702b">
+  <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=20260702b">
+  <link rel="stylesheet" href="./styles.css?v=20260830-watchlist-sheet">
+</head>
+<body class="goal-page watchlist-page" data-theme="dark" data-view="watchlist">
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Main navigation">
+      <div class="brand-lockup"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 18V6m0 12h16M7 15l4-5 3 3 5-7"/><circle cx="19" cy="6" r="1.5"/></svg></span><span><strong>My Portfolio</strong><small>Monitor 2026</small></span></div>
+      <nav class="rail-nav">
+        <button class="rail-item" data-jump="overview" type="button"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z"/></svg><span>Overview</span></button>
+        <button class="rail-item" data-jump="portfolio" type="button"><svg viewBox="0 0 24 24"><path d="M6 7h12M6 12h12M6 17h12"/><rect x="4" y="4" width="16" height="16" rx="3"/></svg><span>Portfolio</span></button>
+        <button class="rail-item" data-jump="analysis" type="button"><svg viewBox="0 0 24 24"><path d="M5 19V5m0 14h15M8 16v-4m4 4V8m4 8v-7"/></svg><span>Analysis</span></button>
+        <button class="rail-item" data-jump="dca" type="button"><svg viewBox="0 0 24 24"><path d="M7 7h10l-3-3m3 3-3 3"/><path d="M17 17H7l3 3m-3-3 3-3"/></svg><span>DCA</span></button>
+        <button class="rail-item active" data-page="watchlist" type="button"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg><span>Watchlist</span></button>
+        <button class="rail-item" data-page="goal" type="button"><svg viewBox="0 0 24 24"><path d="M12 21s7-4.2 7-11a7 7 0 0 0-14 0c0 6.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span>My Goal</span></button>
+        <button class="rail-item" data-page="history" type="button"><svg viewBox="0 0 24 24"><path d="M8 3v4M16 3v4M4 10h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/><path d="M8 14h3m2 0h3M8 17h3"/></svg><span>History</span></button>
+      </nav>
+      <section class="mode-card"><span>Market Mode</span><strong id="sideMode">MODE A</strong><small id="sideModeHint">Risk on</small><div class="confidence"><span>Sheet Sync</span><b id="sideSync">Live</b></div><div class="meter"><i id="syncMeter"></i></div></section>
+    </aside>
+    <main class="main goal-main">
+      <header class="topbar goal-topbar">
+        <div class="mobile-brand"><button class="icon-button" id="menuButton" type="button" aria-label="Open navigation" title="Navigation"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><div><h1>Watchlist</h1><p>Stock ideas</p></div></div>
+        <div class="market-status"><span>Market Status</span><strong id="marketOpenLabel"><i></i> Sheet Live</strong><small id="updatedAt">Loading Google Sheet</small></div>
+        <div class="top-actions goal-actions"><a class="ghost-link" href="./index.html#analysis">Analysis</a><button class="icon-button" id="themeToggle" type="button" aria-label="Toggle light or dark theme" title="Toggle theme"><svg viewBox="0 0 24 24"><path d="M12 3v2m0 14v2M5.64 5.64l1.41 1.41m9.9 9.9 1.41 1.41M3 12h2m14 0h2M5.64 18.36l1.41-1.41m9.9-9.9 1.41-1.41"/><circle cx="12" cy="12" r="4"/></svg></button><button class="currency-toggle" id="currencyToggle" type="button" aria-label="Toggle THB or USD currency" title="Toggle currency">THB</button><button class="icon-button" id="refreshButton" type="button" aria-label="Refresh portfolio and signal data" title="Refresh now"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.4 6.4M3 12A9 9 0 0 1 18.4 5.6"/><path d="M21 4v6h-6M3 20v-6h6"/></svg></button></div>
+      </header>
+      <section class="sync-banner" id="syncBanner" aria-live="polite"><span id="syncStatusText">Connecting to Google Sheet...</span><div class="sync-details"><span id="portfolioSyncMeta">Portfolio loading</span><span id="signalSyncMeta">Signals loading</span><span id="navSyncMeta">NAV loading</span><span id="freshnessMeta">Freshness checking</span><span id="syncIntegrityMeta">Cross-check pending</span><button id="syncRetryButton" type="button" hidden>Retry sync</button></div></section>
+      <section class="content goal-content watchlist-content">
+        <section class="goal-hero-panel watchlist-hero-panel">
+          <div>
+            <span class="eyebrow">Watchlist</span>
+            <h2>Stocks I am watching</h2>
+            <p>Track the ideas you are following with live prices, 52W range, support, and research notes.</p>
+          </div>
+          <span class="goal-base" id="watchlistStatus">Add stocks you want to follow</span>
+        </section>
+        <section class="watchlist-grid">
+          <article class="card watchlist-card watchlist-main-card">
+            <div class="section-head">
+              <div>
+                <span class="eyebrow">Interest list</span>
+                <h2>My watchlist</h2>
+              </div>
+              <span class="watchlist-count" id="watchlistCount">0 tickers</span>
+            </div>
+            <div id="watchlistItems" class="watchlist-stock-list"></div>
+          </article>
+          <article class="card watchlist-card watchlist-sweet-spot-card">
+            <div class="section-head">
+              <div>
+                <span class="eyebrow">Sweet spot alerts</span>
+                <h2>Ready to review</h2>
+              </div>
+              <span class="watchlist-count" id="watchlistSweetSpotCount">0 alerts</span>
+            </div>
+            <div id="watchlistSweetSpotAlerts" class="sweet-spot-alerts"></div>
+          </article>
+        </section>
+      </section>
+    </main>
+  </div>
+  <nav class="bottom-nav" aria-label="Mobile navigation"><button data-jump="overview" type="button"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z"/></svg><span>Overview</span></button><button data-jump="portfolio" type="button"><svg viewBox="0 0 24 24"><path d="M6 7h12M6 12h12M6 17h12"/><rect x="4" y="4" width="16" height="16" rx="3"/></svg><span>Portfolio</span></button><button data-jump="analysis" type="button"><svg viewBox="0 0 24 24"><path d="M5 19V5m0 14h15M8 16v-4m4 4V8m4 8v-7"/></svg><span>Analysis</span></button><button data-jump="dca" type="button"><svg viewBox="0 0 24 24"><path d="M7 7h10l-3-3m3 3-3 3"/><path d="M17 17H7l3 3m-3-3 3-3"/></svg><span>DCA</span></button><button class="active" data-page="watchlist" type="button"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg><span>Watchlist</span></button><button data-page="goal" type="button"><svg viewBox="0 0 24 24"><path d="M12 21s7-4.2 7-11a7 7 0 0 0-14 0c0 6.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span>Goal</span></button><button data-page="history" type="button"><svg viewBox="0 0 24 24"><path d="M8 3v4M16 3v4M4 10h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/><path d="M8 14h3m2 0h3M8 17h3"/></svg><span>History</span></button></nav>
+  <script src="./script.js?v=20260830-watchlist-sheet"></script>
+</body>
+</html>

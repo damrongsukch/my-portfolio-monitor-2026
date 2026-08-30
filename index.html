@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg?v=20260702b">
   <link rel="shortcut icon" href="./assets/favicon.ico?v=20260702b">
   <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=20260702b">
-  <link rel="stylesheet" href="./styles.css?v=20260829-nav-offset-2">
+  <link rel="stylesheet" href="./styles.css?v=20260830-watchlist-sheet">
 </head>
 <body data-theme="dark" data-view="overview">
   <div class="app-shell">
@@ -42,9 +42,9 @@
           <svg viewBox="0 0 24 24"><path d="M7 7h10l-3-3m3 3-3 3"/><path d="M17 17H7l3 3m-3-3 3-3"/></svg>
           <span>DCA</span>
         </button>
-        <button class="rail-item" data-jump="alerts" type="button">
+        <button class="rail-item" data-page="watchlist" type="button">
           <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
-          <span>Alerts</span>
+          <span>Watchlist</span>
         </button>
         <button class="rail-item" data-page="goal" type="button">
           <svg viewBox="0 0 24 24"><path d="M12 21s7-4.2 7-11a7 7 0 0 0-14 0c0 6.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
@@ -206,7 +206,7 @@
             </div>
           </article>
 
-          <article class="card signal-card" id="dca">
+          <article class="card signal-card">
             <span class="eyebrow">Today's signal</span>
             <div class="signal-main">
               <span class="gem" aria-hidden="true"></span>
@@ -226,7 +226,7 @@
                   <strong>Score guide</strong>
                   <p class="health-method-intro">Overall score = the equal-weight average of the four checks below.</p>
                   <p><b>Diversification</b> rewards more active holdings, capped at 9.2.</p>
-                  <p><b>Risk Control</b> adjusts for Growth, Alpha and cash concentration.</p>
+                  <p><b>Risk Control</b> checks Core, Defense, Growth, Income and cash balance.</p>
                   <p><b>Momentum</b> follows the current Market Mode.</p>
                   <p><b>Cash Buffer</b> increases with available cash weight.</p>
                   <small id="healthAsOf">Based on the latest synced portfolio.</small>
@@ -237,6 +237,7 @@
               <div class="health-ring"><strong id="healthScore">8.6</strong><span>/10</span></div>
               <div id="healthMetrics" class="health-metrics"></div>
             </div>
+            <div id="healthActions" class="health-actions" aria-live="polite"></div>
           </article>
 
           <article class="card indicators-card">
@@ -249,7 +250,7 @@
             <div id="signalsList" class="indicator-list"></div>
           </article>
 
-          <article class="card dca-card">
+          <article class="card dca-card" id="dca">
             <div class="section-head">
               <div>
                 <span class="eyebrow">Smart DCA</span>
@@ -280,8 +281,18 @@
               <div id="rebalanceList" class="rebalance-list"></div>
             </section>
           </article>
-        </section>
-        <section class="card holdings-card" id="portfolio">
+          <article class="card drift-card">
+            <div class="section-head">
+              <div>
+                <span class="eyebrow">Portfolio drift</span>
+                <h2>Target gap</h2>
+              </div>
+              <span id="driftModeLabel" class="drift-mode">MODE target</span>
+            </div>
+            <svg id="driftChart" class="drift-chart" viewBox="0 0 760 300" role="img" aria-label="Portfolio target drift chart"></svg>
+            <div id="driftSummary" class="drift-summary" aria-live="polite"></div>
+          </article>
+          <section class="card holdings-card" id="portfolio">
           <div class="section-head holdings-head">
             <div>
               <span class="eyebrow">Portfolio holdings</span>
@@ -377,11 +388,11 @@
     <button data-jump="portfolio" type="button"><svg viewBox="0 0 24 24"><path d="M6 7h12M6 12h12M6 17h12"/><rect x="4" y="4" width="16" height="16" rx="3"/></svg><span>Portfolio</span></button>
     <button data-jump="analysis" type="button"><svg viewBox="0 0 24 24"><path d="M5 19V5m0 14h15M8 16v-4m4 4V8m4 8v-7"/></svg><span>Analysis</span></button>
     <button data-jump="dca" type="button"><svg viewBox="0 0 24 24"><path d="M7 7h10l-3-3m3 3-3 3"/><path d="M17 17H7l3 3m-3-3 3-3"/></svg><span>DCA</span></button>
-    <button data-jump="alerts" type="button"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg><span>Alerts</span></button>
+    <button data-page="watchlist" type="button"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg><span>Watchlist</span></button>
     <button data-page="goal" type="button"><svg viewBox="0 0 24 24"><path d="M12 21s7-4.2 7-11a7 7 0 0 0-14 0c0 6.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><span>Goal</span></button>
     <button data-page="history" type="button"><svg viewBox="0 0 24 24"><path d="M8 3v4M16 3v4M4 10h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/><path d="M8 14h3m2 0h3M8 17h3"/></svg><span>History</span></button>
   </nav>
 
-  <script src="./script.js?v=20260829-nav-offset-2"></script>
+  <script src="./script.js?v=20260830-watchlist-sheet"></script>
 </body>
 </html>

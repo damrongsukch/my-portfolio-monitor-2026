@@ -22,6 +22,8 @@ function shortMonthLabel(key) { const parts = key.split("-").map(Number); return
 function logo(ticker) { const src = logos[ticker]; return src ? '<img class="history-logo" src="' + src + '" alt="" onerror="this.style.display=\'none\'">' : '<span class="history-fallback">' + ticker.slice(0, 2) + '</span>'; }
 function rowAny(row, names, fallback) { for (const key of names) if (row[key] != null && row[key] !== "") return row[key]; return fallback; }
 function signedUsd(value) { return (value > 0 ? "+" : "") + fmtUsd(value); }
+function signedThb(value) { return (value > 0 ? "+" : value < 0 ? "-" : "") + fmtThb(Math.abs(value)); }
+function tradeFx(item) { return item.totalUsd > 0 && item.totalThb > 0 ? item.totalThb / item.totalUsd : 0; }
 function signedPercent(value) { return (value > 0 ? "+" : "") + numberFrom(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%"; }
 function signedPricePercent(value) { return (value > 0 ? "+" : "") + numberFrom(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%"; }
 
@@ -70,7 +72,9 @@ function priceComparison(item) {
   const current = currentPrices.get(item.ticker);
   if (item.type !== "Buy" || !current || !item.priceUsd || !item.shares) return null;
   const perShare = current - item.priceUsd;
-  return { current, amount: perShare * item.shares, percent: perShare / item.priceUsd * 100 };
+  const amountUsd = perShare * item.shares;
+  const amountThb = tradeFx(item) ? amountUsd * tradeFx(item) : 0;
+  return { current, amount: amountUsd, amountUsd, amountThb, percent: perShare / item.priceUsd * 100 };
 }
 
 function priceMarkup(item) {
@@ -84,7 +88,7 @@ function profitMarkup(item) {
   const comparison = priceComparison(item);
   if (!comparison) return { className: "neutral", html: '<strong>-</strong><small>Buy orders only</small>' };
   const className = comparison.amount > 0 ? "positive" : comparison.amount < 0 ? "negative" : "neutral";
-  return { className, html: '<strong>' + signedUsd(comparison.amount) + '</strong><small>' + signedPercent(comparison.percent) + '</small>' };
+  return { className, html: '<strong>' + (comparison.amountThb ? signedThb(comparison.amountThb) : signedUsd(comparison.amountUsd)) + '</strong><small>' + signedUsd(comparison.amountUsd) + ' · ' + signedPercent(comparison.percent) + '</small>' };
 }
 
 function rangeStart(rows) {
@@ -186,7 +190,18 @@ function render() {
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   page = Math.min(page, pageCount);
   const visible = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  document.getElementById("historySummary").innerHTML = [["Transactions", rows.length], ["Buy total", fmtThb(total)], ["Average order", fmtThb(buys.length ? total / buys.length : 0)], ["Latest activity", latest ? dateLabel(latest.date) : "-"]].map(item => '<div class="history-summary-item"><span>' + item[0] + '</span><strong>' + item[1] + '</strong></div>').join("");
+  const unrealizedUsd = buys.reduce((sum, item) => sum + (priceComparison(item)?.amountUsd || 0), 0);
+  const unrealizedThb = buys.reduce((sum, item) => sum + (priceComparison(item)?.amountThb || 0), 0);
+  const unrealized = unrealizedThb || unrealizedUsd;
+  const unrealizedTone = unrealized > 0 ? "positive" : unrealized < 0 ? "negative" : "neutral";
+  const summaryItems = [
+    { label: "Transactions", value: rows.length },
+    { label: "Buy total", value: fmtThb(total), className: "positive" },
+    { label: "Unrealized P/L", value: unrealizedThb ? signedThb(unrealizedThb) : signedUsd(unrealizedUsd), note: unrealizedThb ? signedUsd(unrealizedUsd) : "THB unavailable", className: unrealizedTone },
+    { label: "Average order", value: fmtThb(buys.length ? total / buys.length : 0) },
+    { label: "Latest activity", value: latest ? dateLabel(latest.date) : "-" }
+  ];
+  document.getElementById("historySummary").innerHTML = summaryItems.map(item => '<div class="history-summary-item ' + (item.className || "") + '"><span>' + item.label + '</span><strong>' + item.value + '</strong>' + (item.note ? '<small>' + item.note + '</small>' : '') + '</div>').join("");
   renderInsights(rows);
   document.getElementById("historyCount").textContent = rows.length + " transaction" + (rows.length === 1 ? "" : "s") + " · Showing " + (visible.length ? ((page - 1) * PAGE_SIZE + 1) + "-" + ((page - 1) * PAGE_SIZE + visible.length) : "0");
   const empty = '<tr><td colspan="7">No transactions match these filters.</td></tr>';
@@ -199,7 +214,7 @@ function render() {
     const profit = profitMarkup(item);
     const now = comparison ? fmtUsd(comparison.current) : "-";
     const comparisonClass = comparison ? profit.className : "neutral";
-    return '<article class="history-mobile-item"><div><span class="history-mobile-date">' + dateLabel(item.date) + '</span><span class="history-type ' + item.type.toLowerCase() + '">' + item.type + '</span></div><div class="history-mobile-main">' + logo(item.ticker) + '<strong>' + item.ticker + '</strong><span>' + item.shares.toFixed(6) + ' shares</span><b>' + fmtThb(item.totalThb) + '</b></div><div class="history-mobile-stats"><span>Buy<strong>' + fmtUsd(item.priceUsd) + '</strong></span><span>Now<strong>' + now + '</strong></span><span class="' + comparisonClass + '">P/L<strong>' + (comparison ? signedUsd(comparison.amount) : '-') + '</strong><small>' + (comparison ? signedPercent(comparison.percent) : '') + '</small></span></div></article>';
+    return '<article class="history-mobile-item"><div><span class="history-mobile-date">' + dateLabel(item.date) + '</span><span class="history-type ' + item.type.toLowerCase() + '">' + item.type + '</span></div><div class="history-mobile-main">' + logo(item.ticker) + '<strong>' + item.ticker + '</strong><span>' + item.shares.toFixed(6) + ' shares</span><b>' + fmtThb(item.totalThb) + '</b></div><div class="history-mobile-stats"><span>Buy<strong>' + fmtUsd(item.priceUsd) + '</strong></span><span>Now<strong>' + now + '</strong></span><span class="' + comparisonClass + '">P/L<strong>' + (comparison ? (comparison.amountThb ? signedThb(comparison.amountThb) : signedUsd(comparison.amountUsd)) : '-') + '</strong><small>' + (comparison ? signedUsd(comparison.amountUsd) + ' · ' + signedPercent(comparison.percent) : '') + '</small></span></div></article>';
   }).join("") || '<div class="empty">No transactions match these filters.</div>';
   document.getElementById("historyPageLabel").textContent = "Page " + page + " of " + pageCount;
   document.getElementById("historyPrevious").disabled = page === 1;

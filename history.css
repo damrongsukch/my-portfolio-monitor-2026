@@ -137,3 +137,37 @@
     min-width: 0;
   }
 }
+/* Filter-aware history summary polish */
+.history-summary { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.history-summary-item.positive strong { color: #25e05d; }
+.history-summary-item.negative strong { color: #ff5b62; }
+.history-summary-item.neutral strong { color: #94a3b8; }
+@media (max-width: 900px) {
+  .history-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .history-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .history-insights { gap: 10px; }
+  .history-spend-track { min-width: 0; }
+  .history-mobile-stats { gap: 6px; }
+}
+@media (max-width: 420px) {
+  .history-mobile-main { grid-template-columns: 30px minmax(0, 1fr); }
+  .history-mobile-main b { grid-column: 2; grid-row: auto; text-align: left; }
+  .history-mobile-stats { grid-template-columns: 1fr; }
+}
+/* Complete currency display for history P/L */
+.history-summary-item small {
+  display: block;
+  margin-top: 4px;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+}
+.history-summary-item.positive small { color: rgba(37, 224, 93, .78); }
+.history-summary-item.negative small { color: rgba(255, 91, 98, .78); }
+.history-change small { white-space: nowrap; }
+@media (max-width: 700px) {
+  .history-summary-item small { font-size: 10px; }
+  .history-change small { white-space: normal; }
+}

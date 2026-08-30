@@ -19,7 +19,7 @@ let holdings = [
   { ticker: "TSM", layer: "Growth", shares: "0.0414339", price: "$411.68", value: 549.30, valueText: "THB 549.30", pl: "18.29%", weight: 10.34, signal: "BUY" },
   { ticker: "QQQI", layer: "Income", shares: "0.2030812", price: "$56.50", value: 369.50, valueText: "THB 369.50", pl: "7.94%", weight: 6.96, signal: "HOLD" },
   { ticker: "IAUI", layer: "Income", shares: "0.2208413", price: "$57.23", value: 407.01, valueText: "THB 407.01", pl: "1.35%", weight: 7.66, signal: "HOLD" },
-  { ticker: "RKLB", layer: "Alpha", shares: "0.1307652", price: "$105.55", value: 444.47, valueText: "THB 444.47", pl: "44.54%", weight: 8.37, signal: "HOLD" }
+  { ticker: "RKLB", layer: "Growth", shares: "0.1307652", price: "$105.55", value: 444.47, valueText: "THB 444.47", pl: "44.54%", weight: 8.37, signal: "HOLD" }
 ];
 
 let signalBoard = holdings.map((item, index) => ({
@@ -70,12 +70,13 @@ let kpis = {
 };
 
 const SHEET_ID = "1rV26pJqw8rMNO0nplvE9K0gsMCotfZ4dgvXs5kgRFDk";
-const DATA_SHEETS = { kpi: "Looker_KPI", holdings: "Looker_Holdings", nav: "Looker_NAV", monthly: "Looker_Monthly", trades: "Trade_Log", signals: "Looker_Signals" };
+const DATA_SHEETS = { kpi: "Looker_KPI", holdings: "Looker_Holdings", nav: "Looker_NAV", monthly: "Looker_Monthly", trades: "Trade_Log", signals: "Looker_Signals", watchlist: "Watchlist" };
 const colors = ["#25e05d", "#f6c21a", "#4aa3ff", "#ff5148", "#b57cff", "#13b981", "#94a3b8", "#38bdf8", "#fb7185", "#a3e635", "#f97316", "#22d3ee", "#e879f9", "#facc15", "#60a5fa", "#34d399"];
 const MIN_ORDER_USD = 1.5;
 const GOAL_INFLATION_RATE = 3;
 const LIVE_REFRESH_MS = 60000;
 const PRICE_ALERTS_STORAGE_KEY = "portfolioPriceAlerts";
+const WATCHLIST_STORAGE_KEY = "portfolioInterestWatchlist";
 let allocationMode = "sector";
 let activeFilter = "All";
 let performancePeriod = "ALL";
@@ -84,11 +85,24 @@ let holdingsSort = { key: "preferred", direction: "asc" };
 let indicatorTimeframe = "Daily";
 let liveDataLoading = false;
 let lastLiveSyncMs = 0;
+let signalUniverse = [];
+let sheetWatchlistRows = [];
 
 const logoDomains = { VOO: "vanguard.com", SPMO: "invesco.com", VXUS: "vanguard.com", SCHD: "schwab.com", NVDA: "nvidia.com", GOOGL: "google.com", META: "meta.com", MSFT: "microsoft.com", AVGO: "broadcom.com", TSM: "tsmc.com", LLY: "lilly.com", PLTR: "palantir.com", QQQI: "neosfunds.com", IAUI: "neosfunds.com", MLPI: "neosfunds.com", RKLB: "rocketlabusa.com" };
 const logoUrls = { VOO: "./assets/logos/vanguard.svg", SPMO: "./assets/logos/spmo.png", VXUS: "./assets/logos/vanguard.svg", SCHD: "./assets/logos/schd.svg", NVDA: "https://cdn.simpleicons.org/nvidia/76B900", GOOGL: "./assets/logos/google.svg", META: "https://cdn.simpleicons.org/meta/0866FF", AVGO: "https://cdn.simpleicons.org/broadcom/CC092F", TSM: "./assets/logos/tsmc.png", LLY: "./assets/logos/lly.svg", PLTR: "https://cdn.simpleicons.org/palantir/FFFFFF", QQQI: "./assets/logos/neos.jpg", IAUI: "./assets/logos/neos.jpg", MLPI: "./assets/logos/neos.jpg", RKLB: "./assets/logos/rklb.jpg" };
+const watchlistLogoUrls = { GLDM: "./assets/logos/watchlist/gldm.ico", META: "./assets/logos/watchlist/meta.ico", MSFT: "./assets/logos/watchlist/msft.ico", PLTR: "./assets/logos/watchlist/pltr.ico", RKLB: "./assets/logos/watchlist/rklb.ico", QDTE: "./assets/logos/watchlist/qdte.ico", MLPD: "./assets/logos/watchlist/mlpd.ico", ROCQ: "./assets/logos/watchlist/rocq.ico", DRAM: "./assets/logos/watchlist/dram.ico" };
 const preferredHoldingOrder = ["VOO", "SPMO", "VXUS", "SCHD", "IAUI", "QQQI", "NVDA", "GOOGL", "TSM", "LLY"];
 const preferredHoldingRank = new Map(preferredHoldingOrder.map((ticker, index) => [ticker, index]));
+const watchlistProfiles = {
+  GLDM: { name: "SPDR Gold MiniShares Trust", type: "ETF", theme: "Gold exposure" },
+  MLPI: { name: "MLP / income idea", type: "ETF", theme: "Income watch" },
+  MSFT: { name: "Microsoft", type: "US stock", theme: "Mega-cap software" },
+  AVGO: { name: "Broadcom", type: "US stock", theme: "AI infrastructure" },
+  META: { name: "Meta Platforms", type: "US stock", theme: "Digital advertising / AI" },
+  PLTR: { name: "Palantir", type: "US stock", theme: "AI software" },
+  RKLB: { name: "Rocket Lab", type: "US stock", theme: "Space / launch systems" },
+  AMD: { name: "Advanced Micro Devices", type: "US stock", theme: "Semiconductors" }
+};
 
 function numberFrom(value) { const cleaned = String(value ?? "").replace(/[^0-9.-]/g, ""); const parsed = Number(cleaned); return Number.isFinite(parsed) ? parsed : 0; }
 function moneyText(value) { const text = String(value || "").trim(); return text ? text.replace("\u0e3f", "THB ").replace("\u00e0\u00b8\u00bf", "THB ") : "THB 0.00"; }
@@ -102,11 +116,11 @@ function kpiAny(rows, metrics, fallback = "") { const names = (Array.isArray(met
 function rowAny(row, names, fallback = "") { for (const key of (Array.isArray(names) ? names : [names])) if (row[key] != null && row[key] !== "") return row[key]; const normalized = Object.fromEntries(Object.entries(row).map(([key, value]) => [key.toLowerCase().replace(/[^a-z0-9]/g, ""), value])); for (const key of (Array.isArray(names) ? names : [names])) { const found = normalized[String(key).toLowerCase().replace(/[^a-z0-9]/g, "")]; if (found != null && found !== "") return found; } return fallback; }
 function signedClass(value) { const text = String(value || "").trim(); return text.startsWith("-") || numberFrom(text) < 0 ? "negative" : "positive"; }
 function normalizeLayer(ticker, layer) { if (String(ticker || "").toUpperCase() === "QQQI") return "Income"; return layerClass(layer); }
-function layerClass(layer) { const clean = String(layer || "").split("/")[0].trim().toLowerCase(); if (clean === "growth") return "Growth"; if (clean === "defense" || clean === "defensive") return "Defense"; if (clean === "safe" || clean === "income" || clean === "defensive income") return "Income"; if (clean === "alpha") return "Alpha"; return "Core"; }
+function layerClass(layer) { const clean = String(layer || "").split("/")[0].trim().toLowerCase(); if (clean === "growth") return "Growth"; if (clean === "defense" || clean === "defensive") return "Defense"; if (clean === "safe" || clean === "income" || clean === "defensive income") return "Income"; if (clean === "alpha") return "Growth"; return "Core"; }
 function tickerLogo(ticker) {
   const symbol = String(ticker || "").trim().toUpperCase();
   const fallback = symbol.slice(0, 2) || "--";
-  const primary = logoUrls[symbol];
+  const primary = watchlistLogoUrls[symbol] || logoUrls[symbol];
   if (!primary) return `<i class="ticker-logo">${fallback}</i>`;
   return `<i class="ticker-logo has-logo logo-${symbol.toLowerCase()}" data-text-fallback="${fallback}"><img src="${primary}" alt="${symbol} logo" loading="lazy" referrerpolicy="no-referrer" onerror="if(this.parentElement){this.parentElement.classList.remove('has-logo');this.parentElement.textContent=this.parentElement.dataset.textFallback||'${fallback}'}"></i>`;
 }
@@ -118,7 +132,7 @@ function signedCurrencyFromThb(valueThb) { const amount = numberFrom(valueThb); 
 function formatCurrencyFromUsd(valueUsd) { const amount = numberFrom(valueUsd); if (currencyMode === "USD") return `$${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; return formatThb(amount * fxRate()); }
 function signedCurrencyFromUsd(valueUsd) { const amount = numberFrom(valueUsd); const sign = amount < 0 ? "-" : "+"; return `${sign}${formatCurrencyFromUsd(Math.abs(amount))}`; }
 function holdingGainThb(item) { const pct = numberFrom(item.pl) / 100; if (Number.isFinite(numberFrom(item.costBasisUsd)) && numberFrom(item.costBasisUsd) > 0) return (numberFrom(item.valueUsd) - numberFrom(item.costBasisUsd)) * fxRate(); return pct > -0.99 ? numberFrom(item.value) - (numberFrom(item.value) / (1 + pct)) : 0; }
-function assetKind(ticker) { return /SPMO|SCHD|QQQI|IAUI|MLPI/i.test(ticker) ? "ETF" : "US stock"; }
+function assetKind(ticker) { const symbol = String(ticker || "").toUpperCase(); return watchlistProfiles[symbol]?.type || (/VOO|SPMO|VXUS|SCHD|QQQI|IAUI|MLPI|GLDM/i.test(symbol) ? "ETF" : "US stock"); }
 function activeTargetKey() { return /MODE\s*B|MODE_B|\bB\b/i.test(kpis.marketMode) ? "targetB" : "targetA"; }
 function targetWeight(item) { const preferred = numberFrom(item[activeTargetKey()]); const fallback = numberFrom(item.targetWeight); return preferred || fallback || 0; }
 function targetGap(item) { const target = targetWeight(item); return target ? target - numberFrom(item.weight) : 0; }
@@ -377,10 +391,10 @@ function renderMonthly() {
   renderMonthlySummary();
   const isCompact = window.matchMedia("(max-width: 680px)").matches;
   const width = isCompact ? 640 : 960;
-  const height = isCompact ? 270 : 250;
+  const height = isCompact ? 300 : 340;
   const padding = isCompact
     ? { top: 34, right: 30, bottom: 54, left: 22 }
-    : { top: 28, right: 46, bottom: 48, left: 28 };
+    : { top: 36, right: 54, bottom: 58, left: 32 };
   const monthlyTotal = monthly.reduce((sum, item) => sum + numberFrom(item.value), 0);
   let runningCapital = 0;
   const investedSeries = monthly.map(item => {
@@ -419,6 +433,60 @@ function signalMeta(signal) {
 }
 function signalBadge(signal) { const text = cleanSignal(signal); const meta = signalMeta(text); return `<span class="badge ${meta.cls}" tabindex="0" title="${meta.help}" aria-label="${text}. ${meta.help}">${text}</span>`; }
 
+function driftRows() {
+  return holdings
+    .filter(item => item.ticker && item.ticker !== "CASH" && numberFrom(item.shares) > 0 && targetWeight(item) > 0)
+    .map(item => ({ item, gap: targetGap(item), target: targetWeight(item), weight: numberFrom(item.weight), value: numberFrom(item.value) }))
+    .sort((a, b) => {
+      const tickerA = String(a.item.ticker || "").toUpperCase();
+      const tickerB = String(b.item.ticker || "").toUpperCase();
+      const rankA = preferredHoldingRank.get(tickerA) ?? preferredHoldingOrder.length;
+      const rankB = preferredHoldingRank.get(tickerB) ?? preferredHoldingOrder.length;
+      return rankA === rankB ? b.value - a.value : rankA - rankB;
+    });
+}
+function renderDriftChart() {
+  const svg = document.getElementById("driftChart");
+  setText("driftModeLabel", `${kpis.marketMode} target`);
+  if (!svg) return;
+  const rows = driftRows();
+  if (!rows.length) {
+    svg.innerHTML = `<text class="axis-text" x="380" y="150" text-anchor="middle">No target data available</text>`;
+    setHtml("driftSummary", `<span>No target gaps found in the latest holdings sheet.</span>`);
+    return;
+  }
+  const width = 760;
+  const height = Math.max(230, rows.length * 26 + 46);
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  const padding = { top: 28, right: 112, bottom: 28, left: 108 };
+  const center = padding.left + (width - padding.left - padding.right) / 2;
+  const rowGap = (height - padding.top - padding.bottom) / rows.length;
+  const maxGap = Math.max(5, Math.ceil(Math.max(...rows.map(row => Math.abs(row.gap))) / 2) * 2);
+  const scale = value => center + (value / maxGap) * ((width - padding.left - padding.right) / 2);
+  const axisTicks = [-maxGap, -maxGap / 2, 0, maxGap / 2, maxGap];
+  const tickMarkup = axisTicks.map(value => {
+    const x = scale(value);
+    return `<g><line class="drift-grid" x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${padding.top - 8}" y2="${height - padding.bottom + 4}"/><text class="axis-text" x="${x.toFixed(1)}" y="${height - 6}" text-anchor="middle">${value > 0 ? "+" : ""}${value.toFixed(0)}%</text></g>`;
+  }).join("");
+  const rowMarkup = rows.map((row, index) => {
+    const y = padding.top + index * rowGap + rowGap / 2;
+    const x = scale(row.gap);
+    const barX = Math.min(center, x);
+    const barW = Math.max(3, Math.abs(x - center));
+    const tone = row.gap >= 1 ? "under" : row.gap <= -1 ? "over" : "near";
+    const status = row.gap >= 1 ? "Add" : row.gap <= -1 ? "Pause" : "Hold";
+    return `<g class="drift-row ${tone}"><text class="drift-label" x="${padding.left - 12}" y="${(y + 4).toFixed(1)}" text-anchor="end">${row.item.ticker}</text><rect class="drift-bar" x="${barX.toFixed(1)}" y="${(y - 7).toFixed(1)}" width="${barW.toFixed(1)}" height="14" rx="7"/><circle class="drift-dot" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4"/><text class="drift-value" x="${width - padding.right + 14}" y="${(y - 2).toFixed(1)}">${row.gap > 0 ? "+" : ""}${row.gap.toFixed(1)}%</text><text class="drift-sub" x="${width - padding.right + 14}" y="${(y + 12).toFixed(1)}"><tspan class="drift-status">${status}</tspan><tspan class="drift-ratio"> · ${row.weight.toFixed(1)}/${row.target.toFixed(1)}%</tspan></text></g>`;
+  }).join("");
+  svg.innerHTML = `${tickMarkup}<line class="drift-zero" x1="${center.toFixed(1)}" x2="${center.toFixed(1)}" y1="${padding.top - 10}" y2="${height - padding.bottom + 5}"/>${rowMarkup}`;
+  const under = rows.find(row => row.gap >= 1);
+  const over = rows.find(row => row.gap <= -1);
+  const near = rows.filter(row => Math.abs(row.gap) < 1).length;
+  setHtml("driftSummary", [
+    under ? `<span class="positive"><small>Needs capital</small><b>${under.item.ticker}</b><em>Under target ${under.gap.toFixed(1)}%</em></span>` : `<span><small>Needs capital</small><b>None</b><em>No major underweight names</em></span>`,
+    over ? `<span class="negative"><small>Pause buys</small><b>${over.item.ticker}</b><em>Over target ${Math.abs(over.gap).toFixed(1)}%</em></span>` : `<span><small>Pause buys</small><b>None</b><em>No major overweight names</em></span>`,
+    `<span><small>Balanced</small><b>${near}</b><em>Near target within 1%</em></span>`
+  ].join(""));
+}
 function renderHoldings(filter = activeFilter, query = document.getElementById("holdingSearch")?.value || "") {
   activeFilter = filter || "All";
   const search = String(query || "").trim().toLowerCase();
@@ -627,14 +695,40 @@ function renderRebalancePlanner() {
     : `Enter a USD budget to see purchases that move the portfolio toward ${kpis.marketMode} targets.`);
   setHtml("rebalanceList", plan.picks.slice(0, 4).map(item => `<div class="rebalance-row"><span><strong>${item.ticker}</strong><small>${targetStatus(item).label} ${Math.max(0, targetGap(item)).toFixed(1)}% · target ${targetWeight(item).toFixed(1)}%</small></span><strong>${formatUsd(item.amountUsd)}<small>${(item.amountUsd / Math.max(plan.budget, 1) * 100).toFixed(0)}% of budget</small></strong></div>`).join("") || `<div class="empty">No underweight target positions available for this budget.</div>`);
 }
+function healthActionItems(activeHoldings, cashWeight) {
+  const actions = [];
+  const overweight = activeHoldings
+    .map(item => ({ item, gap: targetGap(item), target: targetWeight(item) }))
+    .filter(entry => entry.target && entry.gap <= -1)
+    .sort((a, b) => a.gap - b.gap)[0];
+  const underweight = activeHoldings
+    .map(item => ({ item, gap: targetGap(item), target: targetWeight(item), priority: numberFrom(item.priority || 99) }))
+    .filter(entry => entry.target && entry.gap >= 1)
+    .sort((a, b) => b.gap - a.gap || a.priority - b.priority)[0];
+  const hotRsi = activeHoldings
+    .filter(item => numberFrom(item.rsi7) > 70 || numberFrom(item.rsi14) > 70)
+    .sort((a, b) => Math.max(numberFrom(b.rsi7), numberFrom(b.rsi14)) - Math.max(numberFrom(a.rsi7), numberFrom(a.rsi14)))[0];
+  if (overweight) actions.push({ tone: "caution", title: `${overweight.item.ticker} over target`, detail: `${numberFrom(overweight.item.weight).toFixed(1)}% vs target ${overweight.target.toFixed(1)}%. Pause new buys first.` });
+  if (underweight) actions.push({ tone: "positive", title: `${underweight.item.ticker} needs capital`, detail: `${underweight.gap.toFixed(1)}% under target. Prioritize with Smart DCA.` });
+  if (hotRsi) actions.push({ tone: "warning", title: `${hotRsi.item.ticker} RSI is hot`, detail: `RSI7 ${numberFrom(hotRsi.item.rsi7).toFixed(1)} / RSI14 ${numberFrom(hotRsi.item.rsi14).toFixed(1)}. Consider smaller sizing.` });
+  if (cashWeight < 1) actions.push({ tone: "neutral", title: "Cash buffer is low", detail: `Cash is ${cashWeight.toFixed(1)}% of portfolio. New buys depend on fresh deposits.` });
+  return actions.slice(0, 3);
+}
 function renderHealth() {
   const activeHoldings = holdings.filter(item => item.ticker !== "CASH" && numberFrom(item.shares) > 0);
-  const growth = holdings.filter(item => /growth/i.test(item.layer)).reduce((sum, item) => sum + item.weight, 0);
-  const alpha = holdings.filter(item => /alpha/i.test(item.layer)).reduce((sum, item) => sum + item.weight, 0);
+  const layerWeights = activeHoldings.reduce((map, item) => {
+    const layer = layerClass(item.layer);
+    map[layer] = (map[layer] || 0) + numberFrom(item.weight);
+    return map;
+  }, { Core: 0, Defense: 0, Growth: 0, Income: 0 });
+  const core = layerWeights.Core || 0;
+  const defense = layerWeights.Defense || 0;
+  const growth = layerWeights.Growth || 0;
+  const income = layerWeights.Income || 0;
   const cash = holdings.find(item => item.ticker === "CASH");
   const cashWeight = cash ? cash.weight : 0;
   const diversification = Math.min(9.2, 7.2 + activeHoldings.length * .18);
-  const riskControl = Math.max(6.4, Math.min(9.4, 9.2 - Math.max(0, growth - 58) * .06 - Math.max(0, alpha - 8) * .08 + Math.min(cashWeight, 4) * .03));
+  const riskControl = Math.max(6.4, Math.min(9.4, 9.2 - Math.max(0, growth - 42) * .05 - Math.max(0, income - 25) * .03 + Math.min(core + defense, 65) * .006 + Math.min(cashWeight, 4) * .03));
   const momentum = /MODE A/i.test(kpis.marketMode) ? 9 : 7.6;
   const cashBuffer = Math.max(6.5, Math.min(9, 7 + cashWeight / 2));
   const score = (diversification + riskControl + momentum + cashBuffer) / 4;
@@ -643,11 +737,12 @@ function renderHealth() {
   if (ring) ring.style.setProperty("--health-fill", `${Math.round(score * 10)}%`);
   const metrics = [
     ["Diversification", diversification, `${activeHoldings.length} active holdings; capped at 9.2`],
-    ["Risk Control", riskControl, `Growth ${growth.toFixed(1)}%, Alpha ${alpha.toFixed(1)}%, Cash ${cashWeight.toFixed(1)}%`],
+    ["Risk Control", riskControl, `Core ${core.toFixed(1)}%, Defense ${defense.toFixed(1)}%, Growth ${growth.toFixed(1)}%, Income ${income.toFixed(1)}%, Cash ${cashWeight.toFixed(1)}%`],
     ["Momentum", momentum, `Based on ${kpis.marketMode}`],
     ["Cash Buffer", cashBuffer, `Cash weight ${cashWeight.toFixed(1)}%`]
   ];
   setHtml("healthMetrics", metrics.map(([label, value, help]) => `<div class="health-metric" title="${help}"><span><b>${label}</b><small>${help}</small></span><strong>${value.toFixed(1)}</strong></div>`).join(""));
+  setHtml("healthActions", healthActionItems(activeHoldings, cashWeight).map(action => `<div class="health-action ${action.tone}"><b>${action.title}</b><span>${action.detail}</span></div>`).join(""));
   const latestHealthDate = navRows.map(row => validSheetDate(row[0])).filter(Boolean).sort((a, b) => b - a)[0];
   setText("healthAsOf", latestHealthDate
     ? `Scored using market close ${latestHealthDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}.`
@@ -674,6 +769,172 @@ function renderPriceAlerts() {
     return `<div class="price-alert-row ${triggered ? "triggered" : "ready"}"><span><strong>${alert.ticker}</strong><small>&#36;${current.toFixed(2)} now · ${alert.direction} &#36;${Number(alert.target).toFixed(2)}</small></span><b>${triggered ? "Triggered" : "Watching"}</b><button type="button" data-remove-price-alert="${alert.id}" aria-label="Remove ${alert.ticker} price alert" title="Remove alert">×</button></div>`;
   }).join("") || `<div class="empty">Add a price level to start watching.</div>`;
 }
+function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char])); }
+function normalizeTickerInput(value) { return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9.-]/g, "").slice(0, 12); }
+function sheetWatchlistUrl() { return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`; }
+function parseWatchlistSheet(rows) {
+  return rowsToObjects(rows).map(row => {
+    const ticker = normalizeTickerInput(rowAny(row, ["Ticker", "Symbol"], ""));
+    if (!ticker) return null;
+    return {
+      ticker,
+      name: rowAny(row, ["Name", "Company", "Asset"], ""),
+      type: rowAny(row, ["Type", "Asset Type", "Kind"], ""),
+      price: numberFrom(rowAny(row, ["Price", "Current Price", "Current_Price_USD", "Price USD"], 0)),
+      low52: numberFrom(rowAny(row, ["52W Low", "52 Week Low", "Low 52", "52W_Low"], 0)),
+      high52: numberFrom(rowAny(row, ["52W High", "52 Week High", "High 52", "52W_High"], 0)),
+      target: numberFrom(rowAny(row, ["Target Price", "Target", "Target USD", "Target_Price"], 0)),
+      sweetSpot: numberFrom(rowAny(row, ["Sweet Spot", "SweetSpot", "Sweet Spot USD", "Sweet_Spot"], 0)),
+      signal: cleanSignal(rowAny(row, ["Signal", "Watchlist Signal"], "WATCH")),
+      totalTrend: rowAny(row, ["Trend", "Watchlist Trend", "Total Trend"], ""),
+      rsi7: numberFrom(rowAny(row, ["RSI 7", "RSI7", "RSI_7"], 0)),
+      rsi14: numberFrom(rowAny(row, ["RSI 14", "RSI14", "RSI_14"], 0)),
+      nearestSupport: numberFrom(rowAny(row, ["Nearest Support (20D)", "Nearest Support", "Support", "Support Price", "Nearest_Support"], 0)),
+      reason: rowAny(row, ["Reason", "Status", "Tag"], "From Watchlist sheet"),
+      note: rowAny(row, ["Note", "Notes", "Thesis"], ""),
+      source: "sheet"
+    };
+  }).filter(Boolean);
+}
+function readLocalWatchlist() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(WATCHLIST_STORAGE_KEY) || "null");
+    if (Array.isArray(stored)) return stored.map(item => typeof item === "string" ? { ticker: normalizeTickerInput(item), reason: "Watching", source: "local" } : { ...item, ticker: normalizeTickerInput(item.ticker), source: item.source || "local" }).filter(item => item.ticker);
+  } catch (error) { console.warn(error); }
+  return [];
+}
+function readInterestWatchlist() {
+  if (sheetWatchlistRows.length) return sheetWatchlistRows.map(item => ({ ...item, ticker: normalizeTickerInput(item.ticker) })).filter(item => item.ticker);
+  return defaultWatchlistTickers().map(ticker => ({ ticker, reason: signalUniverse.some(item => String(item.ticker).toUpperCase() === ticker) ? "From signal sheet" : "Starter watchlist", source: "local" }));
+}
+function saveInterestWatchlist(items) {
+  const unique = [];
+  const seen = new Set();
+  items.forEach(item => {
+    const ticker = normalizeTickerInput(item.ticker);
+    if (!ticker || seen.has(ticker)) return;
+    seen.add(ticker);
+    unique.push({ ticker, reason: item.reason || "Watching", price: numberFrom(item.price), low52: numberFrom(item.low52), high52: numberFrom(item.high52), target: numberFrom(item.target), sweetSpot: numberFrom(item.sweetSpot), nearestSupport: numberFrom(item.nearestSupport), note: String(item.note || "").trim().slice(0, 120), addedAt: item.addedAt || Date.now() });
+  });
+  try { localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(unique)); } catch (error) { console.warn(error); }
+}
+function defaultWatchlistTickers() {
+  const held = new Set(holdings.filter(item => numberFrom(item.shares) > 0 || numberFrom(item.value) > 0).map(item => String(item.ticker).toUpperCase()));
+  const candidates = signalUniverse.filter(item => item.ticker && !held.has(String(item.ticker).toUpperCase()))
+    .sort((a, b) => (numberFrom(a.priority) || 99) - (numberFrom(b.priority) || 99))
+    .map(item => String(item.ticker).toUpperCase());
+  const fallback = ["MSFT", "AVGO", "META", "PLTR", "RKLB"].filter(ticker => !held.has(ticker));
+  return [...new Set(candidates.length ? candidates : fallback)].slice(0, 6);
+}
+function watchlistDataSource(ticker) {
+  const symbol = normalizeTickerInput(ticker);
+  const holding = holdings.find(item => String(item.ticker).toUpperCase() === symbol);
+  const signal = signalUniverse.find(item => String(item.ticker).toUpperCase() === symbol);
+  return { ...(watchlistProfiles[symbol] || {}), ...(signal || {}), ...(holding || {}), ticker: symbol, held: !!holding && (numberFrom(holding.shares) > 0 || numberFrom(holding.value) > 0), inSheet: !!signal || !!holding };
+}
+function watchlistSignalCandidates() {
+  const watched = new Set(readInterestWatchlist().map(item => item.ticker));
+  const held = new Set(holdings.filter(item => numberFrom(item.shares) > 0 || numberFrom(item.value) > 0).map(item => String(item.ticker).toUpperCase()));
+  return signalUniverse.filter(item => item.ticker && !watched.has(String(item.ticker).toUpperCase()) && !held.has(String(item.ticker).toUpperCase()))
+    .sort((a, b) => (numberFrom(a.priority) || 99) - (numberFrom(b.priority) || 99))
+    .slice(0, 8);
+}
+function stockResearchLinks(ticker) {
+  const symbol = encodeURIComponent(normalizeTickerInput(ticker));
+  const isEtf = /VOO|SPMO|VXUS|SCHD|QQQI|IAUI|MLPI/i.test(symbol);
+  return [
+    { label: "Yahoo", href: `https://finance.yahoo.com/quote/${symbol}` },
+    { label: "TradingView", href: `https://www.tradingview.com/symbols/${symbol}/` },
+    { label: isEtf ? "ETF.com" : "Nasdaq", href: isEtf ? `https://www.etf.com/${symbol}` : `https://www.nasdaq.com/market-activity/stocks/${symbol.toLowerCase()}` }
+  ];
+}
+function watchlistRangePosition(price, low, high) {
+  if (!(price > 0 && low > 0 && high > low)) return null;
+  return Math.max(0, Math.min(100, ((price - low) / (high - low)) * 100));
+}
+function watchlistOpportunity(price, target, sweetSpot, low, high) {
+  if (!(price > 0)) return { label: "Price needed", tone: "neutral" };
+  if (sweetSpot > 0 && price <= sweetSpot) return { label: "In sweet spot", tone: "positive" };
+  if (sweetSpot > 0 && price <= sweetSpot * 1.03) return { label: "Near sweet spot", tone: "watch" };
+  if (target > 0 && price <= target) return { label: "Under target", tone: "positive" };
+  if (target > 0 && price > target) return { label: "Above target", tone: "negative" };
+  const pos = watchlistRangePosition(price, low, high);
+  if (pos != null && pos <= 25) return { label: "Near 52W low", tone: "positive" };
+  if (pos != null && pos >= 80) return { label: "Near 52W high", tone: "negative" };
+  return { label: "Watching", tone: "neutral" };
+}
+function stockDetailStats(item, price, hasRsi) {
+  const stats = [
+    ["Type", assetKind(item.ticker)],
+    ["Portfolio", item.held ? `${numberFrom(item.weight).toFixed(1)}% weight` : "Not held"],
+    ["Target", targetWeight(item) ? `${targetWeight(item).toFixed(1)}%` : "No target"],
+    ["Priority", numberFrom(item.priority) && numberFrom(item.priority) < 99 ? `#${numberFrom(item.priority).toFixed(0)}` : "n/a"]
+  ];
+  if (price > 0) stats.unshift(["Price", formatUsd(price)]);
+  if (hasRsi) stats.push(["RSI", `${numberFrom(item.rsi7).toFixed(1)} / ${numberFrom(item.rsi14).toFixed(1)}`]);
+  return stats;
+}
+function watchlistLinksHtml(ticker) {
+  return stockResearchLinks(ticker).map(link => `<a href="${link.href}" target="_blank" rel="noopener noreferrer">${link.label}</a>`).join("");
+}
+function renderInterestWatchlist() {
+  const list = document.getElementById("watchlistItems");
+  if (!list) return;
+  const tickers = readInterestWatchlist();
+  const options = document.getElementById("watchlistTickerOptions");
+  const knownTickers = [...new Set([...signalUniverse, ...holdings].map(item => normalizeTickerInput(item.ticker)).filter(Boolean))].sort();
+  if (options) options.innerHTML = knownTickers.map(ticker => `<option value="${ticker}"></option>`).join("");
+  setText("watchlistCount", `${tickers.length} tickers`);
+  setText("watchlistStatus", tickers.length ? `${tickers.length} interested stocks` : "Add stocks you want to follow");
+  list.innerHTML = tickers.map(saved => {
+    const baseItem = watchlistDataSource(saved.ticker);
+    const item = { ...baseItem, ...saved, held: baseItem.held, inSheet: baseItem.inSheet || saved.source === "sheet" };
+    const sheetPrice = alertPriceUsd(item);
+    const manualPrice = numberFrom(saved.price);
+    const price = sheetPrice > 0 ? sheetPrice : manualPrice;
+    const day = numberFrom(item.dayChangePercent);
+    const signal = cleanSignal(item.signal || "No sheet signal");
+    const trend = indicatorTrend(item);
+    const hasRsi = numberFrom(item.rsi7) > 0 || numberFrom(item.rsi14) > 0;
+    const hasSheetData = !!item.signal || price > 0 || hasRsi;
+    const savedReason = saved.reason === "From signal sheet" && !hasSheetData ? "Starter watchlist" : saved.reason;
+    const profile = watchlistProfiles[item.ticker] || {};
+    const name = profile.name || item.name || "Research idea";
+    const theme = profile.theme || item.layer || "Watchlist";
+    const priceText = price > 0 ? formatUsd(price) : "Lookup ready";
+    const dayText = price > 0 ? `${plusText(day, percentText)} today` : "Open links for live quote";
+    const savedTarget = numberFrom(saved.target);
+    const low52 = numberFrom(saved.low52);
+    const high52 = numberFrom(saved.high52);
+    const sweetSpot = numberFrom(saved.sweetSpot);
+    const nearestSupport = numberFrom(saved.nearestSupport);
+    const rangePos = watchlistRangePosition(price, low52, high52);
+    const opportunityData = watchlistOpportunity(price, savedTarget, sweetSpot, low52, high52);
+    const opportunity = `<span class="watchlist-opportunity ${opportunityData.tone}">${opportunityData.label}</span>`;
+    const details = [...stockDetailStats(item, price, hasRsi), ["52W low/high", low52 > 0 && high52 > 0 ? `${formatUsd(low52)} / ${formatUsd(high52)}` : "Not set"], ["Target price", savedTarget > 0 ? formatUsd(savedTarget) : "Not set"], ["Nearest support (20D)", nearestSupport > 0 ? formatUsd(nearestSupport) : "Not set"], ["Sweet spot", sweetSpot > 0 ? formatUsd(sweetSpot) : "Not set"]].map(([label, value]) => `<span><small>${label}</small><b>${value}</b></span>`).join("");
+    const footer = `<div class="watchlist-row-actions">${opportunity}<div class="watchlist-link-row">${watchlistLinksHtml(item.ticker)}</div></div>`;
+    return `<article class="watchlist-stock-row ${signedClass(day)}"><div class="watchlist-stock-main">${tickerLogo(item.ticker)}<span><strong>${item.ticker}</strong><small>${name}</small><em>${item.held ? "Already in portfolio" : savedReason || "Watching"} &middot; ${theme}</em></span></div><div class="watchlist-stock-body"><div class="watchlist-stock-meta"><span><b>${priceText}</b><small>${dayText}</small></span><span><b>${signal}</b><small>${trend}</small></span><span><b>${hasRsi ? rsiPair(item) : "RSI n/a"}</b><small>${indicatorTimeframe}</small></span></div><div class="watchlist-detail-grid">${details}</div>${saved.note ? `<div class="watchlist-note">${escapeHtml(saved.note)}</div>` : ""}${rangePos != null ? `<div class="watchlist-range" style="--watch-range:${rangePos.toFixed(0)}%"><span><b></b></span><small>52W range ${rangePos.toFixed(0)}%</small></div>` : ""}${footer}</div></article>`;
+  }).join("") || `<div class="empty">Add tickers you are interested in. If the ticker exists in Looker_Signals or holdings, live data will show here.</div>`;
+  const suggestions = document.getElementById("watchlistSuggestions");
+  if (suggestions) suggestions.innerHTML = watchlistSignalCandidates().map(item => `<button type="button" data-add-watch="${item.ticker}">${item.ticker}<small>${cleanSignal(item.signal)}</small></button>`).join("") || `<span class="empty-inline">No new signal candidates outside the current portfolio.</span>`;
+  renderSweetSpotAlerts(tickers);
+}
+function renderSweetSpotAlerts(tickers) {
+  const list = document.getElementById("watchlistSweetSpotAlerts");
+  if (!list) return;
+  const alerts = tickers.map(saved => {
+    const baseItem = watchlistDataSource(saved.ticker);
+    const item = { ...baseItem, ...saved, held: baseItem.held, inSheet: baseItem.inSheet || saved.source === "sheet" };
+    const livePrice = alertPriceUsd(item);
+    const price = livePrice > 0 ? livePrice : numberFrom(saved.price);
+    const sweetSpot = numberFrom(saved.sweetSpot);
+    if (!(price > 0 && sweetSpot > 0 && price <= sweetSpot)) return null;
+    return { ticker: item.ticker, name: watchlistProfiles[item.ticker]?.name || item.name || "Watchlist idea", price, sweetSpot, distance: ((price / sweetSpot) - 1) * 100 };
+  }).filter(Boolean);
+  setText("watchlistSweetSpotCount", `${alerts.length} ${alerts.length === 1 ? "alert" : "alerts"}`);
+  list.innerHTML = alerts.map(alert => `<div class="sweet-spot-alert"><div><strong>${alert.ticker}</strong><small>${escapeHtml(alert.name)}</small></div><div><b>${formatUsd(alert.price)}</b><small>Sweet spot ${formatUsd(alert.sweetSpot)}</small></div><span class="watchlist-opportunity positive">At sweet spot</span><em>${alert.distance.toFixed(1)}% vs sweet spot</em></div>`).join("") || `<div class="empty-inline">No watchlist prices are at or below their sweet spot right now.</div>`;
+}
+
 function renderAlerts() {
   const rows = [];
   holdings.forEach(item => {
@@ -762,9 +1023,13 @@ function applyLiveData(datasets) {
       rsi7: numberFrom(rowAny(row, ["RSI 7", "RSI7", "RSI_7", "RSI7_Value"], 0)),
       rsi14: numberFrom(rowAny(row, ["RSI 14", "RSI14", "RSI_14", "RSI14_Value"], 0)),
       priority: numberFrom(rowAny(row, ["Priority", "Rank"], 99)),
-      smartDcaUsd: numberFrom(rowAny(row, ["Smart DCA $", "Smart_DCA_USD", "Smart DCA USD", "Smart_DCA"], 0))
+      smartDcaUsd: numberFrom(rowAny(row, ["Smart DCA $", "Smart_DCA_USD", "Smart DCA USD", "Smart_DCA"], 0)),
+      currentPriceUsd: numberFrom(rowAny(row, ["Current_Price_USD", "Current Price USD", "Price", "Close"], 0)),
+      dayChangePercent: percentText(rowAny(row, ["Day_Change_Percent", "Day Change Percent", "Day Change %", "Change %"], "0.00%"))
     };
   }).filter(item => item.ticker && item.ticker !== "N/A");
+  signalUniverse = signalRows;
+  sheetWatchlistRows = parseWatchlistSheet(datasets.watchlist || []);
   const signalMap = new Map(signalRows.map(item => [String(item.ticker).toUpperCase(), item]));
 
   kpis = {
@@ -847,7 +1112,7 @@ function enrichHoldingsFromSheet(rows) {
     };
   });
 }
-function renderAll() { renderKpis(); renderSparklines(); renderNavChart(); renderAllocation(); renderMonthly(); renderHoldings(activeFilter); renderMobileSummary(); renderSignals(); renderSmartDca(); renderRebalancePlanner(); renderHealth(); renderAlerts(); renderGoal(); }
+function renderAll() { renderKpis(); renderSparklines(); renderNavChart(); renderAllocation(); renderDriftChart(); renderMonthly(); renderHoldings(activeFilter); renderMobileSummary(); renderSignals(); renderSmartDca(); renderRebalancePlanner(); renderHealth(); renderAlerts(); renderInterestWatchlist(); renderGoal(); }
 async function loadLiveData() {
   if (liveDataLoading) return;
   liveDataLoading = true;
@@ -857,11 +1122,11 @@ async function loadLiveData() {
   setText("sideSync", "Loading");
   setText("marketOpenLabel", "Sheet Loading");
   setText("updatedAt", "Refreshing portfolio data");
-  setText("syncStatusText", "Connecting to Google Sheet...");
-  setText("portfolioSyncMeta", "KPI loading | Holdings loading");
-  setText("signalSyncMeta", "Signals loading");
-  setText("navSyncMeta", "NAV loading | Trade Log loading");
-  setText("freshnessMeta", "Freshness checking");
+  setText("syncStatusText", "Loading live sheet data...");
+  setText("portfolioSyncMeta", "Portfolio data");
+  setText("signalSyncMeta", "Signals");
+  setText("navSyncMeta", "NAV + Trade Log");
+  setText("freshnessMeta", "Checking freshness");
   const retryButton = document.getElementById("syncRetryButton");
   if (retryButton) retryButton.hidden = true;
   let sheetState = {};
@@ -872,7 +1137,8 @@ async function loadLiveData() {
       ["nav", DATA_SHEETS.nav],
       ["monthly", DATA_SHEETS.monthly],
       ["trades", DATA_SHEETS.trades],
-      ["signals", DATA_SHEETS.signals]
+      ["signals", DATA_SHEETS.signals],
+      ["watchlist", DATA_SHEETS.watchlist]
     ];
     const results = await Promise.allSettled(sheetEntries.map(([, sheet]) => fetchSheet(sheet)));
     sheetState = Object.fromEntries(sheetEntries.map(([key], index) => [key, results[index].status === "fulfilled" ? "live" : "unavailable"]));
@@ -891,10 +1157,10 @@ async function loadLiveData() {
     const signalsLive = sheetState.signals === "live";
     updateFreshnessUi(freshness);
     setText("updatedAt", freshness.label);
-    setText("syncStatusText", !signalsLive ? "Portfolio synced, signals unavailable" : freshness.stale ? "Google Sheet synced | Market data is stale" : "Google Sheet synced");
-    setText("portfolioSyncMeta", "KPI live | Holdings live");
+    setText("syncStatusText", !signalsLive ? "Portfolio synced, signals unavailable" : freshness.stale ? "Sheet synced; market data may be stale" : "Live sheet sync complete");
+    setText("portfolioSyncMeta", "Portfolio live");
     setText("signalSyncMeta", signalsLive ? "Signals live" : "Signals unavailable | fallback active");
-    setText("navSyncMeta", `NAV live | Trade Log ${sheetState.trades === "live" ? "live" : "fallback"}`);
+    setText("navSyncMeta", `NAV live | Trades ${sheetState.trades === "live" ? "live" : "fallback"}`);
     setText("sideSync", freshness.stale ? "Stale" : signalsLive ? "Live" : "Partial");
     setText("marketOpenLabel", freshness.stale ? "Sheet Stale" : signalsLive ? "Sheet Live" : "Sheet Partial");
     if (syncBanner) syncBanner.dataset.state = !signalsLive ? "partial" : freshness.stale ? "stale" : "live";
@@ -1012,6 +1278,40 @@ function bindInteractions() {
     savePriceAlerts(readPriceAlerts().filter(alert => alert.id !== button.dataset.removePriceAlert));
     renderPriceAlerts();
   });
+  document.getElementById("watchlistForm")?.addEventListener("submit", event => {
+    event.preventDefault();
+    const tickerInput = document.getElementById("watchlistTicker");
+    const reasonInput = document.getElementById("watchlistReason");
+    const priceInput = document.getElementById("watchlistPrice");
+    const lowInput = document.getElementById("watchlistLow52");
+    const highInput = document.getElementById("watchlistHigh52");
+    const targetInput = document.getElementById("watchlistTarget");
+    const sweetSpotInput = document.getElementById("watchlistSweetSpot");
+    const supportInput = document.getElementById("watchlistNearestSupport");
+    const noteInput = document.getElementById("watchlistNote");
+    const ticker = normalizeTickerInput(tickerInput?.value);
+    if (!ticker) return;
+    const items = readInterestWatchlist().filter(item => item.ticker !== ticker);
+    items.unshift({ ticker, reason: reasonInput?.value || "Watching", price: numberFrom(priceInput?.value), low52: numberFrom(lowInput?.value), high52: numberFrom(highInput?.value), target: numberFrom(targetInput?.value), sweetSpot: numberFrom(sweetSpotInput?.value), nearestSupport: numberFrom(supportInput?.value), note: noteInput?.value || "", addedAt: Date.now() });
+    saveInterestWatchlist(items);
+    if (tickerInput) tickerInput.value = "";
+    renderInterestWatchlist();
+  });
+  document.getElementById("watchlistItems")?.addEventListener("click", event => {
+    const button = event.target.closest("[data-remove-watch]");
+    if (!button) return;
+    saveInterestWatchlist(readInterestWatchlist().filter(item => item.ticker !== button.dataset.removeWatch));
+    renderInterestWatchlist();
+  });
+  document.getElementById("watchlistSuggestions")?.addEventListener("click", event => {
+    const button = event.target.closest("[data-add-watch]");
+    if (!button) return;
+    const ticker = normalizeTickerInput(button.dataset.addWatch);
+    const items = readInterestWatchlist().filter(item => item.ticker !== ticker);
+    items.unshift({ ticker, reason: "From signal sheet", addedAt: Date.now() });
+    saveInterestWatchlist(items);
+    renderInterestWatchlist();
+  });
   document.getElementById("useCashButton")?.addEventListener("click", () => {
     const input = document.getElementById("dcaBudgetInput");
     if (!input) return;
@@ -1020,7 +1320,12 @@ function bindInteractions() {
   });
   document.querySelectorAll("[data-page]").forEach(button => button.addEventListener("click", () => {
     const page = button.dataset.page;
-    window.location.href = page === "goal" ? "./goal.html" : "./history.html?v=20260829-polish-125";
+    const routes = {
+      goal: "./goal.html",
+      history: "./history.html?v=20260829-watchlist-page",
+      watchlist: "./watchlist.html"
+    };
+    window.location.href = routes[page] || "./index.html";
   }));
   document.querySelectorAll("[data-jump]").forEach(button => button.addEventListener("click", () => {
     const target = button.dataset.jump || "overview";
@@ -1044,3 +1349,8 @@ if (!document.body.classList.contains("goal-page")) {
 }
 loadLiveData();
 startLiveAutoRefresh();
+
+
+
+
+
