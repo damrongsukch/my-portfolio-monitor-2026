@@ -4573,8 +4573,8 @@ body[data-view="portfolio"] .dashboard-grid > .holdings-card { grid-column: 1 / 
   .benchmark-card .section-head { gap: 8px; }
   .benchmark-card .drift-mode { min-height: 28px; padding: 0 8px; font-size: 10px; }
   .benchmark-legend { margin-bottom: 5px; gap: 10px; font-size: 10px; }
-  .benchmark-chart { min-height: 178px; }
-  .benchmark-returns-chart { min-height: 166px; }
+  .benchmark-chart { min-height: 240px; }
+  .benchmark-returns-chart { min-height: 224px; }
 }
 
 /* Benchmark chart controls and readable axes */
@@ -4630,4 +4630,5 @@ body[data-view="portfolio"] #analysis.dashboard-grid > .holdings-card {
   width: 100% !important;
   min-width: 0;
 }
+
 
