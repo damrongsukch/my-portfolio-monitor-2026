@@ -307,21 +307,65 @@ function benchmarkDateKey(value) {
   const date = sheetDate(value);
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
 }
+function isoWeekEnd(year, week) {
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const monday = new Date(jan4);
+  monday.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() || 7) - 1) + (week - 1) * 7);
+  monday.setUTCDate(monday.getUTCDate() + 6);
+  return monday;
+}
+function actualPortfolioAnchors(startDate) {
+  // Historical NAV includes snapshots made before removed trades; use the audited weekly returns for this legacy period.
+  const weekly = actualPortfolioReturns
+    .filter(row => row.interval === "weekly")
+    .map(row => ({ ...row, week: Number(String(row.period).replace(/\D/g, "")) }))
+    .filter(row => row.week > 0 && row.week <= 53 && Math.abs(row.portfolioReturn) > 0.00001 && Number.isFinite(row.portfolioPnl))
+    .sort((left, right) => left.week - right.week);
+  if (!weekly.length) return [];
+  let cumulativePnl = 0;
+  const anchors = [{ date: startDate, value: 0 }];
+  weekly.forEach(row => {
+    const rate = row.portfolioReturn / 100;
+    cumulativePnl += row.portfolioPnl;
+    const inferredCapital = Math.abs(row.portfolioPnl / rate);
+    anchors.push({ date: isoWeekEnd(startDate.getUTCFullYear(), row.week), value: cumulativePnl / inferredCapital * 100 });
+  });
+  if (anchors.length > 1) anchors.at(-1).value = benchmarkCompare.portfolio;
+  return anchors;
+}
+function interpolatePortfolioAnchor(anchors, date) {
+  if (!anchors.length || date <= anchors[0].date) return anchors[0]?.value || 0;
+  for (let index = 1; index < anchors.length; index++) {
+    const previous = anchors[index - 1], next = anchors[index];
+    if (date <= next.date) {
+      const span = Math.max(1, next.date - previous.date);
+      const progress = Math.max(0, Math.min(1, (date - previous.date) / span));
+      return previous.value + (next.value - previous.value) * progress;
+    }
+  }
+  return anchors.at(-1).value;
+}
 function benchmarkSeries() {
   const spyPrices = new Map(benchmarkRows.map(row => [benchmarkDateKey(row[0]), numberFrom(row[1])]).filter(([, value]) => value > 0));
   const qqqPrices = new Map(benchmarkQqqRows.map(row => [benchmarkDateKey(row[0]), numberFrom(row[1])]).filter(([, value]) => value > 0));
-  let firstSpy = 0, firstQqq = 0, portfolioFactor = 1;
+  const nav = [...navRowsWithInvested()].sort((a, b) => navDateMs(a.row) - navDateMs(b.row));
+  const anchors = actualPortfolioAnchors(sheetDate(nav[0]?.row[0]));
+  let firstSpy = 0, firstQqq = 0, fallbackPortfolioFactor = 1;
   const series = [];
-  [...navRowsWithInvested()].sort((a, b) => navDateMs(a.row) - navDateMs(b.row)).forEach(item => {
+  nav.forEach(item => {
     const { row, invested } = item;
     const spyPrice = spyPrices.get(benchmarkDateKey(row[0]));
     const qqqPrice = qqqPrices.get(benchmarkDateKey(row[0]));
     if (!(spyPrice > 0) || !(qqqPrice > 0) || invested <= 0) return;
     if (!firstSpy) firstSpy = spyPrice;
     if (!firstQqq) firstQqq = qqqPrice;
-const portfolioReturn = numberFrom(row[3]);
-    portfolioFactor *= 1 + portfolioReturn;
-    series.push({ date: sheetDate(row[0]), portfolio: (portfolioFactor - 1) * 100, spy: (spyPrice / firstSpy - 1) * 100, qqq: (qqqPrice / firstQqq - 1) * 100, portfolioDaily: portfolioReturn * 100, spyDaily: series.length ? (spyPrice / (series.at(-1).spyPrice || spyPrice) - 1) * 100 : 0, qqqDaily: series.length ? (qqqPrice / (series.at(-1).qqqPrice || qqqPrice) - 1) * 100 : 0, spyPrice, qqqPrice });
+    const date = sheetDate(row[0]);
+    const fallbackDaily = numberFrom(row[3]);
+    fallbackPortfolioFactor *= 1 + fallbackDaily;
+    const portfolio = anchors.length > 1 ? interpolatePortfolioAnchor(anchors, date) : (fallbackPortfolioFactor - 1) * 100;
+    const previousPortfolio = series.at(-1)?.portfolio || 0;
+    const portfolioDaily = series.length ? ((1 + portfolio / 100) / (1 + previousPortfolio / 100) - 1) * 100 : 0;
+    series.push({ date, portfolio, spy: (spyPrice / firstSpy - 1) * 100, qqq: (qqqPrice / firstQqq - 1) * 100, portfolioDaily, spyDaily: series.length ? (spyPrice / (series.at(-1).spyPrice || spyPrice) - 1) * 100 : 0, qqqDaily: series.length ? (qqqPrice / (series.at(-1).qqqPrice || qqqPrice) - 1) * 100 : 0, spyPrice, qqqPrice });
   });
   const rawPortfolio = series.at(-1)?.portfolio || 0, rawSpy = series.at(-1)?.spy || 0, rawQqq = series.at(-1)?.qqq || 0;
   const portfolioScale = rawPortfolio ? benchmarkCompare.portfolio / rawPortfolio : 1, spyScale = rawSpy ? benchmarkCompare.spyReturn / rawSpy : 1, qqqScale = rawQqq ? benchmarkCompare.qqqReturn / rawQqq : 1;
@@ -1198,7 +1242,7 @@ function applyLiveData(datasets) {
   navRows = rowsToObjects(datasets.nav).map(row => [row.Date, numberFrom(row.Daily_Invested_THB), numberFrom(row.Cumulative_NAV_THB), numberFrom(row.Daily_Change_Percent) / 100, numberFrom(row.Drawdown_Percent) / 100]).filter(row => row[2] > 0);
   benchmarkRows = rowsToObjects(datasets.benchmark || []).map(row => [row.Date, numberFrom(row.Close)]).filter(row => row[1] > 0);
   benchmarkQqqRows = rowsToObjects(datasets.qqq || []).map(row => [row.Date, numberFrom(row.Close)]).filter(row => row[1] > 0);
-  actualPortfolioReturns = rowsToObjects(datasets.actualReturns || []).map(row => ({ period: String(row.Period || ""), interval: String(row.Interval || "").toLowerCase(), portfolioReturn: numberFrom(row.Portfolio_Return_Percent), spyReturn: numberFrom(row.SPY_Return_Percent) })).filter(row => row.period && row.interval);
+  actualPortfolioReturns = rowsToObjects(datasets.actualReturns || []).map(row => ({ period: String(row.Period || ""), interval: String(row.Interval || "").toLowerCase(), portfolioReturn: numberFrom(row.Portfolio_Return_Percent), portfolioPnl: numberFrom(row.Portfolio_PnL_USD), spyReturn: numberFrom(row.SPY_Return_Percent) })).filter(row => row.period && row.interval);
   const actualSummary = actualPortfolioReturns.find(row => row.interval === "summary");
   if (actualSummary) benchmarkCompare = { ...benchmarkCompare, portfolio: actualSummary.portfolioReturn, spyReturn: actualSummary.spyReturn, spyVsPort: actualSummary.portfolioReturn - actualSummary.spyReturn };
   monthly = buildMonthlyPurchases(rowsToObjects(datasets.trades), navRows, rowsToObjects(datasets.monthly));
@@ -1476,14 +1520,4 @@ if (!document.body.classList.contains("goal-page")) {
 }
 loadLiveData();
 startLiveAutoRefresh();
-
-
-
-
-
-
-
-
-
-
 
