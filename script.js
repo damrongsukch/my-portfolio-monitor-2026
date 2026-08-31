@@ -1,3 +1,8 @@
+let benchmarkRows = [];
+let benchmarkQqqRows = [];
+let actualPortfolioReturns = [];
+let benchmarkCompare = { portfolio: 3.316, spyReturn: 14.69, spyVsPort: -11.38, qqqReturn: 18.75, qqqVsPort: -15.43 };
+
 let navRows = [
   [46098, 66.25, 65.55, 0, 0],
   [46105, 227.75, 711.88, 0.002, 0],
@@ -70,7 +75,7 @@ let kpis = {
 };
 
 const SHEET_ID = "1rV26pJqw8rMNO0nplvE9K0gsMCotfZ4dgvXs5kgRFDk";
-const DATA_SHEETS = { kpi: "Looker_KPI", holdings: "Looker_Holdings", nav: "Looker_NAV", monthly: "Looker_Monthly", trades: "Trade_Log", signals: "Looker_Signals", watchlist: "Watchlist" };
+const DATA_SHEETS = { kpi: "Looker_KPI", holdings: "Looker_Holdings", nav: "Looker_NAV", monthly: "Looker_Monthly", trades: "Trade_Log", signals: "Looker_Signals", watchlist: "Watchlist", benchmark: "Benchmark_SPY", qqq: "Benchmark_QQQ", compare: "Dashboard", actualReturns: "Actual_Portfolio_Returns" };
 const colors = ["#25e05d", "#f6c21a", "#4aa3ff", "#ff5148", "#b57cff", "#13b981", "#94a3b8", "#38bdf8", "#fb7185", "#a3e635", "#f97316", "#22d3ee", "#e879f9", "#facc15", "#60a5fa", "#34d399"];
 const MIN_ORDER_USD = 1.5;
 const GOAL_INFLATION_RATE = 3;
@@ -87,6 +92,8 @@ let liveDataLoading = false;
 let lastLiveSyncMs = 0;
 let signalUniverse = [];
 let sheetWatchlistRows = [];
+let benchmarkReturnPeriod = "weekly";
+let benchmarkVisible = { spy: true, qqq: true };
 
 const logoDomains = { VOO: "vanguard.com", SPMO: "invesco.com", VXUS: "vanguard.com", SCHD: "schwab.com", NVDA: "nvidia.com", GOOGL: "google.com", META: "meta.com", MSFT: "microsoft.com", AVGO: "broadcom.com", TSM: "tsmc.com", LLY: "lilly.com", PLTR: "palantir.com", QQQI: "neosfunds.com", IAUI: "neosfunds.com", MLPI: "neosfunds.com", RKLB: "rocketlabusa.com" };
 const logoUrls = { VOO: "./assets/logos/vanguard.svg", SPMO: "./assets/logos/spmo.png", VXUS: "./assets/logos/vanguard.svg", SCHD: "./assets/logos/schd.svg", NVDA: "https://cdn.simpleicons.org/nvidia/76B900", GOOGL: "./assets/logos/google.svg", META: "https://cdn.simpleicons.org/meta/0866FF", AVGO: "https://cdn.simpleicons.org/broadcom/CC092F", TSM: "./assets/logos/tsmc.png", LLY: "./assets/logos/lly.svg", PLTR: "https://cdn.simpleicons.org/palantir/FFFFFF", QQQI: "./assets/logos/neos.jpg", IAUI: "./assets/logos/neos.jpg", MLPI: "./assets/logos/neos.jpg", RKLB: "./assets/logos/rklb.jpg" };
@@ -213,7 +220,7 @@ function excelDateToJs(serial) { if (serial instanceof Date) return serial; if (
 function pathFromPoints(points) { return points.map((point, index) => `${index ? "L" : "M"}${point[0].toFixed(2)} ${point[1].toFixed(2)}`).join(" "); }
 function drawSparkline(svg, values) { if (!values.length) return; const width = 260, height = 60, min = Math.min(...values), max = Math.max(...values), span = max - min || 1; const points = values.map((value, index) => [4 + (index / Math.max(values.length - 1, 1)) * (width - 8), 8 + (1 - ((value - min) / span)) * (height - 16)]); svg.innerHTML = `<path d="${pathFromPoints(points)}" fill="none" stroke="currentColor" stroke-width="3"/><path d="${pathFromPoints(points)} L${width - 4} ${height} L4 ${height} Z" fill="currentColor" opacity=".12" stroke="none"/>`; }
 function renderSparklines() { const nav = completeNavRows().map(row => numberFrom(row[2])).filter(value => value > 0); document.querySelectorAll("[data-spark]").forEach(svg => drawSparkline(svg, nav)); }
-function renderKpis() { const profit = signedCurrencyFromThb(kpis.profit), totalReturn = plusText(kpis.totalReturn, percentText), dailyProfit = signedCurrencyFromThb(kpis.dailyProfit), dailyChange = plusText(kpis.dailyChange, percentText); setText("portfolioValue", formatCurrencyFromThb(kpis.portfolioValue)); setText("investedValue", formatCurrencyFromThb(kpis.invested)); setText("profitLabel", `${profit} (${totalReturn})`); setText("dailyProfitLabel", dailyProfit); setText("dailyChangeLabel", dailyChange); setText("performanceNumber", totalReturn); setText("irrLabel", percentText(kpis.irr)); setText("volatilityLabel", percentText(kpis.volatility)); setText("sharpeLabel", decimalText(kpis.sharpe)); setText("drawdownLabel", percentText(kpis.maxDrawdown)); setText("spyBenchmark", plusText(kpis.benchmarkSpy, percentText)); setText("qqqBenchmark", plusText(kpis.benchmarkQqq, percentText)); setText("cashValue", `Cash ${formatCurrencyFromThb(kpis.cash)}`); setText("tableTotalValue", formatCurrencyFromThb(kpis.portfolioValue)); setText("tableDayProfit", dailyProfit); setText("tableDayChange", dailyChange); setSignedTone("tableDayReturn", kpis.dailyChange); setText("tableTotalProfit", profit); setText("tableTotalReturn", totalReturn); setSignedTone("tableTotalGain", kpis.totalReturn); setText("tableMode", kpis.marketMode); setText("sideMode", kpis.marketMode); setText("sideModeHint", kpis.marketMode.includes("A") ? "Risk on" : "Risk control"); ["profitLabel", "dailyProfitLabel", "dailyChangeLabel", "performanceNumber", "spyBenchmark", "qqqBenchmark", "drawdownLabel"].forEach(id => { const el = document.getElementById(id); if (el) setSignedTone(id, el.textContent); }); }
+function renderKpis() { const profit = signedCurrencyFromThb(kpis.profit), totalReturn = plusText(kpis.totalReturn, percentText), dailyProfit = signedCurrencyFromThb(kpis.dailyProfit), dailyChange = plusText(kpis.dailyChange, percentText); setText("portfolioValue", formatCurrencyFromThb(kpis.portfolioValue)); setText("investedValue", formatCurrencyFromThb(kpis.invested)); setText("profitLabel", `${profit} (${totalReturn})`); setText("dailyProfitLabel", dailyProfit); setText("dailyChangeLabel", dailyChange); setText("performanceNumber", benchmarkPercent(benchmarkCompare.portfolio)); setText("irrLabel", percentText(kpis.irr)); setText("volatilityLabel", percentText(kpis.volatility)); setText("sharpeLabel", decimalText(kpis.sharpe)); setText("drawdownLabel", percentText(kpis.maxDrawdown)); setText("spyBenchmark", plusText(kpis.benchmarkSpy, percentText)); setText("qqqBenchmark", plusText(kpis.benchmarkQqq, percentText)); setText("cashValue", `Cash ${formatCurrencyFromThb(kpis.cash)}`); setText("tableTotalValue", formatCurrencyFromThb(kpis.portfolioValue)); setText("tableDayProfit", dailyProfit); setText("tableDayChange", dailyChange); setSignedTone("tableDayReturn", kpis.dailyChange); setText("tableTotalProfit", profit); setText("tableTotalReturn", totalReturn); setSignedTone("tableTotalGain", kpis.totalReturn); setText("tableMode", kpis.marketMode); setText("sideMode", kpis.marketMode); setText("sideModeHint", kpis.marketMode.includes("A") ? "Risk on" : "Risk control"); ["profitLabel", "dailyProfitLabel", "dailyChangeLabel", "performanceNumber", "spyBenchmark", "qqqBenchmark", "drawdownLabel"].forEach(id => { const el = document.getElementById(id); if (el) setSignedTone(id, el.textContent); }); }
 function navDateMs(row) { const date = sheetDate(row[0]); return Number.isNaN(date.getTime()) ? 0 : date.getTime(); }
 function completeNavRows() {
   const rows = navRows.filter(row => numberFrom(row[2]) > 0).sort((a, b) => navDateMs(a) - navDateMs(b)).map(row => [...row]);
@@ -289,12 +296,109 @@ function renderNavChart() {
   const yAxis = yTicks.map(tick => `<g><line class="chart-grid" x1="${padding.left}" x2="${width - padding.right}" y1="${tick.y.toFixed(1)}" y2="${tick.y.toFixed(1)}"/><text class="axis-text y-axis-text" x="${padding.left - 10}" y="${(tick.y + 4).toFixed(1)}" text-anchor="end">${monthlyAmount(tick.value)}</text></g>`).join("");
   const area = `${pathFromPoints(navPoints)} L${navPoints.at(-1)[0]} ${height - padding.bottom} L${navPoints[0][0]} ${height - padding.bottom} Z`;
   const end = numberFrom(rows.at(-1)[2]);
-  const displayReturn = periodReturnText();
+  const displayReturn = performancePeriod === "ALL" ? benchmarkPercent(benchmarkCompare.portfolio) : periodReturnText();
   setText("performanceNumber", displayReturn);
   setText("performanceInvestedLabel", "Invested capital");
   setText("performanceRangeLabel", `${periodRangeText(rows)} | Cost basis ${formatCurrencyFromThb(kpis.invested)}`);
   setSignedTone("performanceNumber", displayReturn);
   svg.innerHTML = `<defs><linearGradient id="navGradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#25e05d" stop-opacity=".22"/><stop offset="1" stop-color="#25e05d" stop-opacity="0"/></linearGradient></defs>${yAxis}<path class="area-fill" d="${area}"/><path class="invested-line" d="${pathFromPoints(investedPoints)}"/><path class="nav-line" d="${pathFromPoints(navPoints)}"/><circle cx="${navPoints.at(-1)[0]}" cy="${navPoints.at(-1)[1]}" r="5" fill="#25e05d" stroke="#071017" stroke-width="3"/><text class="axis-text" x="${padding.left}" y="${height - 14}">${performancePeriod}</text><text class="axis-text" text-anchor="end" x="${width - padding.right}" y="${height - 14}">${formatCurrencyFromThb(end)}</text>`;
+}
+function benchmarkDateKey(value) {
+  const date = sheetDate(value);
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+}
+function benchmarkSeries() {
+  const spyPrices = new Map(benchmarkRows.map(row => [benchmarkDateKey(row[0]), numberFrom(row[1])]).filter(([, value]) => value > 0));
+  const qqqPrices = new Map(benchmarkQqqRows.map(row => [benchmarkDateKey(row[0]), numberFrom(row[1])]).filter(([, value]) => value > 0));
+  let firstSpy = 0, firstQqq = 0, portfolioFactor = 1;
+  const series = [];
+  [...navRowsWithInvested()].sort((a, b) => navDateMs(a.row) - navDateMs(b.row)).forEach(item => {
+    const { row, invested } = item;
+    const spyPrice = spyPrices.get(benchmarkDateKey(row[0]));
+    const qqqPrice = qqqPrices.get(benchmarkDateKey(row[0]));
+    if (!(spyPrice > 0) || !(qqqPrice > 0) || invested <= 0) return;
+    if (!firstSpy) firstSpy = spyPrice;
+    if (!firstQqq) firstQqq = qqqPrice;
+const portfolioReturn = numberFrom(row[3]);
+    portfolioFactor *= 1 + portfolioReturn;
+    series.push({ date: sheetDate(row[0]), portfolio: (portfolioFactor - 1) * 100, spy: (spyPrice / firstSpy - 1) * 100, qqq: (qqqPrice / firstQqq - 1) * 100, portfolioDaily: portfolioReturn * 100, spyDaily: series.length ? (spyPrice / (series.at(-1).spyPrice || spyPrice) - 1) * 100 : 0, qqqDaily: series.length ? (qqqPrice / (series.at(-1).qqqPrice || qqqPrice) - 1) * 100 : 0, spyPrice, qqqPrice });
+  });
+  const rawPortfolio = series.at(-1)?.portfolio || 0, rawSpy = series.at(-1)?.spy || 0, rawQqq = series.at(-1)?.qqq || 0;
+  const portfolioScale = rawPortfolio ? benchmarkCompare.portfolio / rawPortfolio : 1, spyScale = rawSpy ? benchmarkCompare.spyReturn / rawSpy : 1, qqqScale = rawQqq ? benchmarkCompare.qqqReturn / rawQqq : 1;
+  return series.map(point => ({ ...point, portfolio: point.portfolio * portfolioScale, spy: point.spy * spyScale, qqq: point.qqq * qqqScale }));
+}
+function benchmarkDateLabel(date) {
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+function benchmarkScaleDomain(values, step = 5) {
+  const low = Math.min(...values, 0);
+  const high = Math.max(...values, 0);
+  const min = Math.floor(low / step) * step;
+  const max = Math.ceil(high / step) * step;
+  return { min: Math.min(0, min), max: Math.max(step, max), step };
+}
+function benchmarkTicks(domain) {
+  const count = Math.round((domain.max - domain.min) / domain.step);
+  return Array.from({ length: count + 1 }, (_, index) => domain.min + index * domain.step);
+}
+function benchmarkAxis(value) { const digits = Number.isInteger(value) ? 0 : Math.abs(value) < 10 ? 1 : 0; return `${value > 0 ? "+" : ""}${value.toFixed(digits)}%`; }
+function benchmarkPercent(value) { const amount = numberFrom(value); return `${amount > 0 ? "+" : ""}${amount.toFixed(2)}%`; }
+function benchmarkValueLabel(value) { const amount = numberFrom(value); return `${amount > 0 ? "+" : ""}${amount.toFixed(2)}%`; }
+function parseBenchmarkCompare(rows, portfolioReturn) {
+  const compare = { ...benchmarkCompare, portfolio: numberFrom(portfolioReturn) };
+  rows.forEach(row => {
+    const cells = row.map(value => String(value || "").trim());
+    const assetIndex = cells.findIndex(value => /S&P 500 \(SPY\)/i.test(value) || /NASDAQ \(QQQ\)/i.test(value));
+    if (assetIndex < 0) return;
+    const asset = cells[assetIndex];
+    const returned = numberFrom(cells[assetIndex + 1]);
+    const vsPort = numberFrom(cells[assetIndex + 2]);
+    if (/S&P 500/i.test(asset)) { compare.spyReturn = returned; compare.spyVsPort = vsPort; }
+    if (/NASDAQ/i.test(asset)) { compare.qqqReturn = returned; compare.qqqVsPort = vsPort; }
+  });
+  return compare;
+}
+function benchmarkBucketLabel(bucket, period) {
+  if (bucket.label) return bucket.label;
+  if (period === "daily") return benchmarkDateLabel(bucket.date);
+  if (period === "monthly") return bucket.date.toLocaleDateString("en-US", { month: "short", year: "2-digit" }).replace(" ", " '");
+  if (period === "quarterly") return `Q${Math.floor(bucket.date.getMonth() / 3) + 1} '${String(bucket.date.getFullYear()).slice(-2)}`;
+  return String(bucket.date.getFullYear());
+}
+function benchmarkReturnBuckets(series, period) {
+  const actualInterval = period === "weekly" || period === "monthly" ? period : "";
+  const actualBuckets = actualPortfolioReturns.filter(row => row.interval === actualInterval);
+  if (actualBuckets.length) return actualBuckets.map((row, index) => ({ date: new Date(2026, 0, index + 1), label: period === "weekly" ? `W${row.period.replace(/\D/g, "")}` : row.period, portfolioDaily: row.portfolioReturn, spyDaily: row.spyReturn, qqqDaily: null }));
+  if (period === "daily") return series.slice(-45).map(point => ({ ...point }));
+  const groups = new Map();
+  series.forEach(point => {
+    const date = point.date;
+    const key = period === "monthly" ? `${date.getFullYear()}-${date.getMonth()}` : period === "quarterly" ? `${date.getFullYear()}-Q${Math.floor(date.getMonth() / 3) + 1}` : String(date.getFullYear());
+    const current = groups.get(key) || { date, portfolioFactor: 1, spyFactor: 1, qqqFactor: 1 };
+    current.date = date; current.portfolioFactor *= 1 + point.portfolioDaily / 100; current.spyFactor *= 1 + point.spyDaily / 100; current.qqqFactor *= 1 + point.qqqDaily / 100; groups.set(key, current);
+  });
+  return [...groups.values()].map(bucket => ({ date: bucket.date, portfolioDaily: (bucket.portfolioFactor - 1) * 100, spyDaily: (bucket.spyFactor - 1) * 100, qqqDaily: (bucket.qqqFactor - 1) * 100 }));
+}
+function renderBenchmarkCharts() {
+  const performanceSvg = document.getElementById("benchmarkPerformanceChart"), returnsSvg = document.getElementById("benchmarkReturnsChart");
+  if (!performanceSvg || !returnsSvg) return;
+  const series = benchmarkSeries();
+  if (series.length < 2) { const message = '<text class="benchmark-empty" x="450" y="126" text-anchor="middle">Waiting for benchmark history from the live sheet</text>'; performanceSvg.innerHTML = message; returnsSvg.innerHTML = message.replace('126', '115'); return; }
+  const width = 900, height = 252, padding = { top: 20, right: 142, bottom: 38, left: 62 }, allValues = series.flatMap(point => [point.portfolio, ...(benchmarkVisible.spy ? [point.spy] : []), ...(benchmarkVisible.qqq ? [point.qqq] : [])]), domain = benchmarkScaleDomain(allValues, 10);
+  const plotWidth = width - padding.left - padding.right, plotHeight = height - padding.top - padding.bottom, x = index => padding.left + index / Math.max(series.length - 1, 1) * plotWidth, y = value => padding.top + (1 - (value - domain.min) / Math.max(domain.max - domain.min, .01)) * plotHeight;
+  const ticks = benchmarkTicks(domain), portfolioPoints = series.map((point, index) => [x(index), y(point.portfolio)]), spyPoints = series.map((point, index) => [x(index), y(point.spy)]), qqqPoints = series.map((point, index) => [x(index), y(point.qqq)]);
+  const spyVisible = benchmarkVisible.spy, qqqVisible = benchmarkVisible.qqq;
+  document.querySelectorAll("[data-benchmark-toggle]").forEach(button => { const visible = benchmarkVisible[button.dataset.benchmarkToggle]; button.classList.toggle("active", visible); button.setAttribute("aria-pressed", String(visible)); });
+  const grid = ticks.map(value => `<g><line class="benchmark-grid" x1="${padding.left}" x2="${width - padding.right}" y1="${y(value).toFixed(1)}" y2="${y(value).toFixed(1)}"/><text class="benchmark-axis" x="${padding.left - 12}" y="${(y(value) + 4).toFixed(1)}" text-anchor="end">${benchmarkAxis(value)}</text></g>`).join(""), marks = Array.from({ length: 6 }, (_, index) => Math.round(index * (series.length - 1) / 5)), dates = marks.map(index => `<text class="benchmark-axis benchmark-date" x="${x(index).toFixed(1)}" y="${height - 11}" text-anchor="middle">${benchmarkDateLabel(series[index].date)}</text>`).join(""), zero = y(0), endX = width - padding.right + 10, spyLabelY = Math.min(height - padding.bottom - 8, y(benchmarkCompare.spyReturn) + 14), portfolioLabelY = Math.max(padding.top + 12, y(benchmarkCompare.portfolio) - 8);
+  performanceSvg.innerHTML = `<defs><linearGradient id="portfolioReturnFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#27b8f6" stop-opacity=".24"/><stop offset="1" stop-color="#27b8f6" stop-opacity="0"/></linearGradient></defs>${grid}<path class="benchmark-area" d="${pathFromPoints(portfolioPoints)} L${portfolioPoints.at(-1)[0].toFixed(1)} ${zero.toFixed(1)} L${portfolioPoints[0][0].toFixed(1)} ${zero.toFixed(1)} Z"/><path class="benchmark-line portfolio" d="${pathFromPoints(portfolioPoints)}"/>${spyVisible ? `<path class="benchmark-line spy" d="${pathFromPoints(spyPoints)}"/><circle class="benchmark-end spy" cx="${spyPoints.at(-1)[0]}" cy="${spyPoints.at(-1)[1]}" r="3"/><text class="benchmark-end-label spy" x="${endX}" y="${spyLabelY.toFixed(1)}">S&amp;P 500 ${benchmarkPercent(benchmarkCompare.spyReturn)}</text>` : ""}${qqqVisible ? `<path class="benchmark-line qqq" d="${pathFromPoints(qqqPoints)}"/><circle class="benchmark-end qqq" cx="${qqqPoints.at(-1)[0]}" cy="${qqqPoints.at(-1)[1]}" r="3"/><text class="benchmark-end-label qqq" x="${endX}" y="${(y(benchmarkCompare.qqqReturn) + 4).toFixed(1)}">NASDAQ ${benchmarkPercent(benchmarkCompare.qqqReturn)}</text>` : ""}<circle class="benchmark-end portfolio" cx="${portfolioPoints.at(-1)[0]}" cy="${portfolioPoints.at(-1)[1]}" r="3"/><text class="benchmark-end-label portfolio" x="${endX}" y="${portfolioLabelY.toFixed(1)}">Portfolio ${benchmarkPercent(benchmarkCompare.portfolio)}</text>${dates}`;
+  const buckets = benchmarkReturnBuckets(series, benchmarkReturnPeriod), returnsHeight = 230, returnsPadding = { top: 18, right: 30, bottom: 38, left: 62 }, actualBenchmarkBuckets = benchmarkReturnPeriod === "weekly" || benchmarkReturnPeriod === "monthly", qqqReturnsVisible = qqqVisible && !actualBenchmarkBuckets, returnDomain = benchmarkScaleDomain(buckets.flatMap(point => [point.portfolioDaily, ...(spyVisible ? [point.spyDaily] : []), ...(qqqReturnsVisible ? [point.qqqDaily] : [])]), 10);
+  document.querySelectorAll(".benchmark-returns-card [data-benchmark-toggle=qqq]").forEach(button => { button.hidden = actualBenchmarkBuckets; });
+  const dailyY = value => returnsPadding.top + (1 - (value - returnDomain.min) / Math.max(returnDomain.max - returnDomain.min, .01)) * (returnsHeight - returnsPadding.top - returnsPadding.bottom), dailyZero = dailyY(0), barStep = (width - returnsPadding.left - returnsPadding.right) / Math.max(buckets.length, 1), barWidth = Math.max(3, Math.min(15, barStep * .26));
+  const returnGrid = benchmarkTicks(returnDomain).map(value => `<g><line class="benchmark-grid" x1="${returnsPadding.left}" x2="${width - returnsPadding.right}" y1="${dailyY(value).toFixed(1)}" y2="${dailyY(value).toFixed(1)}"/><text class="benchmark-axis" x="${returnsPadding.left - 12}" y="${(dailyY(value) + 4).toFixed(1)}" text-anchor="end">${benchmarkAxis(value)}</text></g>`).join(""), showValues = benchmarkReturnPeriod !== "daily";
+  const bars = buckets.map((point, index) => { const center = returnsPadding.left + index * barStep + barStep / 2; return [{ key: "portfolio", value: point.portfolioDaily, x: center - barWidth * 1.5 - 1 }, ...(spyVisible ? [{ key: "spy", value: point.spyDaily, x: center - barWidth / 2 }] : []), ...(qqqReturnsVisible ? [{ key: "qqq", value: point.qqqDaily, x: center + barWidth / 2 + 1 }] : [])].map(item => { const itemY = dailyY(item.value), labelY = item.value >= 0 ? Math.max(returnsPadding.top + 11, itemY - 7) : Math.min(returnsHeight - returnsPadding.bottom - 4, itemY + 14), labelX = item.x + barWidth / 2 + (actualBenchmarkBuckets ? (item.key === "portfolio" ? -3 : 3) : 0), labelAnchor = actualBenchmarkBuckets ? (item.key === "portfolio" ? "end" : "start") : "middle", label = showValues ? `<text class="benchmark-bar-label ${item.value >= 0 ? "positive" : "negative"}" x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="${labelAnchor}">${benchmarkValueLabel(item.value)}</text>` : ""; return `<rect class="benchmark-bar ${item.key}" x="${item.x.toFixed(1)}" y="${Math.min(itemY, dailyZero).toFixed(1)}" width="${barWidth}" height="${Math.max(1, Math.abs(itemY - dailyZero)).toFixed(1)}"/>${label}`; }).join(""); }).join("");
+  const returnMarkCount = Math.min(buckets.length, benchmarkReturnPeriod === "daily" ? 7 : buckets.length), returnLabels = Array.from({ length: returnMarkCount }, (_, index) => Math.round(index * Math.max(buckets.length - 1, 0) / Math.max(returnMarkCount - 1, 1))).map(index => { const center = returnsPadding.left + index * barStep + barStep / 2; return `<text class="benchmark-axis benchmark-date" text-anchor="middle" x="${center.toFixed(1)}" y="${returnsHeight - 10}">${benchmarkBucketLabel(buckets[index], benchmarkReturnPeriod)}</text>`; }).join("");
+  returnsSvg.innerHTML = `${returnGrid}${bars}${returnLabels}`;
+  setText("spyBenchmark", benchmarkPercent(benchmarkCompare.spyReturn)); setText("spyBenchmarkDelta", `vs Port ${benchmarkPercent(benchmarkCompare.spyVsPort)}`); setText("qqqBenchmark", benchmarkPercent(benchmarkCompare.qqqReturn)); setText("qqqBenchmarkDelta", `vs Port ${benchmarkPercent(benchmarkCompare.qqqVsPort)}`); setSignedTone("spyBenchmark", benchmarkCompare.spyReturn); setSignedTone("qqqBenchmark", benchmarkCompare.qqqReturn); setSignedTone("spyBenchmarkDelta", benchmarkCompare.spyVsPort); setSignedTone("qqqBenchmarkDelta", benchmarkCompare.qqqVsPort); setText("benchmarkRangeLabel", `${benchmarkDateLabel(series[0].date)} - ${benchmarkDateLabel(series.at(-1).date)}`);
 }
 function polarToCartesian(cx, cy, radius, angle) { const radians = (angle - 90) * Math.PI / 180; return { x: cx + radius * Math.cos(radians), y: cy + radius * Math.sin(radians) }; }
 function donutSegment(cx, cy, radius, innerRadius, startAngle, endAngle) { const start = polarToCartesian(cx, cy, radius, endAngle), end = polarToCartesian(cx, cy, radius, startAngle), innerStart = polarToCartesian(cx, cy, innerRadius, endAngle), innerEnd = polarToCartesian(cx, cy, innerRadius, startAngle), largeArc = endAngle - startAngle <= 180 ? 0 : 1; return [`M ${start.x} ${start.y}`, `A ${radius} ${radius} 0 ${largeArc} 0 ${end.x} ${end.y}`, `L ${innerEnd.x} ${innerEnd.y}`, `A ${innerRadius} ${innerRadius} 0 ${largeArc} 1 ${innerStart.x} ${innerStart.y}`, "Z"].join(" "); }
@@ -455,10 +559,10 @@ function renderDriftChart() {
     setHtml("driftSummary", `<span>No target gaps found in the latest holdings sheet.</span>`);
     return;
   }
-  const width = 760;
+  const width = 1080;
   const height = Math.max(230, rows.length * 26 + 46);
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-  const padding = { top: 28, right: 168, bottom: 28, left: 108 };
+  const padding = { top: 28, right: 320, bottom: 28, left: 150 };
   const center = padding.left + (width - padding.left - padding.right) / 2;
   const rowGap = (height - padding.top - padding.bottom) / rows.length;
   const maxGap = Math.max(5, Math.ceil(Math.max(...rows.map(row => Math.abs(row.gap))) / 2) * 2);
@@ -1054,6 +1158,8 @@ function applyLiveData(datasets) {
     marketMode: kpiValue(kpiRows, "Market Mode", kpis.marketMode)
   };
 
+  benchmarkCompare = parseBenchmarkCompare(datasets.compare || [], kpis.totalReturn);
+
   holdings = rowsToObjects(datasets.holdings).map(row => ({
     ticker: row.Ticker || "N/A",
     layer: normalizeLayer(row.Ticker, row.Asset_Layer),
@@ -1090,6 +1196,11 @@ function applyLiveData(datasets) {
     kpis.cashWeight = `${cash.weight.toFixed(2)}%`;
   }
   navRows = rowsToObjects(datasets.nav).map(row => [row.Date, numberFrom(row.Daily_Invested_THB), numberFrom(row.Cumulative_NAV_THB), numberFrom(row.Daily_Change_Percent) / 100, numberFrom(row.Drawdown_Percent) / 100]).filter(row => row[2] > 0);
+  benchmarkRows = rowsToObjects(datasets.benchmark || []).map(row => [row.Date, numberFrom(row.Close)]).filter(row => row[1] > 0);
+  benchmarkQqqRows = rowsToObjects(datasets.qqq || []).map(row => [row.Date, numberFrom(row.Close)]).filter(row => row[1] > 0);
+  actualPortfolioReturns = rowsToObjects(datasets.actualReturns || []).map(row => ({ period: String(row.Period || ""), interval: String(row.Interval || "").toLowerCase(), portfolioReturn: numberFrom(row.Portfolio_Return_Percent), spyReturn: numberFrom(row.SPY_Return_Percent) })).filter(row => row.period && row.interval);
+  const actualSummary = actualPortfolioReturns.find(row => row.interval === "summary");
+  if (actualSummary) benchmarkCompare = { ...benchmarkCompare, portfolio: actualSummary.portfolioReturn, spyReturn: actualSummary.spyReturn, spyVsPort: actualSummary.portfolioReturn - actualSummary.spyReturn };
   monthly = buildMonthlyPurchases(rowsToObjects(datasets.trades), navRows, rowsToObjects(datasets.monthly));
 }
 function enrichHoldingsFromSheet(rows) {
@@ -1112,7 +1223,7 @@ function enrichHoldingsFromSheet(rows) {
     };
   });
 }
-function renderAll() { renderKpis(); renderSparklines(); renderNavChart(); renderAllocation(); renderDriftChart(); renderMonthly(); renderHoldings(activeFilter); renderMobileSummary(); renderSignals(); renderSmartDca(); renderRebalancePlanner(); renderHealth(); renderAlerts(); renderInterestWatchlist(); renderGoal(); }
+function renderAll() { renderKpis(); renderSparklines(); renderNavChart(); renderAllocation(); renderBenchmarkCharts(); renderDriftChart(); renderMonthly(); renderHoldings(activeFilter); renderMobileSummary(); renderSignals(); renderSmartDca(); renderRebalancePlanner(); renderHealth(); renderAlerts(); renderInterestWatchlist(); renderGoal(); }
 async function loadLiveData() {
   if (liveDataLoading) return;
   liveDataLoading = true;
@@ -1138,7 +1249,11 @@ async function loadLiveData() {
       ["monthly", DATA_SHEETS.monthly],
       ["trades", DATA_SHEETS.trades],
       ["signals", DATA_SHEETS.signals],
-      ["watchlist", DATA_SHEETS.watchlist]
+      ["watchlist", DATA_SHEETS.watchlist],
+      ["benchmark", DATA_SHEETS.benchmark],
+      ["qqq", DATA_SHEETS.qqq],
+      ["compare", DATA_SHEETS.compare],
+      ["actualReturns", DATA_SHEETS.actualReturns]
     ];
     const results = await Promise.allSettled(sheetEntries.map(([, sheet]) => fetchSheet(sheet)));
     sheetState = Object.fromEntries(sheetEntries.map(([key], index) => [key, results[index].status === "fulfilled" ? "live" : "unavailable"]));
@@ -1239,6 +1354,18 @@ function bindInteractions() {
       tab.setAttribute("aria-selected", String(selected));
     });
     renderHoldings(button.dataset.filter || "All", search?.value || "");
+  });
+  document.querySelectorAll("[data-benchmark-toggle]").forEach(button => button.addEventListener("click", () => { const key = button.dataset.benchmarkToggle; benchmarkVisible[key] = !benchmarkVisible[key]; renderBenchmarkCharts(); }));
+  document.querySelector(".benchmark-return-tabs")?.addEventListener("click", event => {
+    const button = event.target.closest("[data-benchmark-period]");
+    if (!button) return;
+    benchmarkReturnPeriod = button.dataset.benchmarkPeriod || "daily";
+    document.querySelectorAll("[data-benchmark-period]").forEach(tab => {
+      const selected = tab === button;
+      tab.classList.toggle("active", selected);
+      tab.setAttribute("aria-pressed", String(selected));
+    });
+    renderBenchmarkCharts();
   });
   document.querySelector(".period-tabs")?.addEventListener("click", event => {
     const button = event.target.closest("button");
@@ -1349,3 +1476,14 @@ if (!document.body.classList.contains("goal-page")) {
 }
 loadLiveData();
 startLiveAutoRefresh();
+
+
+
+
+
+
+
+
+
+
+

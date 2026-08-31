@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg?v=20260702b">
   <link rel="shortcut icon" href="./assets/favicon.ico?v=20260702b">
   <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=20260702b">
-  <link rel="stylesheet" href="./styles.css?v=20260830-watchlist-sheet">
+  <link rel="stylesheet" href="./styles.css?v=20260831-portfolio-layout">
 </head>
 <body data-theme="dark" data-view="overview">
   <div class="app-shell">
@@ -194,14 +194,16 @@
             </div>
             <small class="performance-range" id="performanceRangeLabel">Loading performance range...</small>
             <svg id="navChart" class="line-chart" viewBox="0 0 740 300" role="img" aria-label="Portfolio value history chart"></svg>
-            <div class="benchmark-strip">
+            <div class="benchmark-strip" aria-label="Benchmark returns since 17 March 2026">
               <div>
-                <span>vs S&amp;P500 (SPY)</span>
-                <strong id="spyBenchmark">0.00%</strong>
+                <span id="spyBenchmarkLabel">S&amp;P 500 (SPY)</span>
+                <strong id="spyBenchmark">+0.00%</strong>
+                <small id="spyBenchmarkDelta">vs Port +0.00%</small>
               </div>
               <div>
-                <span>vs NASDAQ (QQQ)</span>
-                <strong id="qqqBenchmark">0.00%</strong>
+                <span id="qqqBenchmarkLabel">NASDAQ (QQQ)</span>
+                <strong id="qqqBenchmark">+0.00%</strong>
+                <small id="qqqBenchmarkDelta">vs Port +0.00%</small>
               </div>
             </div>
           </article>
@@ -250,6 +252,35 @@
             <div id="signalsList" class="indicator-list"></div>
           </article>
 
+          <article class="card benchmark-card" id="benchmark">
+            <div class="section-head">
+              <div>
+                <span class="eyebrow">Portfolio performance</span>
+                <h2>Returns vs benchmarks</h2>
+              </div>
+              <span id="benchmarkRangeLabel" class="drift-mode">Live sheet history</span>
+            </div>
+            <div class="benchmark-legend" aria-label="Benchmark chart legend"><span><i class="portfolio"></i>Portfolio</span><button class="benchmark-toggle active" type="button" data-benchmark-toggle="spy" aria-pressed="true"><i class="spy"></i>S&amp;P 500 (SPY)</button><button class="benchmark-toggle active" type="button" data-benchmark-toggle="qqq" aria-pressed="true"><i class="qqq"></i>NASDAQ (QQQ)</button></div>
+            <svg id="benchmarkPerformanceChart" class="benchmark-chart" viewBox="0 0 900 252" role="img" aria-label="Portfolio cumulative return compared with S and P 500 and NASDAQ"></svg>
+          </article>
+          <article class="card benchmark-card benchmark-returns-card">
+            <div class="section-head">
+              <div>
+                <span class="eyebrow">Dynamics of returns</span>
+                <h2>Recent daily returns</h2>
+              </div>
+              <div class="benchmark-return-tabs" role="tablist" aria-label="Return interval">
+                <button type="button" data-benchmark-period="daily" aria-pressed="false">Daily</button>
+                <button class="active" type="button" data-benchmark-period="weekly" aria-pressed="true">Weekly</button>
+                <button type="button" data-benchmark-period="monthly" aria-pressed="false">Monthly</button>
+                <button type="button" data-benchmark-period="quarterly" aria-pressed="false">Quarterly</button>
+                <button type="button" data-benchmark-period="yearly" aria-pressed="false">Yearly</button>
+              </div>
+            </div>
+            <div class="benchmark-legend" aria-label="Daily returns chart legend"><span><i class="portfolio"></i>Portfolio</span><button class="benchmark-toggle active" type="button" data-benchmark-toggle="spy" aria-pressed="true"><i class="spy"></i>S&amp;P 500 (SPY)</button><button class="benchmark-toggle active" type="button" data-benchmark-toggle="qqq" aria-pressed="true"><i class="qqq"></i>NASDAQ (QQQ)</button></div>
+            <svg id="benchmarkReturnsChart" class="benchmark-chart benchmark-returns-chart" viewBox="0 0 900 230" role="img" aria-label="Daily portfolio, S and P 500, and NASDAQ returns"></svg>
+          </article>
+
           <article class="card dca-card" id="dca">
             <div class="section-head">
               <div>
@@ -280,8 +311,7 @@
               <p id="rebalanceSummary">Uses current weights and active MODE target. It never suggests selling.</p>
               <div id="rebalanceList" class="rebalance-list"></div>
             </section>
-          </article>
-          <article class="card drift-card">
+          </article>          <article class="card drift-card">
             <div class="section-head">
               <div>
                 <span class="eyebrow">Portfolio drift</span>
@@ -289,7 +319,7 @@
               </div>
               <span id="driftModeLabel" class="drift-mode">MODE target</span>
             </div>
-            <svg id="driftChart" class="drift-chart" viewBox="0 0 760 300" role="img" aria-label="Portfolio target drift chart"></svg>
+            <svg id="driftChart" class="drift-chart" viewBox="0 0 1080 300" role="img" aria-label="Portfolio target drift chart"></svg>
             <div id="driftSummary" class="drift-summary" aria-live="polite"></div>
           </article>
           <section class="card holdings-card" id="portfolio">
@@ -396,3 +426,9 @@
   <script src="./script.js?v=20260830-watchlist-sheet"></script>
 </body>
 </html>
+
+
+
+
+
+
