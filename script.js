@@ -299,7 +299,7 @@ function renderNavChart() {
   const displayReturn = performancePeriod === "ALL" ? benchmarkPercent(benchmarkCompare.portfolio) : periodReturnText();
   setText("performanceNumber", displayReturn);
   setText("performanceInvestedLabel", "Invested capital");
-  setText("performanceRangeLabel", `${periodRangeText(rows)} | Cost basis ${formatCurrencyFromThb(kpis.invested)}`);
+  setText("performanceRangeLabel", `${periodRangeText(rows)} | Time-weighted return | Cost basis ${formatCurrencyFromThb(kpis.invested)}`);
   setSignedTone("performanceNumber", displayReturn);
   svg.innerHTML = `<defs><linearGradient id="navGradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#25e05d" stop-opacity=".22"/><stop offset="1" stop-color="#25e05d" stop-opacity="0"/></linearGradient></defs>${yAxis}<path class="area-fill" d="${area}"/><path class="invested-line" d="${pathFromPoints(investedPoints)}"/><path class="nav-line" d="${pathFromPoints(navPoints)}"/><circle cx="${navPoints.at(-1)[0]}" cy="${navPoints.at(-1)[1]}" r="5" fill="#25e05d" stroke="#071017" stroke-width="3"/><text class="axis-text" x="${padding.left}" y="${height - 14}">${performancePeriod}</text><text class="axis-text" text-anchor="end" x="${width - padding.right}" y="${height - 14}">${formatCurrencyFromThb(end)}</text>`;
 }
