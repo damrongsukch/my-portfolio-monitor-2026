@@ -145,7 +145,7 @@ function targetWeight(item) { const preferred = numberFrom(item[activeTargetKey(
 function targetGap(item) { const target = targetWeight(item); return target ? target - numberFrom(item.weight) : 0; }
 function targetStatus(item) {
   const target = targetWeight(item);
-  if (!target) return { label: "Set target", tone: "neutral", gap: 0 };
+  if (target <= 0) return { label: item.ticker === "CASH" ? "Cash reserve" : "No new buys", tone: "neutral", gap: 0 };
   const gap = targetGap(item);
   if (gap >= 1) return { label: "Underweight", tone: "positive", gap };
   if (gap <= -1) return { label: "Overweight", tone: "caution", gap };
@@ -154,7 +154,7 @@ function targetStatus(item) {
 function targetCell(item) {
   const target = targetWeight(item);
   const status = targetStatus(item);
-  if (!target) return `<span class="target-cell neutral"><strong>Set target</strong><small>${kpis.marketMode}</small></span>`;
+  if (target <= 0) return `<span class="target-cell neutral"><strong>0.0%</strong><small>${status.label}</small></span>`;
   const sign = status.gap > 0 ? "+" : "";
   return `<span class="target-cell ${status.tone}"><strong>${target.toFixed(1)}%</strong><small>${status.label} ${sign}${status.gap.toFixed(1)}%</small></span>`;
 }
@@ -162,9 +162,9 @@ function targetMeter(item, className = "holding-target") {
   const target = targetWeight(item);
   const weight = numberFrom(item.weight);
   const status = targetStatus(item);
-  const fill = target ? Math.max(4, Math.min(100, (weight / target) * 100)) : 0;
-  const targetLabel = target ? `${target.toFixed(1)}%` : "Set";
-  return `<span class="${className} ${status.tone}" style="--target-fill:${fill.toFixed(0)}%"><strong>${weight.toFixed(1)} <small>/ ${targetLabel}</small></strong><i><b></b></i><em>Target ${targetLabel}</em></span>`;
+  const fill = target > 0 ? Math.max(4, Math.min(100, (weight / target) * 100)) : 0;
+  const targetLabel = `${target.toFixed(1)}%`;
+  return `<span class="${className} ${status.tone}" style="--target-fill:${fill.toFixed(0)}%"><strong>${weight.toFixed(1)} <small>/ ${targetLabel}</small></strong><i><b></b></i><em>${status.label}</em></span>`;
 }
 function indicatorTrend(item) { return cleanSignal(item.totalTrend || item.signal || "Trend n/a"); }
 function rsiTone(value) {
@@ -1520,4 +1520,3 @@ if (!document.body.classList.contains("goal-page")) {
 }
 loadLiveData();
 startLiveAutoRefresh();
-
