@@ -113,7 +113,7 @@ const watchlistProfiles = {
 
 function numberFrom(value) { const cleaned = String(value ?? "").replace(/[^0-9.-]/g, ""); const parsed = Number(cleaned); return Number.isFinite(parsed) ? parsed : 0; }
 function moneyText(value) { const text = String(value || "").trim(); return text ? text.replace("\u0e3f", "THB ").replace("\u00e0\u00b8\u00bf", "THB ") : "THB 0.00"; }
-function percentText(value) { return String(value || "").trim() || "0.00%"; }
+function percentText(value) { const text = String(value ?? "").trim(); if (!text) return "0.00%"; if (text.includes("%")) return text; const amount = numberFrom(value); const percent = Math.abs(amount) <= 1 ? amount * 100 : amount; return `${percent.toFixed(2)}%`; }
 function decimalText(value, digits = 2) { return numberFrom(value).toFixed(digits); }
 function plusText(value, formatter) { const text = formatter(value); return text.startsWith("-") || text.startsWith("+") ? text : `+${text}`; }
 function cleanSignal(value) { return String(value || "HOLD").replace(/[^\w\s().%/-]+/g, "").trim() || "HOLD"; }
