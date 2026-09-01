@@ -4546,8 +4546,23 @@ body[data-view="portfolio"] .dashboard-grid > .holdings-card { grid-column: 1 / 
 
 /* Portfolio versus S&P 500 preview */
 .benchmark-card { grid-column: 1 / -1; min-height: 0; }
+.benchmark-method { color: var(--soft); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.benchmark-cashflow-card { margin-top: -2px; }
+.benchmark-controls { display: grid; justify-items: end; gap: 7px; }
+.benchmark-mode-tabs { display: inline-flex; overflow: hidden; border: 1px solid var(--line); border-radius: 7px; }
+.benchmark-mode-tabs button { min-height: 28px; padding: 0 9px; border: 0; border-right: 1px solid var(--line); border-radius: 0; color: var(--muted); background: rgba(5, 11, 17, .28); font-size: 10px; font-weight: 800; }
+.benchmark-mode-tabs button:last-child { border-right: 0; }
+.benchmark-mode-tabs button.active { color: var(--text); background: rgba(56, 189, 248, .16); box-shadow: inset 0 -2px 0 #27b8f6; }
 .benchmark-returns-card { margin-top: -2px; }
-.benchmark-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: -3px 0 8px; color: var(--soft); font-size: 10px; font-weight: 700; }
+.benchmark-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: -3px 0 8px; color: var(--soft); font-size: 10px; font-weight: 700; }.cashflow-comparison-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin: 4px 0 10px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.cashflow-summary-item { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: baseline; min-height: 56px; padding: 8px 12px; border-right: 1px solid var(--line); }
+.cashflow-summary-item:last-child { border-right: 0; }
+.cashflow-summary-item span { color: var(--soft); font-size: 10px; font-weight: 750; }
+.cashflow-summary-item strong { color: var(--text); font-size: 14px; text-align: right; }
+.cashflow-summary-item small { grid-column: 1; color: var(--muted); font-size: 10px; font-weight: 700; }
+.cashflow-summary-item em { grid-column: 2; color: var(--muted); font-size: 10px; font-style: normal; font-weight: 750; text-align: right; }
+.cashflow-summary-item em.positive { color: #32df70; }
+.cashflow-summary-item em.negative { color: #ff756e; }
 .benchmark-legend span, .benchmark-toggle { display: inline-flex; align-items: center; gap: 6px; }
 .benchmark-toggle { appearance: none; border: 0; padding: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .benchmark-toggle:not(.active) { opacity: .38; text-decoration: line-through; }
@@ -4572,9 +4587,14 @@ body[data-view="portfolio"] .dashboard-grid > .holdings-card { grid-column: 1 / 
 @media (max-width: 700px) {
   .benchmark-card .section-head { gap: 8px; }
   .benchmark-card .drift-mode { min-height: 28px; padding: 0 8px; font-size: 10px; }
+  .benchmark-controls { width: 100%; grid-template-columns: 1fr auto; align-items: center; }
   .benchmark-legend { margin-bottom: 5px; gap: 10px; font-size: 10px; }
+  .cashflow-comparison-summary { grid-template-columns: 1fr; }
+  .cashflow-summary-item { min-height: 0; padding: 7px 0; border-right: 0; border-bottom: 1px solid var(--line); }
+  .cashflow-summary-item:last-child { border-bottom: 0; }
   .benchmark-chart { min-height: 240px; }
   .benchmark-returns-chart { min-height: 224px; }
+  .benchmark-cashflow-chart { min-height: 210px; }
 }
 
 /* Benchmark chart controls and readable axes */
@@ -4589,6 +4609,16 @@ body[data-view="portfolio"] .dashboard-grid > .holdings-card { grid-column: 1 / 
 .benchmark-end-label.portfolio { fill: #56c9ff; }
 .benchmark-end-label.spy { fill: #ffc04a; }
 .benchmark-end-label.qqq { fill: #c4a8ff; }
+.benchmark-cashflow-chart { min-height: 0; }
+.benchmark-cashflow-bar { opacity: .92; }
+.benchmark-cashflow-bar.portfolio { fill: #27b8f6; }
+.benchmark-cashflow-bar.spy { fill: #f6a623; }
+.benchmark-cashflow-bar.qqq { fill: #b28cff; }
+.benchmark-cashflow-value { font-size: 11px; font-weight: 750; }
+.benchmark-cashflow-value.portfolio { fill: #56c9ff; }
+.benchmark-cashflow-value.spy { fill: #ffc04a; }
+.benchmark-cashflow-value.qqq { fill: #c4a8ff; }
+.benchmark-cashflow-label { fill: #b8c5d2; font-size: 10px; font-weight: 700; }
 @media (max-width: 700px) {
   .benchmark-return-tabs { width: 100%; }
   .benchmark-return-tabs button { flex: 1 1 0; padding: 0 4px; font-size: 10px; }
@@ -4630,5 +4660,3 @@ body[data-view="portfolio"] #analysis.dashboard-grid > .holdings-card {
   width: 100% !important;
   min-width: 0;
 }
-
-

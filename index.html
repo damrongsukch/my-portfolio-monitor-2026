@@ -256,13 +256,21 @@
             <div class="section-head">
               <div>
                 <span class="eyebrow">Portfolio performance</span>
-                <h2>Returns vs benchmarks</h2>
+                <h2 id="benchmarkTitle">Returns vs benchmarks <span class="benchmark-method">(Time-weighted return (TWR))</span></h2>
               </div>
-              <span id="benchmarkRangeLabel" class="drift-mode">Live sheet history</span>
+              <div class="benchmark-controls">
+                <div class="benchmark-mode-tabs" role="tablist" aria-label="Benchmark comparison method">
+                  <button class="active" type="button" data-benchmark-mode="twr" aria-pressed="true">TWR</button>
+                  <button type="button" data-benchmark-mode="cashflow" aria-pressed="false">Cash-flow</button>
+                </div>
+                <span id="benchmarkRangeLabel" class="drift-mode">Live sheet history</span>
+              </div>
             </div>
             <div class="benchmark-legend" aria-label="Benchmark chart legend"><span><i class="portfolio"></i>Portfolio</span><button class="benchmark-toggle active" type="button" data-benchmark-toggle="spy" aria-pressed="true"><i class="spy"></i>S&amp;P 500 (SPY)</button><button class="benchmark-toggle active" type="button" data-benchmark-toggle="qqq" aria-pressed="true"><i class="qqq"></i>NASDAQ (QQQ)</button></div>
+            <div id="cashflowComparisonSummary" class="cashflow-comparison-summary" hidden aria-live="polite"></div>
             <svg id="benchmarkPerformanceChart" class="benchmark-chart" viewBox="0 0 900 252" role="img" aria-label="Portfolio cumulative return compared with S and P 500 and NASDAQ"></svg>
           </article>
+
           <article class="card benchmark-card benchmark-returns-card">
             <div class="section-head">
               <div>
@@ -426,9 +434,3 @@
   <script src="./script.js?v=20260830-watchlist-sheet"></script>
 </body>
 </html>
-
-
-
-
-
-
