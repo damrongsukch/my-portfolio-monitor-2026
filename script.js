@@ -415,24 +415,30 @@ function parseCashflowBenchmark(rows) {
   cashflowBenchmark = { ...current, invested: invested ? invested.portfolio : 0 };
 }
 function cashflowDollar(value) { return `$${numberFrom(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
-function renderCashflowComparisonSummary(values = cashflowBenchmark) {
+function renderBenchmarkComparisonSummary(mode = benchmarkComparisonMode, values = null) {
   const summary = document.getElementById("cashflowComparisonSummary");
   if (!summary) return;
-  const invested = cashflowBenchmark.invested;
-  const portfolio = values.portfolio;
-  if (!(invested > 0) || !(portfolio > 0)) { summary.hidden = true; return; }
-  const returnPercent = value => (value / invested - 1) * 100;
-  const delta = value => value - portfolio;
-  const deltaPercent = value => delta(value) / invested * 100;
+  const isCashflow = mode === "cashflow";
+  const data = values || (isCashflow ? cashflowBenchmark : { portfolio: benchmarkCompare.portfolio, spy: benchmarkCompare.spyReturn, qqq: benchmarkCompare.qqqReturn });
+  const portfolio = numberFrom(data.portfolio);
+  if (!Number.isFinite(portfolio)) { summary.hidden = true; return; }
+  const visibleBenchmarks = isCashflow ? { spy: true, qqq: true } : benchmarkVisible;
+  const baseline = isCashflow ? cashflowBenchmark.invested : 0;
+  if (isCashflow && !(baseline > 0)) { summary.hidden = true; return; }
+  const valueLabel = value => isCashflow ? cashflowDollar(value) : benchmarkPercent(value);
+  const returnLabel = value => isCashflow ? benchmarkPercent((value / baseline - 1) * 100) : "TWR";
+  const diffLabel = difference => isCashflow ? `${cashflowDollar(Math.abs(difference))} (${benchmarkPercent(Math.abs(difference) / baseline * 100)} pp)` : `${benchmarkPercent(Math.abs(difference))} pp`;
   const comparison = (label, key) => {
-    const difference = delta(values[key]);
-    const points = deltaPercent(values[key]);
+    const value = numberFrom(data[key]);
+    if (!visibleBenchmarks[key] || !Number.isFinite(value)) return "";
+    const difference = value - portfolio;
     const tone = difference >= 0 ? "positive" : "negative";
-    return `<div class="cashflow-summary-item ${key}"><span>${label}</span><strong>${cashflowDollar(values[key])}</strong><small>${benchmarkPercent(returnPercent(values[key]))}</small><em class="${tone}">${difference >= 0 ? "Ahead" : "Behind"} ${cashflowDollar(Math.abs(difference))} (${benchmarkPercent(Math.abs(points))} pp)</em></div>`;
+    return `<div class="cashflow-summary-item ${key}"><span>${label}</span><strong>${valueLabel(value)}</strong><small>${returnLabel(value)}</small><em class="${tone}">${difference >= 0 ? "Ahead" : "Behind"} ${diffLabel(difference)}</em></div>`;
   };
-  summary.innerHTML = `<div class="cashflow-summary-item portfolio"><span>Portfolio</span><strong>${cashflowDollar(portfolio)}</strong><small>${benchmarkPercent(returnPercent(portfolio))}</small><em>Actual value</em></div>${comparison("S&P 500", "spy")}${comparison("NASDAQ", "qqq")}`;
+  summary.innerHTML = `<div class="cashflow-summary-item portfolio"><span>Portfolio</span><strong>${valueLabel(portfolio)}</strong><small>${returnLabel(portfolio)}</small><em>${isCashflow ? "Actual value" : "Portfolio TWR"}</em></div>${comparison("S&P 500", "spy")}${comparison("NASDAQ", "qqq")}`;
   summary.hidden = false;
-}function cashflowLineSeries() {
+}
+function cashflowLineSeries() {
   const base = benchmarkSeries();
   if (base.length < 2 || !cashflowPurchases.length) return [];
   const lots = [];
@@ -464,7 +470,7 @@ function renderCashflowBenchmarkChart() {
   const points = key => series.map((point, index) => [x(index), y(point[key])]);
   const portfolioPoints = points("portfolio"), spyPoints = points("spy"), qqqPoints = points("qqq");
   svg.setAttribute("viewBox", "0 0 900 252");
-  renderCashflowComparisonSummary(series.at(-1));
+  renderBenchmarkComparisonSummary("cashflow", series.at(-1));
   svg.innerHTML = `${grid}<path class="benchmark-line portfolio" d="${pathFromPoints(portfolioPoints)}"/><path class="benchmark-line spy" d="${pathFromPoints(spyPoints)}"/><path class="benchmark-line qqq" d="${pathFromPoints(qqqPoints)}"/>${[ ["portfolio", portfolioPoints], ["spy", spyPoints], ["qqq", qqqPoints] ].map(([key, points]) => `<circle class="benchmark-end ${key}" cx="${points.at(-1)[0]}" cy="${points.at(-1)[1]}" r="3"/>`).join("")}${dates}`;
   setText("benchmarkRangeLabel", cashflowBenchmark.invested > 0 ? `${cashflowDollar(cashflowBenchmark.invested)} invested` : "Trade Log buys");
 }
@@ -510,8 +516,7 @@ function benchmarkReturnBuckets(series, period) {
   if (!performanceSvg || !returnsSvg) return;
   const isCashflow = benchmarkComparisonMode === "cashflow";
   const cashflowSummary = document.getElementById("cashflowComparisonSummary");
-  if (cashflowSummary) cashflowSummary.hidden = !isCashflow;
-  if (isCashflow) renderCashflowComparisonSummary();
+  if (cashflowSummary) cashflowSummary.hidden = false;
   const title = document.getElementById("benchmarkTitle");
   if (title) title.innerHTML = isCashflow ? 'Portfolio value vs benchmarks <span class="benchmark-method">(same Buy dates)</span>' : 'Returns vs benchmarks <span class="benchmark-method">(Time-weighted return (TWR))</span>';
   document.querySelectorAll("[data-benchmark-mode]").forEach(button => { const active = button.dataset.benchmarkMode === benchmarkComparisonMode; button.classList.toggle("active", active); button.setAttribute("aria-pressed", String(active)); });
@@ -525,7 +530,7 @@ function benchmarkReturnBuckets(series, period) {
   const spyVisible = benchmarkVisible.spy, qqqVisible = benchmarkVisible.qqq;
   document.querySelectorAll("[data-benchmark-toggle]").forEach(button => { const visible = benchmarkVisible[button.dataset.benchmarkToggle]; button.classList.toggle("active", visible); button.setAttribute("aria-pressed", String(visible)); });
   const grid = ticks.map(value => `<g><line class="benchmark-grid" x1="${padding.left}" x2="${width - padding.right}" y1="${y(value).toFixed(1)}" y2="${y(value).toFixed(1)}"/><text class="benchmark-axis" x="${padding.left - 12}" y="${(y(value) + 4).toFixed(1)}" text-anchor="end">${benchmarkAxis(value)}</text></g>`).join(""), marks = Array.from({ length: 6 }, (_, index) => Math.round(index * (series.length - 1) / 5)), dates = marks.map(index => `<text class="benchmark-axis benchmark-date" x="${x(index).toFixed(1)}" y="${height - 11}" text-anchor="middle">${benchmarkDateLabel(series[index].date)}</text>`).join(""), zero = y(0), endX = width - padding.right + 10, spyLabelY = Math.min(height - padding.bottom - 8, y(benchmarkCompare.spyReturn) + 14), portfolioLabelY = Math.max(padding.top + 12, y(benchmarkCompare.portfolio) - 8);
-  if (!isCashflow) { performanceSvg.setAttribute("viewBox", "0 0 900 252"); performanceSvg.innerHTML = `<defs><linearGradient id="portfolioReturnFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#27b8f6" stop-opacity=".24"/><stop offset="1" stop-color="#27b8f6" stop-opacity="0"/></linearGradient></defs>${grid}<path class="benchmark-area" d="${pathFromPoints(portfolioPoints)} L${portfolioPoints.at(-1)[0].toFixed(1)} ${zero.toFixed(1)} L${portfolioPoints[0][0].toFixed(1)} ${zero.toFixed(1)} Z"/><path class="benchmark-line portfolio" d="${pathFromPoints(portfolioPoints)}"/>${spyVisible ? `<path class="benchmark-line spy" d="${pathFromPoints(spyPoints)}"/><circle class="benchmark-end spy" cx="${spyPoints.at(-1)[0]}" cy="${spyPoints.at(-1)[1]}" r="3"/><text class="benchmark-end-label spy" x="${endX}" y="${spyLabelY.toFixed(1)}">S&amp;P 500 ${benchmarkPercent(benchmarkCompare.spyReturn)}</text>` : ""}${qqqVisible ? `<path class="benchmark-line qqq" d="${pathFromPoints(qqqPoints)}"/><circle class="benchmark-end qqq" cx="${qqqPoints.at(-1)[0]}" cy="${qqqPoints.at(-1)[1]}" r="3"/><text class="benchmark-end-label qqq" x="${endX}" y="${(y(benchmarkCompare.qqqReturn) + 4).toFixed(1)}">NASDAQ ${benchmarkPercent(benchmarkCompare.qqqReturn)}</text>` : ""}<circle class="benchmark-end portfolio" cx="${portfolioPoints.at(-1)[0]}" cy="${portfolioPoints.at(-1)[1]}" r="3"/><text class="benchmark-end-label portfolio" x="${endX}" y="${portfolioLabelY.toFixed(1)}">Portfolio ${benchmarkPercent(benchmarkCompare.portfolio)}</text>${dates}`; }
+  if (!isCashflow) { renderBenchmarkComparisonSummary("twr", series.at(-1)); performanceSvg.setAttribute("viewBox", "0 0 900 252"); performanceSvg.innerHTML = `<defs><linearGradient id="portfolioReturnFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#27b8f6" stop-opacity=".24"/><stop offset="1" stop-color="#27b8f6" stop-opacity="0"/></linearGradient></defs>${grid}<path class="benchmark-area" d="${pathFromPoints(portfolioPoints)} L${portfolioPoints.at(-1)[0].toFixed(1)} ${zero.toFixed(1)} L${portfolioPoints[0][0].toFixed(1)} ${zero.toFixed(1)} Z"/><path class="benchmark-line portfolio" d="${pathFromPoints(portfolioPoints)}"/>${spyVisible ? `<path class="benchmark-line spy" d="${pathFromPoints(spyPoints)}"/><circle class="benchmark-end spy" cx="${spyPoints.at(-1)[0]}" cy="${spyPoints.at(-1)[1]}" r="3"/><text class="benchmark-end-label spy" x="${endX}" y="${spyLabelY.toFixed(1)}">S&amp;P 500 ${benchmarkPercent(benchmarkCompare.spyReturn)}</text>` : ""}${qqqVisible ? `<path class="benchmark-line qqq" d="${pathFromPoints(qqqPoints)}"/><circle class="benchmark-end qqq" cx="${qqqPoints.at(-1)[0]}" cy="${qqqPoints.at(-1)[1]}" r="3"/><text class="benchmark-end-label qqq" x="${endX}" y="${(y(benchmarkCompare.qqqReturn) + 4).toFixed(1)}">NASDAQ ${benchmarkPercent(benchmarkCompare.qqqReturn)}</text>` : ""}<circle class="benchmark-end portfolio" cx="${portfolioPoints.at(-1)[0]}" cy="${portfolioPoints.at(-1)[1]}" r="3"/><text class="benchmark-end-label portfolio" x="${endX}" y="${portfolioLabelY.toFixed(1)}">Portfolio ${benchmarkPercent(benchmarkCompare.portfolio)}</text>${dates}`; }
   const buckets = benchmarkReturnBuckets(series, benchmarkReturnPeriod), returnsHeight = 230, returnsPadding = { top: 18, right: 30, bottom: 38, left: 62 }, actualBenchmarkBuckets = benchmarkReturnPeriod === "weekly" || benchmarkReturnPeriod === "monthly", qqqReturnsVisible = qqqVisible, returnDomain = benchmarkScaleDomain(buckets.flatMap(point => [point.portfolioDaily, ...(spyVisible ? [point.spyDaily] : []), ...(qqqReturnsVisible ? [point.qqqDaily] : [])]), 10);
   document.querySelectorAll(".benchmark-returns-card [data-benchmark-toggle=qqq]").forEach(button => { button.hidden = false; });
   const dailyY = value => returnsPadding.top + (1 - (value - returnDomain.min) / Math.max(returnDomain.max - returnDomain.min, .01)) * (returnsHeight - returnsPadding.top - returnsPadding.bottom), dailyZero = dailyY(0), barStep = (width - returnsPadding.left - returnsPadding.right) / Math.max(buckets.length, 1), barWidth = Math.max(3, Math.min(15, barStep * .26));
