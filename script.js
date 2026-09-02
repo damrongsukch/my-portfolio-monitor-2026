@@ -415,20 +415,20 @@ function parseCashflowBenchmark(rows) {
   cashflowBenchmark = { ...current, invested: invested ? invested.portfolio : 0 };
 }
 function cashflowDollar(value) { return `$${numberFrom(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
-function renderCashflowComparisonSummary() {
+function renderCashflowComparisonSummary(values = cashflowBenchmark) {
   const summary = document.getElementById("cashflowComparisonSummary");
   if (!summary) return;
   const invested = cashflowBenchmark.invested;
-  const portfolio = cashflowBenchmark.portfolio;
+  const portfolio = values.portfolio;
   if (!(invested > 0) || !(portfolio > 0)) { summary.hidden = true; return; }
   const returnPercent = value => (value / invested - 1) * 100;
   const delta = value => value - portfolio;
   const deltaPercent = value => delta(value) / invested * 100;
   const comparison = (label, key) => {
-    const difference = delta(cashflowBenchmark[key]);
-    const points = deltaPercent(cashflowBenchmark[key]);
+    const difference = delta(values[key]);
+    const points = deltaPercent(values[key]);
     const tone = difference >= 0 ? "positive" : "negative";
-    return `<div class="cashflow-summary-item ${key}"><span>${label}</span><strong>${cashflowDollar(cashflowBenchmark[key])}</strong><small>${benchmarkPercent(returnPercent(cashflowBenchmark[key]))}</small><em class="${tone}">${difference >= 0 ? "Ahead" : "Behind"} ${cashflowDollar(Math.abs(difference))} (${benchmarkPercent(Math.abs(points))} pp)</em></div>`;
+    return `<div class="cashflow-summary-item ${key}"><span>${label}</span><strong>${cashflowDollar(values[key])}</strong><small>${benchmarkPercent(returnPercent(values[key]))}</small><em class="${tone}">${difference >= 0 ? "Ahead" : "Behind"} ${cashflowDollar(Math.abs(difference))} (${benchmarkPercent(Math.abs(points))} pp)</em></div>`;
   };
   summary.innerHTML = `<div class="cashflow-summary-item portfolio"><span>Portfolio</span><strong>${cashflowDollar(portfolio)}</strong><small>${benchmarkPercent(returnPercent(portfolio))}</small><em>Actual value</em></div>${comparison("S&P 500", "spy")}${comparison("NASDAQ", "qqq")}`;
   summary.hidden = false;
@@ -464,6 +464,7 @@ function renderCashflowBenchmarkChart() {
   const points = key => series.map((point, index) => [x(index), y(point[key])]);
   const portfolioPoints = points("portfolio"), spyPoints = points("spy"), qqqPoints = points("qqq");
   svg.setAttribute("viewBox", "0 0 900 252");
+  renderCashflowComparisonSummary(series.at(-1));
   svg.innerHTML = `${grid}<path class="benchmark-line portfolio" d="${pathFromPoints(portfolioPoints)}"/><path class="benchmark-line spy" d="${pathFromPoints(spyPoints)}"/><path class="benchmark-line qqq" d="${pathFromPoints(qqqPoints)}"/>${[ ["portfolio", portfolioPoints], ["spy", spyPoints], ["qqq", qqqPoints] ].map(([key, points]) => `<circle class="benchmark-end ${key}" cx="${points.at(-1)[0]}" cy="${points.at(-1)[1]}" r="3"/>`).join("")}${dates}`;
   setText("benchmarkRangeLabel", cashflowBenchmark.invested > 0 ? `${cashflowDollar(cashflowBenchmark.invested)} invested` : "Trade Log buys");
 }
