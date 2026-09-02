@@ -410,7 +410,7 @@ function parseCashflowBenchmark(rows) {
   // Google Visualization infers the first column as a date and drops the text labels.
   const current = summary.find(row => row.portfolio > 0 && row.spy > 0 && row.qqq > 0 && (Math.abs(row.portfolio - row.spy) > .01 || Math.abs(row.portfolio - row.qqq) > .01));
   const invested = summary.find(row => row.portfolio > 0 && row.spy > 0 && row.qqq > 0 && Math.abs(row.portfolio - row.spy) < .01 && Math.abs(row.portfolio - row.qqq) < .01);
-  cashflowPurchases = rows.slice(1).map(row => ({ date: sheetDate(row[0]), amount: numberFrom(row[3]), spyUnits: numberFrom(row[5]), qqqUnits: numberFrom(row[7]) })).filter(row => !Number.isNaN(row.date.getTime()) && row.amount > 0 && row.spyUnits > 0 && row.qqqUnits > 0).sort((left, right) => left.date - right.date);
+  cashflowPurchases = rows.slice(1).map(row => ({ date: sheetDate(row[0]), amount: numberFrom(row[3]), spyUnits: numberFrom(row[5]), qqqUnits: numberFrom(row[7]) })).filter(row => !Number.isNaN(row.date.getTime()) && Math.abs(row.amount) > 0.0001 && Math.abs(row.spyUnits) > 0.000001 && Math.abs(row.qqqUnits) > 0.000001).sort((left, right) => left.date - right.date);
   if (!current) return;
   cashflowBenchmark = { ...current, invested: invested ? invested.portfolio : 0 };
 }
@@ -713,7 +713,7 @@ function renderDriftChart() {
     const barW = Math.max(3, Math.abs(x - center));
     const tone = row.gap >= 1 ? "under" : row.gap <= -1 ? "over" : "near";
     const status = row.gap >= 1 ? "Add" : row.gap <= -1 ? "Pause" : "Hold";
-    return `<g class="drift-row ${tone}"><text class="drift-label" x="${padding.left - 12}" y="${(y + 4).toFixed(1)}" text-anchor="end">${row.item.ticker}</text><rect class="drift-bar" x="${barX.toFixed(1)}" y="${(y - 7).toFixed(1)}" width="${barW.toFixed(1)}" height="14" rx="7"/><circle class="drift-dot" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4"/><text class="drift-value" x="${width - padding.right + 14}" y="${(y + 4).toFixed(1)}">${row.gap > 0 ? "+" : ""}${row.gap.toFixed(1)}%<tspan class="drift-status"> ${status}</tspan><tspan class="drift-ratio"> · ${row.weight.toFixed(1)}/${row.target.toFixed(1)}%</tspan></text></g>`;
+    return `<g class="drift-row ${tone}"><text class="drift-label" x="${padding.left - 12}" y="${(y + 4).toFixed(1)}" text-anchor="end">${row.item.ticker}</text><rect class="drift-bar" x="${barX.toFixed(1)}" y="${(y - 7).toFixed(1)}" width="${barW.toFixed(1)}" height="14" rx="7"/><circle class="drift-dot" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4"/><text class="drift-value" x="${width - padding.right + 14}" y="${(y + 4).toFixed(1)}">${row.gap > 0 ? "+" : ""}${row.gap.toFixed(1)}%<tspan class="drift-status"> ${status}</tspan><tspan class="drift-ratio"> &middot; ${row.weight.toFixed(1)}/${row.target.toFixed(1)}%</tspan></text></g>`;
   }).join("");
   svg.innerHTML = `${tickMarkup}<line class="drift-zero" x1="${center.toFixed(1)}" x2="${center.toFixed(1)}" y1="${padding.top - 10}" y2="${height - padding.bottom + 5}"/>${rowMarkup}`;
   const under = rows.find(row => row.gap >= 1);
@@ -931,7 +931,7 @@ function renderRebalancePlanner() {
   setHtml("rebalanceSummary", budget > 0
     ? `MODE target: allocate <strong>${formatUsd(plan.allocated)}</strong> of ${formatUsd(plan.budget)} to reduce underweight positions. No sell orders are suggested.`
     : `Enter a USD budget to see purchases that move the portfolio toward ${kpis.marketMode} targets.`);
-  setHtml("rebalanceList", plan.picks.slice(0, 4).map(item => `<div class="rebalance-row"><span><strong>${item.ticker}</strong><small>${targetStatus(item).label} ${Math.max(0, targetGap(item)).toFixed(1)}% · target ${targetWeight(item).toFixed(1)}%</small></span><strong>${formatUsd(item.amountUsd)}<small>${(item.amountUsd / Math.max(plan.budget, 1) * 100).toFixed(0)}% of budget</small></strong></div>`).join("") || `<div class="empty">No underweight target positions available for this budget.</div>`);
+  setHtml("rebalanceList", plan.picks.slice(0, 4).map(item => `<div class="rebalance-row"><span><strong>${item.ticker}</strong><small>${targetStatus(item).label} ${Math.max(0, targetGap(item)).toFixed(1)}% &middot; target ${targetWeight(item).toFixed(1)}%</small></span><strong>${formatUsd(item.amountUsd)}<small>${(item.amountUsd / Math.max(plan.budget, 1) * 100).toFixed(0)}% of budget</small></strong></div>`).join("") || `<div class="empty">No underweight target positions available for this budget.</div>`);
 }
 function healthActionItems(activeHoldings, cashWeight) {
   const actions = [];
@@ -996,7 +996,7 @@ function renderPriceAlerts() {
   if (!select || !list) return;
   const previousTicker = select.value;
   const priced = holdings.filter(item => item.ticker && alertPriceUsd(item) > 0);
-  select.innerHTML = priced.map(item => `<option value="${item.ticker}">${item.ticker} · &#36;${alertPriceUsd(item).toFixed(2)}</option>`).join("");
+  select.innerHTML = priced.map(item => `<option value="${item.ticker}">${item.ticker} &middot; &#36;${alertPriceUsd(item).toFixed(2)}</option>`).join("");
   if (priced.some(item => item.ticker === previousTicker)) select.value = previousTicker;
   const alerts = readPriceAlerts().filter(alert => priced.some(item => item.ticker === alert.ticker));
   if (!alerts.length && priced.length) { const seeded = defaultPriceAlerts(); savePriceAlerts(seeded); return renderPriceAlerts(); }
@@ -1004,7 +1004,7 @@ function renderPriceAlerts() {
     const item = priced.find(row => row.ticker === alert.ticker);
     const current = alertPriceUsd(item);
     const triggered = alert.direction === "below" ? current <= alert.target : current >= alert.target;
-    return `<div class="price-alert-row ${triggered ? "triggered" : "ready"}"><span><strong>${alert.ticker}</strong><small>&#36;${current.toFixed(2)} now · ${alert.direction} &#36;${Number(alert.target).toFixed(2)}</small></span><b>${triggered ? "Triggered" : "Watching"}</b><button type="button" data-remove-price-alert="${alert.id}" aria-label="Remove ${alert.ticker} price alert" title="Remove alert">×</button></div>`;
+    return `<div class="price-alert-row ${triggered ? "triggered" : "ready"}"><span><strong>${alert.ticker}</strong><small>&#36;${current.toFixed(2)} now &middot; ${alert.direction} &#36;${Number(alert.target).toFixed(2)}</small></span><b>${triggered ? "Triggered" : "Watching"}</b><button type="button" data-remove-price-alert="${alert.id}" aria-label="Remove ${alert.ticker} price alert" title="Remove alert">&times;</button></div>`;
   }).join("") || `<div class="empty">Add a price level to start watching.</div>`;
 }
 function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char])); }
