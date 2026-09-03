@@ -409,6 +409,32 @@ function benchmarkTicks(domain) {
   return Array.from({ length: count + 1 }, (_, index) => domain.min + index * domain.step);
 }
 function benchmarkAxis(value) { const digits = Number.isInteger(value) ? 0 : Math.abs(value) < 10 ? 1 : 0; return `${value > 0 ? "+" : ""}${value.toFixed(digits)}%`; }
+function niceTickStep(rawStep) {
+  const rough = Math.max(.01, Math.abs(rawStep));
+  const power = 10 ** Math.floor(Math.log10(rough));
+  const scaled = rough / power;
+  const multiplier = scaled <= 1 ? 1 : scaled <= 2 ? 2 : scaled <= 5 ? 5 : 10;
+  return multiplier * power;
+}
+function cashflowScaleDomain(values) {
+  const clean = values.map(numberFrom).filter(Number.isFinite);
+  if (!clean.length) return { min: 0, max: 100, step: 25 };
+  const minValue = Math.min(...clean), maxValue = Math.max(...clean);
+  if (benchmarkRangePeriod === "ALL" || minValue <= 0) {
+    const highest = Math.max(maxValue, 1);
+    const step = niceTickStep(highest / 4);
+    return { min: 0, max: Math.ceil(highest * 1.08 / step) * step, step };
+  }
+  const span = Math.max(maxValue - minValue, maxValue * .025, 1);
+  const paddedMin = Math.max(0, minValue - span * .22);
+  const paddedMax = maxValue + span * .22;
+  const step = niceTickStep((paddedMax - paddedMin) / 4);
+  let min = Math.floor(paddedMin / step) * step;
+  let max = Math.ceil(paddedMax / step) * step;
+  if (max - min < step * 3) { min = Math.max(0, min - step); max += step; }
+  return { min, max, step };
+}
+function cashflowAxis(value) { return `$${Math.round(value).toLocaleString("en-US")}`; }
 function benchmarkPercent(value) { const amount = numberFrom(value); return `${amount > 0 ? "+" : ""}${amount.toFixed(2)}%`; }
 function benchmarkValueLabel(value) { const amount = numberFrom(value); return `${amount > 0 ? "+" : ""}${amount.toFixed(2)}%`; }
 function parseBenchmarkCompare(rows, portfolioReturn) {
@@ -483,10 +509,10 @@ function renderCashflowBenchmarkChart() {
   const series = cashflowLineSeries();
   if (!svg) return;
   if (series.length < 2) { svg.innerHTML = '<text class="benchmark-empty" x="450" y="126" text-anchor="middle">Waiting for cash-flow comparison from the live sheet</text>'; return; }
-  const width = 900, height = 252, padding = { top: 20, right: 142, bottom: 38, left: 68 }, highest = Math.max(...series.flatMap(point => [point.portfolio, point.spy, point.qqq]));
-  const step = highest <= 250 ? 50 : highest <= 1000 ? 100 : 500, maximum = Math.ceil(highest * 1.12 / step) * step, plotWidth = width - padding.left - padding.right, plotHeight = height - padding.top - padding.bottom;
-  const x = index => padding.left + index / Math.max(series.length - 1, 1) * plotWidth, y = value => padding.top + (1 - value / maximum) * plotHeight;
-  const ticks = Array.from({ length: 5 }, (_, index) => maximum * index / 4), grid = ticks.map(value => `<g><line class="benchmark-grid" x1="${padding.left}" x2="${width - padding.right}" y1="${y(value).toFixed(1)}" y2="${y(value).toFixed(1)}"/><text class="benchmark-axis" x="${padding.left - 12}" y="${(y(value) + 4).toFixed(1)}" text-anchor="end">$${Math.round(value).toLocaleString("en-US")}</text></g>`).join(""), marks = Array.from({ length: 6 }, (_, index) => Math.round(index * (series.length - 1) / 5)), dates = marks.map(index => `<text class="benchmark-axis benchmark-date" x="${x(index).toFixed(1)}" y="${height - 11}" text-anchor="middle">${benchmarkDateLabel(series[index].date)}</text>`).join("");
+  const width = 900, height = 252, padding = { top: 20, right: 142, bottom: 38, left: 68 }, values = series.flatMap(point => [point.portfolio, point.spy, point.qqq]), domain = cashflowScaleDomain(values);
+  const plotWidth = width - padding.left - padding.right, plotHeight = height - padding.top - padding.bottom;
+  const x = index => padding.left + index / Math.max(series.length - 1, 1) * plotWidth, y = value => padding.top + (1 - (value - domain.min) / Math.max(domain.max - domain.min, .01)) * plotHeight;
+  const ticks = benchmarkTicks(domain), grid = ticks.map(value => `<g><line class="benchmark-grid" x1="${padding.left}" x2="${width - padding.right}" y1="${y(value).toFixed(1)}" y2="${y(value).toFixed(1)}"/><text class="benchmark-axis" x="${padding.left - 12}" y="${(y(value) + 4).toFixed(1)}" text-anchor="end">${cashflowAxis(value)}</text></g>`).join(""), marks = Array.from({ length: 6 }, (_, index) => Math.round(index * (series.length - 1) / 5)), dates = marks.map(index => `<text class="benchmark-axis benchmark-date" x="${x(index).toFixed(1)}" y="${height - 11}" text-anchor="middle">${benchmarkDateLabel(series[index].date)}</text>`).join("");
   const points = key => series.map((point, index) => [x(index), y(point[key])]);
   const portfolioPoints = points("portfolio"), spyPoints = points("spy"), qqqPoints = points("qqq");
   svg.setAttribute("viewBox", "0 0 900 252");
