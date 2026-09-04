@@ -779,11 +779,22 @@ function renderDriftChart() {
     `<span><small>Balanced</small><b>${near}</b><em>Near target within 1%</em></span>`
   ].join(""));
 }
+const holdingsPerformancePeriodsAvailable = new Set(["1d", "all"]);
+function normalizeHoldingsPerformancePeriod(period) {
+  const normalized = String(period || "all").toLowerCase();
+  return holdingsPerformancePeriodsAvailable.has(normalized) ? normalized : "all";
+}
 function holdingsPerformanceMetric(item) {
-  const period = String(holdingsPerformancePeriod || "all").toLowerCase();
+  const period = normalizeHoldingsPerformancePeriod(holdingsPerformancePeriod);
   return period === "1d" ? numberFrom(item.dayChangePercent) : numberFrom(item.pl);
 }
 function holdingsPerformanceLabel(value) { return `${value > 0 ? "+" : ""}${value.toFixed(Math.abs(value) >= 10 ? 1 : 2)}%`; }
+function holdingsPerformanceBreakpoints(values) {
+  const maxAbs = Math.max(...values.map(value => Math.abs(numberFrom(value))), 1);
+  const step = niceTickStep(maxAbs / 2);
+  const limit = Math.max(step * 2, Math.ceil(maxAbs / step) * step);
+  return [-limit, -limit / 2, 0, limit / 2, limit];
+}
 function holdingsPerformanceTone(value) {
   if (value < -4) return "loss-strong";
   if (value < -1) return "loss";
@@ -820,10 +831,16 @@ function renderHoldingsTreemap(rows) {
     .filter(item => numberFrom(item.value) > 0 && numberFrom(item.shares) > 0)
     .map(item => ({ item, size: Math.max(1, numberFrom(item.value)), performance: holdingsPerformanceMetric(item) }))
     .sort((a, b) => b.size - a.size);
+  holdingsPerformancePeriod = normalizeHoldingsPerformancePeriod(holdingsPerformancePeriod);
   document.querySelectorAll("[data-holdings-period]").forEach(button => {
-    const active = String(button.dataset.holdingsPeriod).toLowerCase() === String(holdingsPerformancePeriod).toLowerCase();
+    const period = String(button.dataset.holdingsPeriod || "").toLowerCase();
+    const available = holdingsPerformancePeriodsAvailable.has(period);
+    const active = period === holdingsPerformancePeriod;
+    button.disabled = !available;
+    button.classList.toggle("disabled", !available);
     button.classList.toggle("active", active);
     button.setAttribute("aria-pressed", String(active));
+    button.title = available ? "" : "Needs per-holding price history in the sheet";
   });
   if (!entries.length) {
     map.innerHTML = `<div class="empty">No holdings performance data available.</div>`;
@@ -831,8 +848,7 @@ function renderHoldingsTreemap(rows) {
     return;
   }
   const values = entries.map(entry => entry.performance);
-  const min = Math.min(...values), max = Math.max(...values);
-  const markers = [min, (min + max) / 2, max];
+  const markers = holdingsPerformanceBreakpoints(values);
   if (scale) scale.innerHTML = markers.map(value => `<span class="${holdingsPerformanceTone(value)}">${holdingsPerformanceLabel(value)}</span>`).join("");
   const rects = treemapSplit(entries, 0, 0, 100, 100).filter(rect => rect.width > .5 && rect.height > .5);
   map.innerHTML = rects.map(rect => {
@@ -1610,7 +1626,7 @@ function bindInteractions() {
     });
     renderHoldings(button.dataset.filter || "All", search?.value || "");
   });
-  document.querySelectorAll("[data-holdings-period]").forEach(button => button.addEventListener("click", () => { holdingsPerformancePeriod = button.dataset.holdingsPeriod || "all"; renderHoldings(activeFilter, search?.value || ""); }));
+  document.querySelectorAll("[data-holdings-period]").forEach(button => button.addEventListener("click", () => { if (button.disabled) return; holdingsPerformancePeriod = normalizeHoldingsPerformancePeriod(button.dataset.holdingsPeriod); renderHoldings(activeFilter, search?.value || ""); }));
   document.querySelectorAll("[data-benchmark-toggle]").forEach(button => button.addEventListener("click", () => { const key = button.dataset.benchmarkToggle; benchmarkVisible[key] = !benchmarkVisible[key]; renderBenchmarkCharts(); }));
   document.querySelectorAll("[data-benchmark-mode]").forEach(button => button.addEventListener("click", () => { benchmarkComparisonMode = button.dataset.benchmarkMode === "cashflow" ? "cashflow" : "twr"; renderBenchmarkCharts(); }));
   document.querySelectorAll("[data-benchmark-range]").forEach(button => button.addEventListener("click", () => { benchmarkRangePeriod = button.dataset.benchmarkRange || "ALL"; renderBenchmarkCharts(); }));
