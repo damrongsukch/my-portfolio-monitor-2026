@@ -89,6 +89,7 @@ let activeFilter = "All";
 let performancePeriod = "ALL";
 let currencyMode = "THB";
 let holdingsSort = { key: "preferred", direction: "asc" };
+let holdingsPerformancePeriod = "all";
 let indicatorTimeframe = "Daily";
 let liveDataLoading = false;
 let lastLiveSyncMs = 0;
@@ -778,6 +779,70 @@ function renderDriftChart() {
     `<span><small>Balanced</small><b>${near}</b><em>Near target within 1%</em></span>`
   ].join(""));
 }
+function holdingsPerformanceMetric(item) {
+  const period = String(holdingsPerformancePeriod || "all").toLowerCase();
+  return period === "1d" ? numberFrom(item.dayChangePercent) : numberFrom(item.pl);
+}
+function holdingsPerformanceLabel(value) { return `${value > 0 ? "+" : ""}${value.toFixed(Math.abs(value) >= 10 ? 1 : 2)}%`; }
+function holdingsPerformanceTone(value) {
+  if (value < -4) return "loss-strong";
+  if (value < -1) return "loss";
+  if (value < 1) return "flat";
+  if (value < 5) return "gain";
+  return "gain-strong";
+}
+function treemapSplit(items, x, y, width, height, vertical = width >= height) {
+  if (!items.length) return [];
+  if (items.length === 1) return [{ item: items[0], x, y, width, height }];
+  const total = items.reduce((sum, entry) => sum + entry.size, 0);
+  let leftTotal = 0;
+  let splitIndex = 0;
+  for (; splitIndex < items.length - 1; splitIndex += 1) {
+    const nextTotal = leftTotal + items[splitIndex].size;
+    if (Math.abs(total / 2 - nextTotal) > Math.abs(total / 2 - leftTotal) && splitIndex > 0) break;
+    leftTotal = nextTotal;
+  }
+  const left = items.slice(0, Math.max(1, splitIndex));
+  const right = items.slice(Math.max(1, splitIndex));
+  const leftRatio = left.reduce((sum, entry) => sum + entry.size, 0) / Math.max(total, .01);
+  if (vertical) {
+    const leftWidth = width * leftRatio;
+    return [...treemapSplit(left, x, y, leftWidth, height, false), ...treemapSplit(right, x + leftWidth, y, width - leftWidth, height, false)];
+  }
+  const topHeight = height * leftRatio;
+  return [...treemapSplit(left, x, y, width, topHeight, true), ...treemapSplit(right, x, y + topHeight, width, height - topHeight, true)];
+}
+function renderHoldingsTreemap(rows) {
+  const map = document.getElementById("holdingsTreemap");
+  const scale = document.getElementById("holdingsPerformanceScale");
+  if (!map) return;
+  const entries = rows
+    .filter(item => numberFrom(item.value) > 0 && numberFrom(item.shares) > 0)
+    .map(item => ({ item, size: Math.max(1, numberFrom(item.value)), performance: holdingsPerformanceMetric(item) }))
+    .sort((a, b) => b.size - a.size);
+  document.querySelectorAll("[data-holdings-period]").forEach(button => {
+    const active = String(button.dataset.holdingsPeriod).toLowerCase() === String(holdingsPerformancePeriod).toLowerCase();
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  if (!entries.length) {
+    map.innerHTML = `<div class="empty">No holdings performance data available.</div>`;
+    if (scale) scale.innerHTML = "";
+    return;
+  }
+  const values = entries.map(entry => entry.performance);
+  const min = Math.min(...values), max = Math.max(...values);
+  const markers = [min, (min + max) / 2, max];
+  if (scale) scale.innerHTML = markers.map(value => `<span class="${holdingsPerformanceTone(value)}">${holdingsPerformanceLabel(value)}</span>`).join("");
+  const rects = treemapSplit(entries, 0, 0, 100, 100).filter(rect => rect.width > .5 && rect.height > .5);
+  map.innerHTML = rects.map(rect => {
+    const value = rect.item.performance;
+    const ticker = escapeHtml(rect.item.item.ticker);
+    const label = holdingsPerformanceLabel(value);
+    const title = `${ticker} ${label} | ${formatCurrencyFromThb(rect.item.item.value)}`;
+    return `<button class="treemap-tile ${holdingsPerformanceTone(value)}" type="button" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}" style="left:${rect.x.toFixed(3)}%;top:${rect.y.toFixed(3)}%;width:${rect.width.toFixed(3)}%;height:${rect.height.toFixed(3)}%"><strong>${ticker}</strong><span>${label}</span></button>`;
+  }).join("");
+}
 function renderHoldings(filter = activeFilter, query = document.getElementById("holdingSearch")?.value || "") {
   activeFilter = filter || "All";
   const search = String(query || "").trim().toLowerCase();
@@ -787,6 +852,7 @@ function renderHoldings(filter = activeFilter, query = document.getElementById("
     const matchesSearch = !search || `${item.ticker} ${item.layer} ${item.signal}`.toLowerCase().includes(search);
     return matchesLayer && matchesSearch && item.ticker !== "CASH";
   }).sort(compareHoldings);
+  renderHoldingsTreemap(rows);
   setHtml("holdingsBody", rows.map((item) => {
     const plClass = String(item.pl).startsWith("-") ? "negative" : item.pl === "-" ? "neutral" : "positive";
     const dayPlClass = signedClass(item.dayChangePercent);
@@ -1544,6 +1610,7 @@ function bindInteractions() {
     });
     renderHoldings(button.dataset.filter || "All", search?.value || "");
   });
+  document.querySelectorAll("[data-holdings-period]").forEach(button => button.addEventListener("click", () => { holdingsPerformancePeriod = button.dataset.holdingsPeriod || "all"; renderHoldings(activeFilter, search?.value || ""); }));
   document.querySelectorAll("[data-benchmark-toggle]").forEach(button => button.addEventListener("click", () => { const key = button.dataset.benchmarkToggle; benchmarkVisible[key] = !benchmarkVisible[key]; renderBenchmarkCharts(); }));
   document.querySelectorAll("[data-benchmark-mode]").forEach(button => button.addEventListener("click", () => { benchmarkComparisonMode = button.dataset.benchmarkMode === "cashflow" ? "cashflow" : "twr"; renderBenchmarkCharts(); }));
   document.querySelectorAll("[data-benchmark-range]").forEach(button => button.addEventListener("click", () => { benchmarkRangePeriod = button.dataset.benchmarkRange || "ALL"; renderBenchmarkCharts(); }));

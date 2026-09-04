@@ -350,6 +350,30 @@
               <button data-filter="Income" type="button" role="tab" aria-selected="false">Income</button>
             </div>
           </div>
+                    <article class="holdings-performance-panel" aria-labelledby="holdingsPerformanceTitle">
+            <div class="holdings-performance-toolbar">
+              <div>
+                <span class="eyebrow">Holdings performance</span>
+                <h3 id="holdingsPerformanceTitle">Holdings performance</h3>
+              </div>
+              <div class="holdings-performance-actions">
+                <div class="holdings-period-tabs" role="tablist" aria-label="Holdings performance period">
+                  <button data-holdings-period="1d" type="button" aria-pressed="false">1d</button>
+                  <button data-holdings-period="7d" type="button" aria-pressed="false">7d</button>
+                  <button data-holdings-period="1m" type="button" aria-pressed="false">1m</button>
+                  <button data-holdings-period="3m" type="button" aria-pressed="false">3m</button>
+                  <button data-holdings-period="6m" type="button" aria-pressed="false">6m</button>
+                  <button data-holdings-period="YTD" type="button" aria-pressed="false">YTD</button>
+                  <button data-holdings-period="1y" type="button" aria-pressed="false">1y</button>
+                  <button data-holdings-period="5y" type="button" aria-pressed="false">5y</button>
+                  <button class="active" data-holdings-period="all" type="button" aria-pressed="true">all</button>
+                </div>
+                <span class="holdings-size-label">Size: Current value</span>
+              </div>
+            </div>
+            <div id="holdingsPerformanceScale" class="holdings-performance-scale" aria-hidden="true"></div>
+            <div id="holdingsTreemap" class="holdings-treemap" role="img" aria-label="Holdings sized by current value and colored by performance"></div>
+          </article>
           <div class="table-wrap">
             <table>
               <thead>

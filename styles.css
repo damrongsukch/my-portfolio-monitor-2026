@@ -1312,6 +1312,198 @@ body[data-theme="light"] .health-ring span {
 .holdings-head {
   align-items: flex-start;
 }
+.holdings-performance-panel {
+  margin: 12px 0 18px;
+  padding: 0;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: var(--radius);
+  background: rgba(5, 11, 17, 0.2);
+}
+
+.holdings-performance-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 16px 8px;
+}
+
+.holdings-performance-toolbar h3 {
+  margin-top: 4px;
+  font-size: 18px;
+}
+
+.holdings-performance-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+}
+
+.holdings-period-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.holdings-period-tabs button {
+  min-height: 28px;
+  min-width: 32px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--soft);
+  background: transparent;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.holdings-period-tabs button:hover {
+  color: var(--text);
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.holdings-period-tabs button.active {
+  color: #d9f7ff;
+  background: rgba(39, 184, 246, 0.14);
+  box-shadow: inset 0 -2px 0 #27b8f6;
+}
+
+.holdings-size-label {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--soft);
+  background: rgba(5, 11, 17, .28);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.holdings-performance-scale {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+  min-height: 22px;
+  padding: 0 16px 6px;
+}
+
+.holdings-performance-scale span {
+  min-width: 44px;
+  padding: 5px 6px;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+}
+
+.holdings-treemap {
+  position: relative;
+  height: clamp(330px, 46vw, 560px);
+  margin: 0 16px 16px;
+  overflow: hidden;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(8, 13, 19, 0.18);
+}
+
+.treemap-tile {
+  position: absolute;
+  display: grid;
+  place-content: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 0;
+  border: 2px solid rgba(7, 16, 23, 0.86);
+  border-radius: 7px;
+  color: #f8fafc;
+  padding: 8px;
+  text-align: center;
+  cursor: default;
+  transition: filter 140ms ease, transform 140ms ease;
+}
+
+.treemap-tile:hover {
+  z-index: 2;
+  filter: brightness(1.08);
+  transform: scale(1.01);
+}
+
+.treemap-tile strong {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: clamp(13px, 1.6vw, 20px);
+  font-weight: 950;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.treemap-tile span {
+  font-size: clamp(10px, 1vw, 13px);
+  font-weight: 900;
+  line-height: 1;
+}
+
+.treemap-tile.loss-strong,
+.holdings-performance-scale .loss-strong { background: #9f4949; }
+.treemap-tile.loss,
+.holdings-performance-scale .loss { background: #6f5454; }
+.treemap-tile.flat,
+.holdings-performance-scale .flat { background: #344348; }
+.treemap-tile.gain,
+.holdings-performance-scale .gain { background: #3c7e67; }
+.treemap-tile.gain-strong,
+.holdings-performance-scale .gain-strong { background: #49aa79; }
+
+body[data-theme="light"] .holdings-performance-panel,
+body[data-theme="light"] .holdings-treemap {
+  background: rgba(241, 245, 249, 0.78);
+}
+
+@media (max-width: 760px) {
+  .holdings-performance-toolbar {
+    display: grid;
+    gap: 12px;
+  }
+
+  .holdings-performance-actions {
+    justify-content: flex-start;
+  }
+
+  .holdings-period-tabs {
+    width: 100%;
+  }
+
+  .holdings-period-tabs button {
+    flex: 1 1 42px;
+  }
+
+  .holdings-performance-scale {
+    justify-content: stretch;
+  }
+
+  .holdings-performance-scale span {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .holdings-treemap {
+    height: 420px;
+    margin-inline: 10px;
+  }
+
+  .treemap-tile {
+    border-width: 1px;
+    border-radius: 6px;
+    padding: 5px;
+  }
+}
 
 .table-wrap {
   overflow: auto;
