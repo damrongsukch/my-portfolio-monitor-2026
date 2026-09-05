@@ -844,6 +844,27 @@ function holdingsPerformanceTone(value) {
   if (value < 5) return "gain";
   return "gain-strong";
 }
+function treemapSplit(items, x, y, width, height, vertical = width >= height) {
+  if (!items.length) return [];
+  if (items.length === 1) return [{ item: items[0], x, y, width, height }];
+  const total = items.reduce((sum, entry) => sum + entry.size, 0);
+  let leftTotal = 0;
+  let splitIndex = 0;
+  for (; splitIndex < items.length - 1; splitIndex += 1) {
+    const nextTotal = leftTotal + items[splitIndex].size;
+    if (Math.abs(total / 2 - nextTotal) > Math.abs(total / 2 - leftTotal) && splitIndex > 0) break;
+    leftTotal = nextTotal;
+  }
+  const left = items.slice(0, Math.max(1, splitIndex));
+  const right = items.slice(Math.max(1, splitIndex));
+  const leftRatio = left.reduce((sum, entry) => sum + entry.size, 0) / Math.max(total, .01);
+  if (vertical) {
+    const leftWidth = width * leftRatio;
+    return [...treemapSplit(left, x, y, leftWidth, height, false), ...treemapSplit(right, x + leftWidth, y, width - leftWidth, height, false)];
+  }
+  const topHeight = height * leftRatio;
+  return [...treemapSplit(left, x, y, width, topHeight, true), ...treemapSplit(right, x, y + topHeight, width, height - topHeight, true)];
+}
 function renderHoldingsTreemap(rows) {
   const map = document.getElementById("holdingsTreemap");
   const scale = document.getElementById("holdingsPerformanceScale");
@@ -872,14 +893,13 @@ function renderHoldingsTreemap(rows) {
   const values = entries.map(entry => entry.performance);
   const markers = holdingsPerformanceBreakpoints(values);
   if (scale) scale.innerHTML = markers.map(value => `<span class="${holdingsPerformanceTone(value)}">${holdingsPerformanceLabel(value)}</span>`).join("");
-  const maxSize = Math.max(...entries.map(entry => entry.size), 1);
-  map.innerHTML = entries.map(entry => {
-    const value = entry.performance;
-    const ticker = escapeHtml(entry.item.ticker);
+  const rects = treemapSplit(entries, 0, 0, 100, 100).filter(rect => rect.width > .5 && rect.height > .5);
+  map.innerHTML = rects.map(rect => {
+    const value = rect.item.performance;
+    const ticker = escapeHtml(rect.item.item.ticker);
     const label = holdingsPerformanceLabel(value);
-    const title = `${ticker} ${label} | ${formatCurrencyFromThb(entry.item.value)}`;
-    const side = 86 + (Math.sqrt(entry.size / maxSize) * 128);
-    return `<button class="treemap-tile ${holdingsPerformanceTone(value)}" type="button" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}" style="--tile-side:${side.toFixed(1)}px"><strong>${ticker}</strong><span>${label}</span></button>`;
+    const title = `${ticker} ${label} | ${formatCurrencyFromThb(rect.item.item.value)}`;
+    return `<button class="treemap-tile ${holdingsPerformanceTone(value)}" type="button" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}" style="left:${rect.x.toFixed(3)}%;top:${rect.y.toFixed(3)}%;width:${rect.width.toFixed(3)}%;height:${rect.height.toFixed(3)}%"><strong>${ticker}</strong><span>${label}</span></button>`;
   }).join("");
 }
 function renderHoldings(filter = activeFilter, query = document.getElementById("holdingSearch")?.value || "") {

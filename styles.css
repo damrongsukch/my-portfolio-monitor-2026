@@ -1315,9 +1315,9 @@ body[data-theme="light"] .health-ring span {
 .holdings-performance-panel {
   margin: 12px 0 18px;
   padding: 0;
-  border: 1px solid rgba(148, 163, 184, 0.13);
-  border-radius: var(--radius);
-  background: rgba(5, 11, 17, 0.2);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 8px;
+  background: rgba(45, 47, 62, 0.72);
 }
 
 .holdings-performance-toolbar {
@@ -1416,30 +1416,23 @@ body[data-theme="light"] .health-ring span {
 }
 
 .holdings-treemap {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  align-content: flex-start;
-  gap: 4px;
-  margin: 0 16px 16px;
-  padding-top: 12px;
+  position: relative;
+  height: clamp(360px, 43vw, 600px);
+  margin: 8px 16px 10px;
   overflow: hidden;
-  border-top: 1px solid rgba(148, 163, 184, 0.12);
-  background: rgba(8, 13, 19, 0.18);
+  border-radius: 6px;
+  background: rgba(32, 34, 46, 0.55);
 }
 
 .treemap-tile {
-  position: relative;
+  position: absolute;
   display: grid;
   place-content: center;
-  width: clamp(86px, var(--tile-side, 132px), 214px);
-  aspect-ratio: 1 / 1;
-  flex: 0 0 auto;
   gap: 4px;
   min-width: 0;
   min-height: 0;
-  border: 2px solid rgba(7, 16, 23, 0.86);
-  border-radius: 7px;
+  border: 2px solid rgba(32, 34, 46, 0.95);
+  border-radius: 6px;
   color: #f8fafc;
   padding: 8px;
   text-align: center;
@@ -1480,6 +1473,22 @@ body[data-theme="light"] .health-ring span {
 .treemap-tile.gain-strong,
 .holdings-performance-scale .gain-strong { background: #49aa79; }
 
+.holdings-details-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 16px 14px;
+  border: 0;
+  background: transparent;
+  color: #e5edf8;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.holdings-details-link:hover {
+  color: #38bdf8;
+}
 body[data-theme="light"] .holdings-performance-panel,
 body[data-theme="light"] .holdings-treemap {
   background: rgba(241, 245, 249, 0.78);
@@ -1513,12 +1522,8 @@ body[data-theme="light"] .holdings-treemap {
   }
 
   .holdings-treemap {
-    gap: 3px;
+    height: 430px;
     margin-inline: 10px;
-  }
-
-  .treemap-tile {
-    width: clamp(76px, calc(var(--tile-side, 120px) * .78), 46vw);
   }
 
   .treemap-tile {
