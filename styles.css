@@ -1417,8 +1417,9 @@ body[data-theme="light"] .health-ring span {
 
 .holdings-treemap {
   position: relative;
-  height: clamp(330px, 46vw, 560px);
-  margin: 0 16px 16px;
+  width: min(100% - 32px, 620px);
+  aspect-ratio: 1 / 1;
+  margin: 0 auto 16px;
   overflow: hidden;
   border-top: 1px solid rgba(148, 163, 184, 0.12);
   background: rgba(8, 13, 19, 0.18);
@@ -1506,8 +1507,9 @@ body[data-theme="light"] .holdings-treemap {
   }
 
   .holdings-treemap {
-    height: 420px;
-    margin-inline: 10px;
+    width: calc(100% - 20px);
+    max-width: 520px;
+    margin-inline: auto;
   }
 
   .treemap-tile {
