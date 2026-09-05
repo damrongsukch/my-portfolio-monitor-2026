@@ -1574,10 +1574,6 @@ async function loadLiveData() {
     const results = await Promise.allSettled(sheetEntries.map(([, sheet]) => fetchSheet(sheet)));
     sheetState = Object.fromEntries(sheetEntries.map(([key], index) => [key, results[index].status === "fulfilled" ? "live" : "unavailable"]));
     const coreReady = ["kpi", "holdings", "nav", "monthly"].every(key => sheetState[key] === "live");
-    if (!coreReady) {
-      const missing = ["kpi", "holdings", "nav", "monthly"].filter(key => sheetState[key] !== "live");
-      throw new Error(`Incomplete sheet sync: ${missing.join(", ")}`);
-    }
     const datasets = Object.fromEntries(sheetEntries.map(([key], index) => [key, results[index].status === "fulfilled" ? results[index].value : [["Ticker", "Signal", "RSI7", "RSI14"]]]));
     applyLiveData(datasets);
     enrichHoldingsFromSheet(datasets.holdings);
@@ -1586,18 +1582,19 @@ async function loadLiveData() {
     const now = new Date();
     const freshness = dataFreshness(now);
     const signalsLive = sheetState.signals === "live";
+    const syncPartial = !coreReady || !signalsLive;
     updateFreshnessUi(freshness);
     setText("updatedAt", freshness.label);
-    setText("syncStatusText", !signalsLive ? "Portfolio synced, signals unavailable" : freshness.stale ? "Sheet synced; market data may be stale" : "Live sheet sync complete");
+    setText("syncStatusText", syncPartial ? "Sheet synced with partial tabs; showing all available live data" : freshness.stale ? "Sheet synced; market data may be stale" : "Live sheet sync complete");
     setText("portfolioSyncMeta", "Portfolio live");
     setText("signalSyncMeta", signalsLive ? "Signals live" : "Signals unavailable | fallback active");
     setText("navSyncMeta", `NAV live | Trades ${sheetState.trades === "live" ? "live" : "fallback"}`);
-    setText("sideSync", freshness.stale ? "Stale" : signalsLive ? "Live" : "Partial");
-    setText("marketOpenLabel", freshness.stale ? "Sheet Stale" : signalsLive ? "Sheet Live" : "Sheet Partial");
-    if (syncBanner) syncBanner.dataset.state = !signalsLive ? "partial" : freshness.stale ? "stale" : "live";
-    if (retryButton) retryButton.hidden = signalsLive && !freshness.stale;
+    setText("sideSync", freshness.stale ? "Stale" : syncPartial ? "Partial" : "Live");
+    setText("marketOpenLabel", freshness.stale ? "Sheet Stale" : syncPartial ? "Sheet Partial" : "Sheet Live");
+    if (syncBanner) syncBanner.dataset.state = syncPartial ? "partial" : freshness.stale ? "stale" : "live";
+    if (retryButton) retryButton.hidden = !syncPartial && !freshness.stale;
     const meter = document.getElementById("syncMeter");
-    if (meter) meter.style.width = signalsLive ? "100%" : "76%";
+    if (meter) meter.style.width = syncPartial ? "76%" : "100%";
   } catch (error) {
     console.warn(error);
     const statusText = key => sheetState[key] === "live" ? "live" : "unavailable";
