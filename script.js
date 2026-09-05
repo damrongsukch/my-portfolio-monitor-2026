@@ -779,14 +779,56 @@ function renderDriftChart() {
     `<span><small>Balanced</small><b>${near}</b><em>Near target within 1%</em></span>`
   ].join(""));
 }
-const holdingsPerformancePeriodsAvailable = new Set(["1d", "all"]);
-function normalizeHoldingsPerformancePeriod(period) {
+const holdingPeriodCodes = ["7d", "1m", "3m", "6m", "ytd", "1y", "5y"];
+function periodReturnAliases(period) {
+  const upper = String(period).toUpperCase();
+  return [
+    period,
+    upper,
+    `${period}%`,
+    `${upper}%`,
+    `${period} %`,
+    `${upper} %`,
+    `${period} return`,
+    `${upper} Return`,
+    `${period} return %`,
+    `${upper} Return %`,
+    `${period} return (%)`,
+    `${upper} Return (%)`,
+    `Return_${upper}`,
+    `Return ${upper}`,
+    `${upper}_Return`,
+    `${upper} Return`,
+    `Performance_${upper}`,
+    `Performance ${upper}`,
+    `Perf_${upper}`,
+    `Perf ${upper}`
+  ];
+}
+const holdingsPerformancePeriodAliases = Object.fromEntries(holdingPeriodCodes.map(period => [period, periodReturnAliases(period)]));
+function normalizedReturnNumber(value) {
+  if (value == null || value === "") return null;
+  const amount = numberFrom(value);
+  if (!Number.isFinite(amount)) return null;
+  return Math.abs(amount) <= 1 ? amount * 100 : amount;
+}
+function holdingPeriodReturnsFromRow(row) {
+  return Object.fromEntries(Object.entries(holdingsPerformancePeriodAliases).map(([period, aliases]) => [period, normalizedReturnNumber(rowAny(row, aliases, null))]));
+}
+function holdingsPerformancePeriodAvailable(period, rows = holdings) {
   const normalized = String(period || "all").toLowerCase();
-  return holdingsPerformancePeriodsAvailable.has(normalized) ? normalized : "all";
+  if (normalized === "1d" || normalized === "all") return true;
+  return rows.some(item => Number.isFinite(item.periodReturns?.[normalized]));
+}
+function normalizeHoldingsPerformancePeriod(period, rows = holdings) {
+  const normalized = String(period || "all").toLowerCase();
+  return holdingsPerformancePeriodAvailable(normalized, rows) ? normalized : "all";
 }
 function holdingsPerformanceMetric(item) {
   const period = normalizeHoldingsPerformancePeriod(holdingsPerformancePeriod);
-  return period === "1d" ? numberFrom(item.dayChangePercent) : numberFrom(item.pl);
+  if (period === "1d") return numberFrom(item.dayChangePercent);
+  if (period === "all") return numberFrom(item.pl);
+  return numberFrom(item.periodReturns?.[period]);
 }
 function holdingsPerformanceLabel(value) { return `${value > 0 ? "+" : ""}${value.toFixed(Math.abs(value) >= 10 ? 1 : 2)}%`; }
 function holdingsPerformanceBreakpoints(values) {
@@ -830,17 +872,18 @@ function renderHoldingsTreemap(rows) {
   const entries = rows
     .filter(item => numberFrom(item.value) > 0 && numberFrom(item.shares) > 0)
     .map(item => ({ item, size: Math.max(1, numberFrom(item.value)), performance: holdingsPerformanceMetric(item) }))
+    .filter(entry => Number.isFinite(entry.performance))
     .sort((a, b) => b.size - a.size);
-  holdingsPerformancePeriod = normalizeHoldingsPerformancePeriod(holdingsPerformancePeriod);
+  holdingsPerformancePeriod = normalizeHoldingsPerformancePeriod(holdingsPerformancePeriod, rows);
   document.querySelectorAll("[data-holdings-period]").forEach(button => {
     const period = String(button.dataset.holdingsPeriod || "").toLowerCase();
-    const available = holdingsPerformancePeriodsAvailable.has(period);
+    const available = holdingsPerformancePeriodAvailable(period, rows);
     const active = period === holdingsPerformancePeriod;
     button.disabled = !available;
     button.classList.toggle("disabled", !available);
     button.classList.toggle("active", active);
     button.setAttribute("aria-pressed", String(active));
-    button.title = available ? "" : "Needs per-holding price history in the sheet";
+    button.title = available ? "" : "Add this return column to Looker_Holdings to enable it";
   });
   if (!entries.length) {
     map.innerHTML = `<div class="empty">No holdings performance data available.</div>`;
@@ -1441,6 +1484,7 @@ function applyLiveData(datasets) {
     costBasisUsd: numberFrom(rowAny(row, ["Cost_Basis_USD", "Cost Basis USD"], 0)),
     dayChangePercent: percentText(rowAny(row, ["Day_Change_Percent", "Day Change Percent", "Day Change %"], "0.00%")),
     dayChangeUsd: numberFrom(rowAny(row, ["Day_Change_Total_USD", "Day Change Total USD", "Day Gain Loss USD"], 0)),
+    periodReturns: holdingPeriodReturnsFromRow(row),
     value: numberFrom(row.Market_Value_THB),
     valueText: moneyText(row.Market_Value_THB),
     pl: percentText(row.PL_Percent),
@@ -1487,6 +1531,7 @@ function enrichHoldingsFromSheet(rows) {
       costBasisUsd: numberFrom(row.Cost_Basis_USD),
       dayChangePercent: percentText(rowAny(row, ["Day_Change_Percent", "Day Change Percent", "Day Change %"], item.dayChangePercent || "0.00%")),
       dayChangeUsd: numberFrom(rowAny(row, ["Day_Change_Total_USD", "Day Change Total USD", "Day Gain Loss USD"], item.dayChangeUsd || 0)),
+      periodReturns: holdingPeriodReturnsFromRow(row),
       targetA: numberFrom(rowAny(row, ["Target_A", "Target A", "Target Weight A"], item.targetA || 0)),
       targetB: numberFrom(rowAny(row, ["Target_B", "Target B", "Target Weight B"], item.targetB || 0)),
       targetWeight: numberFrom(rowAny(row, ["Target_Weight", "Target Weight", "Target"], item.targetWeight || 0))
@@ -1626,7 +1671,7 @@ function bindInteractions() {
     });
     renderHoldings(button.dataset.filter || "All", search?.value || "");
   });
-  document.querySelectorAll("[data-holdings-period]").forEach(button => button.addEventListener("click", () => { if (button.disabled) return; holdingsPerformancePeriod = normalizeHoldingsPerformancePeriod(button.dataset.holdingsPeriod); renderHoldings(activeFilter, search?.value || ""); }));
+  document.querySelectorAll("[data-holdings-period]").forEach(button => button.addEventListener("click", () => { if (button.disabled) return; holdingsPerformancePeriod = button.dataset.holdingsPeriod || "all"; renderHoldings(activeFilter, search?.value || ""); }));
   document.querySelectorAll("[data-benchmark-toggle]").forEach(button => button.addEventListener("click", () => { const key = button.dataset.benchmarkToggle; benchmarkVisible[key] = !benchmarkVisible[key]; renderBenchmarkCharts(); }));
   document.querySelectorAll("[data-benchmark-mode]").forEach(button => button.addEventListener("click", () => { benchmarkComparisonMode = button.dataset.benchmarkMode === "cashflow" ? "cashflow" : "twr"; renderBenchmarkCharts(); }));
   document.querySelectorAll("[data-benchmark-range]").forEach(button => button.addEventListener("click", () => { benchmarkRangePeriod = button.dataset.benchmarkRange || "ALL"; renderBenchmarkCharts(); }));
