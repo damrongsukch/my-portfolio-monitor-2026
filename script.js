@@ -872,12 +872,14 @@ function renderHoldingsTreemap(rows) {
   const values = entries.map(entry => entry.performance);
   const markers = holdingsPerformanceBreakpoints(values);
   if (scale) scale.innerHTML = markers.map(value => `<span class="${holdingsPerformanceTone(value)}">${holdingsPerformanceLabel(value)}</span>`).join("");
+  const maxSize = Math.max(...entries.map(entry => entry.size), 1);
   map.innerHTML = entries.map(entry => {
     const value = entry.performance;
     const ticker = escapeHtml(entry.item.ticker);
     const label = holdingsPerformanceLabel(value);
     const title = `${ticker} ${label} | ${formatCurrencyFromThb(entry.item.value)}`;
-    return `<button class="treemap-tile ${holdingsPerformanceTone(value)}" type="button" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}"><strong>${ticker}</strong><span>${label}</span></button>`;
+    const side = 86 + (Math.sqrt(entry.size / maxSize) * 128);
+    return `<button class="treemap-tile ${holdingsPerformanceTone(value)}" type="button" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}" style="--tile-side:${side.toFixed(1)}px"><strong>${ticker}</strong><span>${label}</span></button>`;
   }).join("");
 }
 function renderHoldings(filter = activeFilter, query = document.getElementById("holdingSearch")?.value || "") {

@@ -1416,8 +1416,10 @@ body[data-theme="light"] .health-ring span {
 }
 
 .holdings-treemap {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  align-content: flex-start;
   gap: 4px;
   margin: 0 16px 16px;
   padding-top: 12px;
@@ -1430,7 +1432,9 @@ body[data-theme="light"] .health-ring span {
   position: relative;
   display: grid;
   place-content: center;
+  width: clamp(86px, var(--tile-side, 132px), 214px);
   aspect-ratio: 1 / 1;
+  flex: 0 0 auto;
   gap: 4px;
   min-width: 0;
   min-height: 0;
@@ -1509,8 +1513,12 @@ body[data-theme="light"] .holdings-treemap {
   }
 
   .holdings-treemap {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3px;
     margin-inline: 10px;
+  }
+
+  .treemap-tile {
+    width: clamp(76px, calc(var(--tile-side, 120px) * .78), 46vw);
   }
 
   .treemap-tile {
