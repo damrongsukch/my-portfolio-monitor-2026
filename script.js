@@ -1126,7 +1126,7 @@ function healthActionItems(activeHoldings, cashWeight) {
     .sort((a, b) => Math.max(numberFrom(b.rsi7), numberFrom(b.rsi14)) - Math.max(numberFrom(a.rsi7), numberFrom(a.rsi14)))[0];
   if (overweight) actions.push({ tone: "caution", title: `${overweight.item.ticker} over target`, detail: `${numberFrom(overweight.item.weight).toFixed(1)}% vs target ${overweight.target.toFixed(1)}%. Pause new buys first.` });
   if (underweight) actions.push({ tone: "positive", title: `${underweight.item.ticker} needs capital`, detail: `${underweight.gap.toFixed(1)}% under target. Prioritize with Smart DCA.` });
-  if (hotRsi) actions.push({ tone: "warning", title: `${hotRsi.item.ticker} RSI is hot`, detail: `RSI7 ${numberFrom(hotRsi.item.rsi7).toFixed(1)} / RSI14 ${numberFrom(hotRsi.item.rsi14).toFixed(1)}. Consider smaller sizing.` });
+  if (hotRsi) actions.push({ tone: "warning", title: `${hotRsi.ticker} RSI is hot`, detail: `RSI7 ${numberFrom(hotRsi.rsi7).toFixed(1)} / RSI14 ${numberFrom(hotRsi.rsi14).toFixed(1)}. Consider smaller sizing.` });
   if (cashWeight < 1) actions.push({ tone: "neutral", title: "Cash buffer is low", detail: `Cash is ${cashWeight.toFixed(1)}% of portfolio. New buys depend on fresh deposits.` });
   return actions.slice(0, 3);
 }
@@ -1575,6 +1575,11 @@ async function loadLiveData() {
     sheetState = Object.fromEntries(sheetEntries.map(([key], index) => [key, results[index].status === "fulfilled" ? "live" : "unavailable"]));
     const coreReady = ["kpi", "holdings", "nav", "monthly"].every(key => sheetState[key] === "live");
     const datasets = Object.fromEntries(sheetEntries.map(([key], index) => [key, results[index].status === "fulfilled" ? results[index].value : [["Ticker", "Signal", "RSI7", "RSI14"]]]));
+    const liveWatchlist = parseWatchlistSheet(datasets.watchlist || []);
+    if (liveWatchlist.length) {
+      sheetWatchlistRows = liveWatchlist;
+      renderInterestWatchlist();
+    }
     applyLiveData(datasets);
     enrichHoldingsFromSheet(datasets.holdings);
     renderAll();
