@@ -4303,6 +4303,10 @@ body:not([data-view="portfolio"]) .holdings-card .sort-head::after {
   gap: 9px;
 }
 
+.watchlist-stock-row[hidden] {
+  display: none;
+}
+
 .watchlist-stock-row {
   display: grid;
   grid-template-columns: minmax(150px, .8fr) minmax(0, 1.8fr);
@@ -4879,4 +4883,94 @@ body[data-view="portfolio"] #analysis.dashboard-grid > .holdings-card {
   grid-column: 1 / -1 !important;
   width: 100% !important;
   min-width: 0;
+}
+/* Metric definitions and Watchlist controls */
+.metric-method,
+.performance-method {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 720;
+  line-height: 1.2;
+}
+.hero-card .metric-method {
+  margin-top: 4px;
+}
+.performance-method {
+  margin: -2px 0 10px;
+}
+#investedValue,
+#dailyProfitLabel {
+  overflow-wrap: normal;
+  white-space: nowrap;
+  font-size: clamp(20px, 1.9vw, 28px);
+  font-variant-numeric: tabular-nums;
+}
+.watchlist-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 14px 0;
+}
+.watchlist-filter-tabs {
+  display: inline-flex;
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(8, 15, 21, .48);
+}
+.watchlist-filter-tabs button {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: transparent;
+  color: var(--soft);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.watchlist-filter-tabs button:last-child {
+  border-right: 0;
+}
+.watchlist-filter-tabs button.active {
+  color: #06100b;
+  background: var(--green);
+}
+.watchlist-sort-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+}
+.watchlist-sort-control select {
+  min-height: 34px;
+  padding: 0 28px 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  font-weight: 800;
+}
+@media (max-width: 700px) {
+  .watchlist-toolbar {
+    align-items: stretch;
+  }
+  .watchlist-filter-tabs {
+    width: 100%;
+  }
+  .watchlist-filter-tabs button {
+    flex: 1 1 0;
+    padding-inline: 8px;
+  }
+  .watchlist-sort-control {
+    justify-content: space-between;
+  }
 }

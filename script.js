@@ -95,6 +95,8 @@ let liveDataLoading = false;
 let lastLiveSyncMs = 0;
 let signalUniverse = [];
 let sheetWatchlistRows = [];
+let watchlistFilter = "all";
+let watchlistSort = "opportunity";
 let benchmarkReturnPeriod = "weekly";
 let benchmarkRangePeriod = "ALL";
 let benchmarkVisible = { spy: true, qqq: true };
@@ -113,7 +115,17 @@ const watchlistProfiles = {
   META: { name: "Meta Platforms", type: "US stock", theme: "Digital advertising / AI" },
   PLTR: { name: "Palantir", type: "US stock", theme: "AI software" },
   RKLB: { name: "Rocket Lab", type: "US stock", theme: "Space / launch systems" },
-  AMD: { name: "Advanced Micro Devices", type: "US stock", theme: "Semiconductors" }
+  AMD: { name: "Advanced Micro Devices", type: "US stock", theme: "Semiconductors" },
+  SPCX: { name: "SPAC and new issue ETF", type: "ETF", theme: "Growth watch" },
+  QDTE: { name: "Roundhill N-100 0DTE Covered Call ETF", type: "ETF", theme: "Income watch" },
+  SPYI: { name: "NEOS S&P 500 High Income ETF", type: "ETF", theme: "Income watch" },
+  DIVO: { name: "Amplify CWP Enhanced Dividend Income ETF", type: "ETF", theme: "Dividend income" },
+  IWMI: { name: "NEOS Russell 2000 High Income ETF", type: "ETF", theme: "Small-cap income" },
+  NIHI: { name: "NEOS Nasdaq-100 High Income ETF", type: "ETF", theme: "Income watch" },
+  MLPD: { name: "Global X MLP & Energy Infrastructure Covered Call ETF", type: "ETF", theme: "Energy income" },
+  ROCQ: { name: "JPMorgan Nasdaq Equity Premium Income ETF", type: "ETF", theme: "Income watch" },
+  O: { name: "Realty Income", type: "US stock", theme: "REIT income" },
+  DRAM: { name: "Roundhill DRAM ETF", type: "ETF", theme: "Semiconductors" }
 };
 
 function numberFrom(value) { const cleaned = String(value ?? "").replace(/[^0-9.-]/g, ""); const parsed = Number(cleaned); return Number.isFinite(parsed) ? parsed : 0; }
@@ -304,7 +316,7 @@ function renderNavChart() {
   const displayReturn = performancePeriod === "ALL" ? benchmarkPercent(benchmarkCompare.portfolio) : periodReturnText();
   setText("performanceNumber", displayReturn);
   setText("performanceInvestedLabel", "Invested capital");
-  setText("performanceRangeLabel", `${periodRangeText(rows)} | Time-weighted return | Cost basis ${formatCurrencyFromThb(kpis.invested)}`);
+  setText("performanceRangeLabel", `${periodRangeText(rows)} | Cost basis ${formatCurrencyFromThb(kpis.invested)}`);
   setSignedTone("performanceNumber", displayReturn);
   svg.innerHTML = `<defs><linearGradient id="navGradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#25e05d" stop-opacity=".22"/><stop offset="1" stop-color="#25e05d" stop-opacity="0"/></linearGradient></defs>${yAxis}<path class="area-fill" d="${area}"/><path class="invested-line" d="${pathFromPoints(investedPoints)}"/><path class="nav-line" d="${pathFromPoints(navPoints)}"/><circle cx="${navPoints.at(-1)[0]}" cy="${navPoints.at(-1)[1]}" r="5" fill="#25e05d" stroke="#071017" stroke-width="3"/><text class="axis-text" x="${padding.left}" y="${height - 14}">${performancePeriod}</text><text class="axis-text" text-anchor="end" x="${width - padding.right}" y="${height - 14}">${formatCurrencyFromThb(end)}</text>`;
 }
@@ -474,11 +486,11 @@ function renderBenchmarkComparisonSummary(mode = benchmarkComparisonMode, values
   if (isCashflow && !(baseline > 0)) { summary.hidden = true; return; }
   const valueLabel = value => isCashflow ? cashflowDollar(value) : benchmarkPercent(value);
   const returnLabel = value => isCashflow ? benchmarkPercent((value / baseline - 1) * 100) : "TWR";
-  const diffLabel = difference => isCashflow ? `${cashflowDollar(Math.abs(difference))} (${benchmarkPercent(Math.abs(difference) / baseline * 100)} pp)` : `${benchmarkPercent(Math.abs(difference))} pp`;
+  const diffLabel = difference => isCashflow ? `${cashflowDollar(Math.abs(difference))} (${(Math.abs(difference) / baseline * 100).toFixed(2)} pp)` : `${Math.abs(difference).toFixed(2)} pp`;
   const comparison = (label, key) => {
     const value = numberFrom(data[key]);
     if (!visibleBenchmarks[key] || !Number.isFinite(value)) return "";
-    const difference = value - portfolio;
+    const difference = portfolio - value;
     const tone = difference >= 0 ? "positive" : "negative";
     return `<div class="cashflow-summary-item ${key}"><span>${label}</span><strong>${valueLabel(value)}</strong><small>${returnLabel(value)}</small><em class="${tone}">${difference >= 0 ? "Ahead" : "Behind"} ${diffLabel(difference)}</em></div>`;
   };
@@ -586,7 +598,18 @@ function benchmarkReturnBuckets(series, period) {
   const bars = buckets.map((point, index) => { const center = returnsPadding.left + index * barStep + barStep / 2; return [{ key: "portfolio", value: point.portfolioDaily, x: center - barWidth * 1.5 - 1 }, ...(spyVisible ? [{ key: "spy", value: point.spyDaily, x: center - barWidth / 2 }] : []), ...(qqqReturnsVisible ? [{ key: "qqq", value: point.qqqDaily, x: center + barWidth / 2 + 1 }] : [])].map(item => { const itemY = dailyY(item.value), labelY = item.value >= 0 ? Math.max(returnsPadding.top + 11, itemY - 7) : Math.min(returnsHeight - returnsPadding.bottom - 4, itemY + 14), labelX = item.x + barWidth / 2 + (actualBenchmarkBuckets ? (item.key === "portfolio" ? -3 : item.key === "qqq" ? 3 : 0) : 0), labelAnchor = actualBenchmarkBuckets ? (item.key === "portfolio" ? "end" : item.key === "qqq" ? "start" : "middle") : "middle", label = showValues ? `<text class="benchmark-bar-label ${item.value >= 0 ? "positive" : "negative"}" x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="${labelAnchor}">${benchmarkValueLabel(item.value)}</text>` : ""; return `<rect class="benchmark-bar ${item.key}" x="${item.x.toFixed(1)}" y="${Math.min(itemY, dailyZero).toFixed(1)}" width="${barWidth}" height="${Math.max(1, Math.abs(itemY - dailyZero)).toFixed(1)}"/>${label}`; }).join(""); }).join("");
   const returnMarkCount = Math.min(buckets.length, benchmarkReturnPeriod === "daily" ? 7 : buckets.length), returnLabels = Array.from({ length: returnMarkCount }, (_, index) => Math.round(index * Math.max(buckets.length - 1, 0) / Math.max(returnMarkCount - 1, 1))).map(index => { const center = returnsPadding.left + index * barStep + barStep / 2; return `<text class="benchmark-axis benchmark-date" text-anchor="middle" x="${center.toFixed(1)}" y="${returnsHeight - 10}">${benchmarkBucketLabel(buckets[index], benchmarkReturnPeriod)}</text>`; }).join("");
   returnsSvg.innerHTML = `${returnGrid}${bars}${returnLabels}`;
-  setText("spyBenchmark", benchmarkPercent(benchmarkCompare.spyReturn)); setText("spyBenchmarkDelta", `vs Port ${benchmarkPercent(benchmarkCompare.spyVsPort)}`); setText("qqqBenchmark", benchmarkPercent(benchmarkCompare.qqqReturn)); setText("qqqBenchmarkDelta", `vs Port ${benchmarkPercent(benchmarkCompare.qqqVsPort)}`); setSignedTone("spyBenchmark", benchmarkCompare.spyReturn); setSignedTone("qqqBenchmark", benchmarkCompare.qqqReturn); setSignedTone("spyBenchmarkDelta", benchmarkCompare.spyVsPort); setSignedTone("qqqBenchmarkDelta", benchmarkCompare.qqqVsPort); if (!isCashflow) setText("benchmarkRangeLabel", `${benchmarkDateLabel(series[0].date)} - ${benchmarkDateLabel(series.at(-1).date)}`);
+  const spyDifference = benchmarkCompare.portfolio - benchmarkCompare.spyReturn;
+  const qqqDifference = benchmarkCompare.portfolio - benchmarkCompare.qqqReturn;
+  const comparisonText = difference => (difference >= 0 ? "Ahead " : "Behind ") + Math.abs(difference).toFixed(2) + " pp";
+  setText("spyBenchmark", benchmarkPercent(benchmarkCompare.spyReturn));
+  setText("spyBenchmarkDelta", comparisonText(spyDifference));
+  setText("qqqBenchmark", benchmarkPercent(benchmarkCompare.qqqReturn));
+  setText("qqqBenchmarkDelta", comparisonText(qqqDifference));
+  setSignedTone("spyBenchmark", benchmarkCompare.spyReturn);
+  setSignedTone("qqqBenchmark", benchmarkCompare.qqqReturn);
+  setSignedTone("spyBenchmarkDelta", spyDifference);
+  setSignedTone("qqqBenchmarkDelta", qqqDifference);
+  if (!isCashflow) setText("benchmarkRangeLabel", `${benchmarkDateLabel(series[0].date)} - ${benchmarkDateLabel(series.at(-1).date)}`);
 }
 function polarToCartesian(cx, cy, radius, angle) { const radians = (angle - 90) * Math.PI / 180; return { x: cx + radius * Math.cos(radians), y: cy + radius * Math.sin(radians) }; }
 function donutSegment(cx, cy, radius, innerRadius, startAngle, endAngle) { const start = polarToCartesian(cx, cy, radius, endAngle), end = polarToCartesian(cx, cy, radius, startAngle), innerStart = polarToCartesian(cx, cy, innerRadius, endAngle), innerEnd = polarToCartesian(cx, cy, innerRadius, startAngle), largeArc = endAngle - startAngle <= 180 ? 0 : 1; return [`M ${start.x} ${start.y}`, `A ${radius} ${radius} 0 ${largeArc} 0 ${end.x} ${end.y}`, `L ${innerEnd.x} ${innerEnd.y}`, `A ${innerRadius} ${innerRadius} 0 ${largeArc} 1 ${innerStart.x} ${innerStart.y}`, "Z"].join(" "); }
@@ -808,8 +831,10 @@ function periodReturnAliases(period) {
 const holdingsPerformancePeriodAliases = Object.fromEntries(holdingPeriodCodes.map(period => [period, periodReturnAliases(period)]));
 function normalizedReturnNumber(value) {
   if (value == null || value === "") return null;
+  const raw = String(value).trim();
   const amount = numberFrom(value);
   if (!Number.isFinite(amount)) return null;
+  if (raw.includes("%")) return amount;
   return Math.abs(amount) <= 1 ? amount * 100 : amount;
 }
 function holdingPeriodReturnsFromRow(row) {
@@ -828,7 +853,8 @@ function holdingsPerformanceMetric(item) {
   const period = normalizeHoldingsPerformancePeriod(holdingsPerformancePeriod);
   if (period === "1d") return numberFrom(item.dayChangePercent);
   if (period === "all") return numberFrom(item.pl);
-  return numberFrom(item.periodReturns?.[period]);
+  const value = item.periodReturns?.[period];
+  return Number.isFinite(value) ? value : null;
 }
 function holdingsPerformanceLabel(value) { return `${value > 0 ? "+" : ""}${value.toFixed(Math.abs(value) >= 10 ? 1 : 2)}%`; }
 function holdingsPerformanceBreakpoints(values) {
@@ -1220,8 +1246,21 @@ function readLocalWatchlist() {
   return [];
 }
 function readInterestWatchlist() {
-  if (sheetWatchlistRows.length) return sheetWatchlistRows.map(item => ({ ...item, ticker: normalizeTickerInput(item.ticker) })).filter(item => item.ticker);
-  return defaultWatchlistTickers().map(ticker => ({ ticker, reason: signalUniverse.some(item => String(item.ticker).toUpperCase() === ticker) ? "From signal sheet" : "Starter watchlist", source: "local" }));
+  const byTicker = new Map();
+  const add = item => {
+    const ticker = normalizeTickerInput(item?.ticker);
+    if (!ticker) return;
+    const existing = byTicker.get(ticker) || {};
+    byTicker.set(ticker, { ...existing, ...item, ticker, source: item.source || existing.source || "local" });
+  };
+  defaultWatchlistTickers().forEach(ticker => add({
+    ticker,
+    reason: signalUniverse.some(item => String(item.ticker).toUpperCase() === ticker) ? "From signal sheet" : "Starter watchlist",
+    source: "default"
+  }));
+  readLocalWatchlist().forEach(add);
+  sheetWatchlistRows.forEach(item => add({ ...item, ticker: normalizeTickerInput(item.ticker), source: "sheet" }));
+  return [...byTicker.values()];
 }
 function saveInterestWatchlist(items) {
   const unique = [];
@@ -1236,11 +1275,12 @@ function saveInterestWatchlist(items) {
 }
 function defaultWatchlistTickers() {
   const held = new Set(holdings.filter(item => numberFrom(item.shares) > 0 || numberFrom(item.value) > 0).map(item => String(item.ticker).toUpperCase()));
-  const candidates = signalUniverse.filter(item => item.ticker && !held.has(String(item.ticker).toUpperCase()))
+  const signalCandidates = signalUniverse.filter(item => item.ticker && !held.has(String(item.ticker).toUpperCase()))
     .sort((a, b) => (numberFrom(a.priority) || 99) - (numberFrom(b.priority) || 99))
     .map(item => String(item.ticker).toUpperCase());
-  const fallback = ["MSFT", "AVGO", "META", "PLTR", "RKLB"].filter(ticker => !held.has(ticker));
-  return [...new Set(candidates.length ? candidates : fallback)].slice(0, 6);
+  const profileCandidates = Object.keys(watchlistProfiles).filter(ticker => !held.has(ticker));
+  const fallback = ["MSFT", "AVGO", "META", "PLTR", "RKLB", "AMD", "GLDM", "MLPI", "SPCX", "QDTE", "SPYI", "DIVO", "IWMI", "NIHI", "MLPD", "ROCQ", "O", "DRAM"].filter(ticker => !held.has(ticker));
+  return [...new Set([...signalCandidates, ...profileCandidates, ...fallback])];
 }
 function watchlistDataSource(ticker) {
   const symbol = normalizeTickerInput(ticker);
@@ -1329,11 +1369,36 @@ function renderInterestWatchlist() {
     const opportunity = `<span class="watchlist-opportunity ${opportunityData.tone}">${opportunityData.label}</span>`;
     const details = [["Price", price > 0 ? formatUsd(price) : "Not set"], ["52W low/high", low52 > 0 && high52 > 0 ? `${formatUsd(low52)} / ${formatUsd(high52)}` : "Not set"], ["Target price", savedTarget > 0 ? formatUsd(savedTarget) : "Not set"], ["Nearest support (20D)", nearestSupport > 0 ? formatUsd(nearestSupport) : "Not set"], ["Sweet spot", sweetSpot > 0 ? formatUsd(sweetSpot) : "Not set"]].map(([label, value]) => `<span><small>${label}</small><b>${value}</b></span>`).join("");
     const footer = `<div class="watchlist-row-actions">${opportunity}<div class="watchlist-link-row">${watchlistLinksHtml(item.ticker)}</div></div>`;
-    return `<article class="watchlist-stock-row ${signedClass(day)}"><div class="watchlist-stock-main">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="watchlist-type-chip">${assetKind(item.ticker)}</b></strong><small>${name}</small><em>${item.held ? "Already in portfolio" : savedReason || "Watching"} &middot; ${theme}</em></span></div><div class="watchlist-stock-body"><div class="watchlist-stock-meta"><span><b>${priceText}</b><small>${dayText}</small></span><span><b>${signal}</b><small>${trend}</small></span><span class="watchlist-rsi-meta"><small>RSI 7 / 14 (${indicatorTimeframe})</small><b>${hasRsi ? `${rsiValue(item.rsi7)}<span class="rsi-separator">/</span>${rsiValue(item.rsi14)}` : "n/a"}</b></span></div><div class="watchlist-detail-grid">${details}</div>${saved.note ? `<div class="watchlist-note">${escapeHtml(saved.note)}</div>` : ""}${rangePos != null ? `<div class="watchlist-range" style="--watch-range:${rangePos.toFixed(0)}%"><span><b></b></span><small>52W range ${rangePos.toFixed(0)}%</small></div>` : ""}${footer}</div></article>`;
+    return `<article class="watchlist-stock-row ${signedClass(day)}" data-watchlist-ticker="${item.ticker}" data-watchlist-price="${price}" data-watchlist-sweet="${sweetSpot > 0 && price > 0 && price <= sweetSpot * 1.03}" data-watchlist-support="${/support|52w low/i.test(trend) || (rangePos != null && rangePos <= 25)}" data-watchlist-rank="${opportunityData.tone === "positive" ? 0 : opportunityData.tone === "watch" ? 1 : opportunityData.tone === "neutral" ? 2 : 3}"><div class="watchlist-stock-main">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="watchlist-type-chip">${assetKind(item.ticker)}</b></strong><small>${name}</small><em>${item.held ? "Already in portfolio" : savedReason || "Watching"} &middot; ${theme}</em></span></div><div class="watchlist-stock-body"><div class="watchlist-stock-meta"><span><b>${priceText}</b><small>${dayText}</small></span><span><b>${signal}</b><small>${trend}</small></span><span class="watchlist-rsi-meta"><small>RSI 7 / 14 (${indicatorTimeframe})</small><b>${hasRsi ? `${rsiValue(item.rsi7)}<span class="rsi-separator">/</span>${rsiValue(item.rsi14)}` : "n/a"}</b></span></div><div class="watchlist-detail-grid">${details}</div>${saved.note ? `<div class="watchlist-note">${escapeHtml(saved.note)}</div>` : ""}${rangePos != null ? `<div class="watchlist-range" style="--watch-range:${rangePos.toFixed(0)}%"><span><b></b></span><small>52W range ${rangePos.toFixed(0)}%</small></div>` : ""}${footer}</div></article>`;
   }).join("") || `<div class="empty">Add tickers you are interested in. If the ticker exists in Looker_Signals or holdings, live data will show here.</div>`;
   const suggestions = document.getElementById("watchlistSuggestions");
   if (suggestions) suggestions.innerHTML = watchlistSignalCandidates().map(item => `<button type="button" data-add-watch="${item.ticker}">${item.ticker}<small>${cleanSignal(item.signal)}</small></button>`).join("") || `<span class="empty-inline">No new signal candidates outside the current portfolio.</span>`;
   renderSweetSpotAlerts(tickers);
+  refreshWatchlistView();
+}
+function refreshWatchlistView() {
+  const list = document.getElementById("watchlistItems");
+  if (!list) return;
+  const rows = [...list.querySelectorAll(".watchlist-stock-row")];
+  rows.forEach(row => {
+    const isSweet = row.dataset.watchlistSweet === "true";
+    const isSupport = row.dataset.watchlistSupport === "true";
+    row.hidden = watchlistFilter === "sweet" ? !isSweet : watchlistFilter === "support" ? !isSupport : false;
+  });
+  rows.sort((left, right) => {
+    if (watchlistSort === "ticker") return left.dataset.watchlistTicker.localeCompare(right.dataset.watchlistTicker);
+    if (watchlistSort === "price") return Number(right.dataset.watchlistPrice) - Number(left.dataset.watchlistPrice) || left.dataset.watchlistTicker.localeCompare(right.dataset.watchlistTicker);
+    return Number(left.dataset.watchlistRank) - Number(right.dataset.watchlistRank) || Number(left.dataset.watchlistPrice) - Number(right.dataset.watchlistPrice) || left.dataset.watchlistTicker.localeCompare(right.dataset.watchlistTicker);
+  }).forEach(row => list.appendChild(row));
+  const visible = rows.filter(row => !row.hidden);
+  setText("watchlistCount", visible.length === rows.length ? visible.length + " tickers" : visible.length + " of " + rows.length + " tickers");
+  document.querySelectorAll("[data-watchlist-filter]").forEach(button => {
+    const active = button.dataset.watchlistFilter === watchlistFilter;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  const sortSelect = document.getElementById("watchlistSort");
+  if (sortSelect) sortSelect.value = watchlistSort;
 }
 function renderSweetSpotAlerts(tickers) {
   const list = document.getElementById("watchlistSweetSpotAlerts");
@@ -1744,6 +1809,16 @@ function bindInteractions() {
     saveInterestWatchlist(items);
     if (tickerInput) tickerInput.value = "";
     renderInterestWatchlist();
+  });
+  document.getElementById("watchlistFilterTabs")?.addEventListener("click", event => {
+    const button = event.target.closest("[data-watchlist-filter]");
+    if (!button) return;
+    watchlistFilter = button.dataset.watchlistFilter || "all";
+    refreshWatchlistView();
+  });
+  document.getElementById("watchlistSort")?.addEventListener("change", event => {
+    watchlistSort = event.target.value || "opportunity";
+    refreshWatchlistView();
   });
   document.getElementById("watchlistItems")?.addEventListener("click", event => {
     const button = event.target.closest("[data-remove-watch]");

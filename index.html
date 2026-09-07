@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg?v=20260702b">
   <link rel="shortcut icon" href="./assets/favicon.ico?v=20260702b">
   <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=20260702b">
-  <link rel="stylesheet" href="./styles.css?v=20260906-watchlist-render">
+  <link rel="stylesheet" href="./styles.css?v=20260907-dashboard-final">
 </head>
 <body data-theme="dark" data-view="overview">
   <div class="app-shell">
@@ -119,6 +119,7 @@
             <div class="card-label">Portfolio Value</div>
             <strong id="portfolioValue">THB 0.00</strong>
             <span class="positive" id="profitLabel">+THB 0.00 (0.00%)</span>
+            <small class="metric-method">Total return (cost basis)</small>
             <svg class="sparkline" viewBox="0 0 260 60" data-spark="nav" aria-hidden="true"></svg>
           </article>
           <article class="card stat-card">
@@ -188,6 +189,7 @@
               </div>
             </div>
             <strong class="performance-number" id="performanceNumber">0.00%</strong>
+            <small class="performance-method">Time-weighted return (TWR)</small>
             <div class="performance-legend" aria-label="Portfolio chart legend">
               <span><i class="value"></i>Portfolio value</span>
               <span><i class="invested"></i><span id="performanceInvestedLabel">Invested capital</span></span>
@@ -462,6 +464,6 @@
     <button data-page="history" type="button"><svg viewBox="0 0 24 24"><path d="M8 3v4M16 3v4M4 10h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/><path d="M8 14h3m2 0h3M8 17h3"/></svg><span>History</span></button>
   </nav>
 
-  <script src="./script.js?v=20260906-watchlist-render"></script>
+  <script src="./script.js?v=20260907-dashboard-final"></script>
 </body>
 </html>
