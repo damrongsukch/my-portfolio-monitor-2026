@@ -486,7 +486,7 @@ function renderBenchmarkComparisonSummary(mode = benchmarkComparisonMode, values
   if (isCashflow && !(baseline > 0)) { summary.hidden = true; return; }
   const valueLabel = value => isCashflow ? cashflowDollar(value) : benchmarkPercent(value);
   const returnLabel = value => isCashflow ? benchmarkPercent((value / baseline - 1) * 100) : "TWR";
-  const diffLabel = difference => isCashflow ? `${cashflowDollar(Math.abs(difference))} (${(Math.abs(difference) / baseline * 100).toFixed(2)} pp)` : `${Math.abs(difference).toFixed(2)} pp`;
+  const diffLabel = difference => isCashflow ? `${cashflowDollar(Math.abs(difference))} (${(Math.abs(difference) / baseline * 100).toFixed(2)}%)` : `${Math.abs(difference).toFixed(2)}%`;
   const comparison = (label, key) => {
     const value = numberFrom(data[key]);
     if (!visibleBenchmarks[key] || !Number.isFinite(value)) return "";
@@ -600,7 +600,7 @@ function benchmarkReturnBuckets(series, period) {
   returnsSvg.innerHTML = `${returnGrid}${bars}${returnLabels}`;
   const spyDifference = benchmarkCompare.portfolio - benchmarkCompare.spyReturn;
   const qqqDifference = benchmarkCompare.portfolio - benchmarkCompare.qqqReturn;
-  const comparisonText = difference => (difference >= 0 ? "Ahead " : "Behind ") + Math.abs(difference).toFixed(2) + " pp";
+  const comparisonText = difference => (difference >= 0 ? "Ahead " : "Behind ") + Math.abs(difference).toFixed(2) + "%";
   setText("spyBenchmark", benchmarkPercent(benchmarkCompare.spyReturn));
   setText("spyBenchmarkDelta", comparisonText(spyDifference));
   setText("qqqBenchmark", benchmarkPercent(benchmarkCompare.qqqReturn));
