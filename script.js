@@ -96,7 +96,7 @@ let lastLiveSyncMs = 0;
 let signalUniverse = [];
 let sheetWatchlistRows = [];
 let watchlistFilter = "all";
-let watchlistSort = "opportunity";
+let watchlistSort = "interest";
 let benchmarkReturnPeriod = "weekly";
 let benchmarkRangePeriod = "ALL";
 let benchmarkVisible = { spy: true, qqq: true };
@@ -1269,7 +1269,7 @@ function saveInterestWatchlist(items) {
     const ticker = normalizeTickerInput(item.ticker);
     if (!ticker || seen.has(ticker)) return;
     seen.add(ticker);
-    unique.push({ ticker, reason: item.reason || "Watching", price: numberFrom(item.price), low52: numberFrom(item.low52), high52: numberFrom(item.high52), target: numberFrom(item.target), sweetSpot: numberFrom(item.sweetSpot), nearestSupport: numberFrom(item.nearestSupport), note: String(item.note || "").trim().slice(0, 120), addedAt: item.addedAt || Date.now() });
+    unique.push({ ticker, interest: Math.max(0, Math.min(5, Math.round(numberFrom(item.interest)))), reason: item.reason || "Watching", price: numberFrom(item.price), low52: numberFrom(item.low52), high52: numberFrom(item.high52), target: numberFrom(item.target), sweetSpot: numberFrom(item.sweetSpot), nearestSupport: numberFrom(item.nearestSupport), note: String(item.note || "").trim().slice(0, 120), addedAt: item.addedAt || Date.now() });
   });
   try { localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(unique)); } catch (error) { console.warn(error); }
 }
@@ -1333,6 +1333,11 @@ function stockDetailStats(item, price, hasRsi) {
 function watchlistLinksHtml(ticker) {
   return stockResearchLinks(ticker).map(link => `<a href="${link.href}" target="_blank" rel="noopener noreferrer">${link.label}</a>`).join("");
 }
+function watchlistInterestRating(ticker, value) {
+  const interest = Math.max(0, Math.min(5, Math.round(numberFrom(value))));
+  const stars = [1, 2, 3, 4, 5].map(star => `<button type="button" data-watchlist-star="${star}" data-watchlist-star-ticker="${ticker}" aria-label="Rate ${ticker} ${star} of 5" aria-pressed="${star <= interest}" title="${star} of 5"><span aria-hidden="true">★</span></button>`).join("");
+  return `<div class="watchlist-interest"><small>Interest</small><div class="watchlist-stars" role="group" aria-label="Interest rating for ${ticker}">${stars}</div></div>`;
+}
 function renderInterestWatchlist() {
   const list = document.getElementById("watchlistItems");
   if (!list) return;
@@ -1367,9 +1372,10 @@ function renderInterestWatchlist() {
     const rangePos = watchlistRangePosition(price, low52, high52);
     const opportunityData = watchlistOpportunity(price, savedTarget, sweetSpot, low52, high52);
     const opportunity = `<span class="watchlist-opportunity ${opportunityData.tone}">${opportunityData.label}</span>`;
+    const interest = Math.max(0, Math.min(5, Math.round(numberFrom(saved.interest))));
     const details = [["Price", price > 0 ? formatUsd(price) : "Not set"], ["52W low/high", low52 > 0 && high52 > 0 ? `${formatUsd(low52)} / ${formatUsd(high52)}` : "Not set"], ["Target price", savedTarget > 0 ? formatUsd(savedTarget) : "Not set"], ["Nearest support (20D)", nearestSupport > 0 ? formatUsd(nearestSupport) : "Not set"], ["Sweet spot", sweetSpot > 0 ? formatUsd(sweetSpot) : "Not set"]].map(([label, value]) => `<span><small>${label}</small><b>${value}</b></span>`).join("");
-    const footer = `<div class="watchlist-row-actions">${opportunity}<div class="watchlist-link-row">${watchlistLinksHtml(item.ticker)}</div></div>`;
-    return `<article class="watchlist-stock-row ${signedClass(day)}" data-watchlist-ticker="${item.ticker}" data-watchlist-price="${price}" data-watchlist-sweet="${sweetSpot > 0 && price > 0 && price <= sweetSpot * 1.03}" data-watchlist-support="${/support|52w low/i.test(trend) || (rangePos != null && rangePos <= 25)}" data-watchlist-rank="${opportunityData.tone === "positive" ? 0 : opportunityData.tone === "watch" ? 1 : opportunityData.tone === "neutral" ? 2 : 3}"><div class="watchlist-stock-main">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="watchlist-type-chip">${assetKind(item.ticker)}</b></strong><small>${name}</small><em>${item.held ? "Already in portfolio" : savedReason || "Watching"} &middot; ${theme}</em></span></div><div class="watchlist-stock-body"><div class="watchlist-stock-meta"><span><b>${priceText}</b><small>${dayText}</small></span><span><b>${signal}</b><small>${trend}</small></span><span class="watchlist-rsi-meta"><small>RSI 7 / 14 (${indicatorTimeframe})</small><b>${hasRsi ? `${rsiValue(item.rsi7)}<span class="rsi-separator">/</span>${rsiValue(item.rsi14)}` : "n/a"}</b></span></div><div class="watchlist-detail-grid">${details}</div>${saved.note ? `<div class="watchlist-note">${escapeHtml(saved.note)}</div>` : ""}${rangePos != null ? `<div class="watchlist-range" style="--watch-range:${rangePos.toFixed(0)}%"><span><b></b></span><small>52W range ${rangePos.toFixed(0)}%</small></div>` : ""}${footer}</div></article>`;
+    const footer = `<div class="watchlist-row-actions">${opportunity}${watchlistInterestRating(item.ticker, interest)}<div class="watchlist-link-row">${watchlistLinksHtml(item.ticker)}</div></div>`;
+    return `<article class="watchlist-stock-row ${signedClass(day)}" data-watchlist-ticker="${item.ticker}" data-watchlist-price="${price}" data-watchlist-sweet="${sweetSpot > 0 && price > 0 && price <= sweetSpot * 1.03}" data-watchlist-support="${/support|52w low/i.test(trend) || (rangePos != null && rangePos <= 25)}" data-watchlist-interest="${interest}" data-watchlist-rank="${opportunityData.tone === "positive" ? 0 : opportunityData.tone === "watch" ? 1 : opportunityData.tone === "neutral" ? 2 : 3}"><div class="watchlist-stock-main">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="watchlist-type-chip">${assetKind(item.ticker)}</b></strong><small>${name}</small><em>${item.held ? "Already in portfolio" : savedReason || "Watching"} &middot; ${theme}</em></span></div><div class="watchlist-stock-body"><div class="watchlist-stock-meta"><span><b>${priceText}</b><small>${dayText}</small></span><span><b>${signal}</b><small>${trend}</small></span><span class="watchlist-rsi-meta"><small>RSI 7 / 14 (${indicatorTimeframe})</small><b>${hasRsi ? `${rsiValue(item.rsi7)}<span class="rsi-separator">/</span>${rsiValue(item.rsi14)}` : "n/a"}</b></span></div><div class="watchlist-detail-grid">${details}</div>${saved.note ? `<div class="watchlist-note">${escapeHtml(saved.note)}</div>` : ""}${rangePos != null ? `<div class="watchlist-range" style="--watch-range:${rangePos.toFixed(0)}%"><span><b></b></span><small>52W range ${rangePos.toFixed(0)}%</small></div>` : ""}${footer}</div></article>`;
   }).join("") || `<div class="empty">Add tickers you are interested in. If the ticker exists in Looker_Signals or holdings, live data will show here.</div>`;
   const suggestions = document.getElementById("watchlistSuggestions");
   if (suggestions) suggestions.innerHTML = watchlistSignalCandidates().map(item => `<button type="button" data-add-watch="${item.ticker}">${item.ticker}<small>${cleanSignal(item.signal)}</small></button>`).join("") || `<span class="empty-inline">No new signal candidates outside the current portfolio.</span>`;
@@ -1386,6 +1392,7 @@ function refreshWatchlistView() {
     row.hidden = watchlistFilter === "sweet" ? !isSweet : watchlistFilter === "support" ? !isSupport : false;
   });
   rows.sort((left, right) => {
+    if (watchlistSort === "interest") return Number(right.dataset.watchlistInterest) - Number(left.dataset.watchlistInterest) || Number(left.dataset.watchlistRank) - Number(right.dataset.watchlistRank) || left.dataset.watchlistTicker.localeCompare(right.dataset.watchlistTicker);
     if (watchlistSort === "ticker") return left.dataset.watchlistTicker.localeCompare(right.dataset.watchlistTicker);
     if (watchlistSort === "price") return Number(right.dataset.watchlistPrice) - Number(left.dataset.watchlistPrice) || left.dataset.watchlistTicker.localeCompare(right.dataset.watchlistTicker);
     return Number(left.dataset.watchlistRank) - Number(right.dataset.watchlistRank) || Number(left.dataset.watchlistPrice) - Number(right.dataset.watchlistPrice) || left.dataset.watchlistTicker.localeCompare(right.dataset.watchlistTicker);
@@ -1817,10 +1824,19 @@ function bindInteractions() {
     refreshWatchlistView();
   });
   document.getElementById("watchlistSort")?.addEventListener("change", event => {
-    watchlistSort = event.target.value || "opportunity";
+    watchlistSort = event.target.value || "interest";
     refreshWatchlistView();
   });
   document.getElementById("watchlistItems")?.addEventListener("click", event => {
+    const starButton = event.target.closest("[data-watchlist-star]");
+    if (starButton) {
+      const ticker = normalizeTickerInput(starButton.dataset.watchlistStarTicker);
+      const interest = Math.max(1, Math.min(5, Math.round(numberFrom(starButton.dataset.watchlistStar))));
+      const items = readInterestWatchlist().map(item => item.ticker === ticker ? { ...item, interest } : item);
+      saveInterestWatchlist(items);
+      renderInterestWatchlist();
+      return;
+    }
     const button = event.target.closest("[data-remove-watch]");
     if (!button) return;
     saveInterestWatchlist(readInterestWatchlist().filter(item => item.ticker !== button.dataset.removeWatch));
