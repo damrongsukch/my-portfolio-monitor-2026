@@ -1,9 +1,10 @@
 let benchmarkRows = [];
 let benchmarkQqqRows = [];
 let actualPortfolioReturns = [];
-let benchmarkCompare = { portfolio: 3.316, spyReturn: 14.69, spyVsPort: -11.38, qqqReturn: 18.75, qqqVsPort: -15.43 };
+let benchmarkCompare = { portfolio: 0, spyReturn: 0, spyVsPort: 0, qqqReturn: 0, qqqVsPort: 0 };
 let cashflowBenchmark = { portfolio: 0, spy: 0, qqq: 0, invested: 0 };
 let cashflowPurchases = [];
+let performanceVerified = false;
 
 let navRows = [
   [46098, 66.25, 65.55, 0, 0],
@@ -17,11 +18,9 @@ let navRows = [
 ];
 
 let holdings = [
-  { ticker: "SPMO", layer: "Core", shares: "0.1112111", price: "$143.81", value: 515.03, valueText: "THB 515.03", pl: "26.53%", weight: 9.70, signal: "STRONG BUY" },
+  { ticker: "SPMO", layer: "Core", shares: "0.1112111", price: "$143.81", value: 515.03, valueText: "THB 515.03", pl: "26.53%", weight: 9.70, signal: "HOLD" },
   { ticker: "NVDA", layer: "Growth", shares: "0.1634117", price: "$215.22", value: 1132.56, valueText: "THB 1,132.56", pl: "14.97%", weight: 21.32, signal: "HOLD" },
-  { ticker: "GOOGL", layer: "Growth", shares: "0.0317128", price: "$400.71", value: 409.22, valueText: "THB 409.22", pl: "37.08%", weight: 7.70, signal: "STRONG BUY" },
-  { ticker: "MSFT", layer: "Growth", shares: "0", price: "$407.77", value: 0, valueText: "THB 0.00", pl: "0.00%", weight: 0, signal: "BUY DIP" },
-  { ticker: "AVGO", layer: "Growth", shares: "0", price: "$419.30", value: 0, valueText: "THB 0.00", pl: "0.00%", weight: 0, signal: "ACCUMULATE" },
+  { ticker: "GOOGL", layer: "Growth", shares: "0.0317128", price: "$400.71", value: 409.22, valueText: "THB 409.22", pl: "37.08%", weight: 7.70, signal: "HOLD" },
   { ticker: "PLTR", layer: "Growth", shares: "0.1481048", price: "$137.80", value: 657.23, valueText: "THB 657.23", pl: "-3.74%", weight: 12.37, signal: "HOLD" },
   { ticker: "TSM", layer: "Growth", shares: "0.0414339", price: "$411.68", value: 549.30, valueText: "THB 549.30", pl: "18.29%", weight: 10.34, signal: "BUY" },
   { ticker: "QQQI", layer: "Income", shares: "0.2030812", price: "$56.50", value: 369.50, valueText: "THB 369.50", pl: "7.94%", weight: 6.96, signal: "HOLD" },
@@ -29,12 +28,13 @@ let holdings = [
   { ticker: "RKLB", layer: "Growth", shares: "0.1307652", price: "$105.55", value: 444.47, valueText: "THB 444.47", pl: "44.54%", weight: 8.37, signal: "HOLD" }
 ];
 
-let signalBoard = holdings.map((item, index) => ({
+let signalBoard = holdings.map((item) => ({
   ...item,
-  rsi7: item.ticker === "MSFT" ? 36.9 : item.ticker === "AVGO" ? 48.3 : item.ticker === "IAUI" ? 68.7 : index < 2 ? 78 : index < 5 ? 48 : 56,
-  rsi14: item.ticker === "MSFT" ? 48.2 : item.ticker === "AVGO" ? 51.4 : item.ticker === "IAUI" ? 60.3 : index < 2 ? 71 : index < 5 ? 44 : 58,
-  priority: index + 1,
-  smartDcaUsd: item.ticker === "MSFT" ? 11.88 : item.ticker === "AVGO" ? 15.53 : item.ticker === "IAUI" ? 7.3 : item.smartDcaUsd || 0
+  rsi7: 0,
+  rsi14: 0,
+  priority: 99,
+  smartDcaUsd: 0,
+  signalSource: "Fallback"
 }));
 
 let signals = [
@@ -97,14 +97,17 @@ let signalUniverse = [];
 let sheetWatchlistRows = [];
 let watchlistFilter = "all";
 let watchlistSort = "interest";
+let watchlistTheme = "all";
+let watchlistDensity = "compact";
 let benchmarkReturnPeriod = "weekly";
 let benchmarkRangePeriod = "ALL";
+let benchmarkPlanStart = "2026-09-02";
 let benchmarkVisible = { spy: true, qqq: true };
-let benchmarkComparisonMode = "twr";
+let benchmarkComparisonMode = "cashflow";
 
 const logoDomains = { VOO: "vanguard.com", SPMO: "invesco.com", VXUS: "vanguard.com", SCHD: "schwab.com", NVDA: "nvidia.com", GOOGL: "google.com", META: "meta.com", MSFT: "microsoft.com", AVGO: "broadcom.com", TSM: "tsmc.com", LLY: "lilly.com", PLTR: "palantir.com", QQQI: "neosfunds.com", IAUI: "neosfunds.com", MLPI: "neosfunds.com", RKLB: "rocketlabusa.com" };
 const logoUrls = { VOO: "./assets/logos/vanguard.svg", SPMO: "./assets/logos/spmo.png", VXUS: "./assets/logos/vanguard.svg", SCHD: "./assets/logos/schd.svg", NVDA: "https://cdn.simpleicons.org/nvidia/76B900", GOOGL: "./assets/logos/google.svg", META: "https://cdn.simpleicons.org/meta/0866FF", AVGO: "https://cdn.simpleicons.org/broadcom/CC092F", TSM: "./assets/logos/tsmc.png", LLY: "./assets/logos/lly.svg", PLTR: "https://cdn.simpleicons.org/palantir/FFFFFF", QQQI: "./assets/logos/neos.jpg", IAUI: "./assets/logos/neos.jpg", MLPI: "./assets/logos/neos.jpg", RKLB: "./assets/logos/rklb.jpg" };
-const watchlistLogoUrls = { GLDM: "./assets/logos/watchlist/gldm.gif", MLPI: "./assets/logos/neos.jpg", MSFT: "./assets/logos/watchlist/msft.ico", AVGO: "./assets/logos/watchlist/avgo.png", META: "./assets/logos/watchlist/meta.ico", PLTR: "./assets/logos/watchlist/pltr.ico", RKLB: "./assets/logos/watchlist/rklb.ico", AMD: "./assets/logos/watchlist/amd.png", SPCX: "./assets/logos/watchlist/spcx.png", QDTE: "./assets/logos/watchlist/roundhill.svg", SPYI: "./assets/logos/neos.jpg", DIVO: "./assets/logos/watchlist/divo.png", IWMI: "./assets/logos/neos.jpg", NIHI: "./assets/logos/neos.jpg", MLPD: "./assets/logos/watchlist/mlpd.ico", ROCQ: "./assets/logos/watchlist/jpmorgan.png", O: "./assets/logos/watchlist/o.png", DRAM: "./assets/logos/watchlist/roundhill.svg" };
+const watchlistLogoUrls = { GLDM: "./assets/logos/watchlist/gldm.gif", MLPI: "./assets/logos/neos.jpg", MSFT: "./assets/logos/watchlist/msft.ico", AVGO: "./assets/logos/watchlist/avgo.png", META: "./assets/logos/watchlist/meta.ico", PLTR: "./assets/logos/watchlist/pltr.ico", RKLB: "./assets/logos/watchlist/rklb.ico", AMD: "./assets/logos/watchlist/amd.png", SPCX: "./assets/logos/watchlist/spcx.png", QDTE: "./assets/logos/watchlist/roundhill.svg", SPYI: "./assets/logos/neos.jpg", DIVO: "./assets/logos/watchlist/divo.png", IWMI: "./assets/logos/neos.jpg", NIHI: "./assets/logos/neos.jpg", MLPD: "./assets/logos/watchlist/mlpd.ico", ROCQ: "./assets/logos/watchlist/jpmorgan.png", O: "./assets/logos/watchlist/o.png", DRAM: "./assets/logos/watchlist/roundhill.svg", SMH: "./assets/logos/watchlist/vaneck.png", VDE: "./assets/logos/vanguard.svg", XLE: "./assets/logos/watchlist/gldm.gif" };
 const preferredHoldingOrder = ["VOO", "SPMO", "VXUS", "SCHD", "IAUI", "QQQI", "NVDA", "GOOGL", "TSM", "LLY"];
 const preferredHoldingRank = new Map(preferredHoldingOrder.map((ticker, index) => [ticker, index]));
 const watchlistProfiles = {
@@ -125,7 +128,10 @@ const watchlistProfiles = {
   MLPD: { name: "Global X MLP & Energy Infrastructure Covered Call ETF", type: "ETF", theme: "Energy income" },
   ROCQ: { name: "JPMorgan Nasdaq Equity Premium Income ETF", type: "ETF", theme: "Income watch" },
   O: { name: "Realty Income", type: "US stock", theme: "REIT income" },
-  DRAM: { name: "Roundhill DRAM ETF", type: "ETF", theme: "Semiconductors" }
+  DRAM: { name: "Roundhill DRAM ETF", type: "ETF", theme: "Semiconductors" },
+  SMH: { name: "VanEck Semiconductor ETF", type: "ETF", theme: "Semiconductors" },
+  VDE: { name: "Vanguard Energy Index Fund ETF", type: "ETF", theme: "Energy" },
+  XLE: { name: "Energy Select Sector SPDR Fund", type: "ETF", theme: "Energy" }
 };
 
 function numberFrom(value) { const cleaned = String(value ?? "").replace(/[^0-9.-]/g, ""); const parsed = Number(cleaned); return Number.isFinite(parsed) ? parsed : 0; }
@@ -135,8 +141,9 @@ function decimalText(value, digits = 2) { return numberFrom(value).toFixed(digit
 function plusText(value, formatter) { const text = formatter(value); return text.startsWith("-") || text.startsWith("+") ? text : `+${text}`; }
 function cleanSignal(value) { return String(value || "HOLD").replace(/[^\w\s().%/-]+/g, "").trim() || "HOLD"; }
 function rowsToObjects(rows) { const [headers, ...body] = rows; return body.map(row => Object.fromEntries(headers.map((header, index) => [header, row[index] || ""]))); }
-function kpiValue(rows, metric, fallback = "") { const found = rows.find(row => row.Metric === metric); return found && found.Value ? found.Value : fallback; }
-function kpiAny(rows, metrics, fallback = "") { const names = (Array.isArray(metrics) ? metrics : [metrics]).map(name => String(name).toLowerCase()); const found = rows.find(row => names.some(name => String(row.Metric || "").toLowerCase().includes(name))); return found && found.Value ? found.Value : fallback; }
+function kpiCellValue(row, fallback = "") { return row && (row.Value || row.Display_Value) ? (row.Value || row.Display_Value) : fallback; }
+function kpiValue(rows, metric, fallback = "") { return kpiCellValue(rows.find(row => row.Metric === metric), fallback); }
+function kpiAny(rows, metrics, fallback = "") { const names = (Array.isArray(metrics) ? metrics : [metrics]).map(name => String(name).toLowerCase()); return kpiCellValue(rows.find(row => names.some(name => String(row.Metric || "").toLowerCase().includes(name))), fallback); }
 function rowAny(row, names, fallback = "") { for (const key of (Array.isArray(names) ? names : [names])) if (row[key] != null && row[key] !== "") return row[key]; const normalized = Object.fromEntries(Object.entries(row).map(([key, value]) => [key.toLowerCase().replace(/[^a-z0-9]/g, ""), value])); for (const key of (Array.isArray(names) ? names : [names])) { const found = normalized[String(key).toLowerCase().replace(/[^a-z0-9]/g, "")]; if (found != null && found !== "") return found; } return fallback; }
 function signedClass(value) { const text = String(value || "").trim(); return text.startsWith("-") || numberFrom(text) < 0 ? "negative" : "positive"; }
 function normalizeLayer(ticker, layer) { if (String(ticker || "").toUpperCase() === "QQQI") return "Income"; return layerClass(layer); }
@@ -156,7 +163,7 @@ function signedCurrencyFromThb(valueThb) { const amount = numberFrom(valueThb); 
 function formatCurrencyFromUsd(valueUsd) { const amount = numberFrom(valueUsd); if (currencyMode === "USD") return `$${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; return formatThb(amount * fxRate()); }
 function signedCurrencyFromUsd(valueUsd) { const amount = numberFrom(valueUsd); const sign = amount < 0 ? "-" : "+"; return `${sign}${formatCurrencyFromUsd(Math.abs(amount))}`; }
 function holdingGainThb(item) { const pct = numberFrom(item.pl) / 100; if (Number.isFinite(numberFrom(item.costBasisUsd)) && numberFrom(item.costBasisUsd) > 0) return (numberFrom(item.valueUsd) - numberFrom(item.costBasisUsd)) * fxRate(); return pct > -0.99 ? numberFrom(item.value) - (numberFrom(item.value) / (1 + pct)) : 0; }
-function assetKind(ticker) { const symbol = String(ticker || "").toUpperCase(); return watchlistProfiles[symbol]?.type || (/VOO|SPMO|VXUS|SCHD|QQQI|IAUI|MLPI|GLDM/i.test(symbol) ? "ETF" : "US stock"); }
+function assetKind(ticker) { const symbol = String(ticker || "").toUpperCase(); return watchlistProfiles[symbol]?.type || (/VOO|SPMO|VXUS|SCHD|QQQI|IAUI|MLPI|GLDM|SMH|VDE|XLE/i.test(symbol) ? "ETF" : "US stock"); }
 function activeTargetKey() { return /MODE\s*B|MODE_B|\bB\b/i.test(kpis.marketMode) ? "targetB" : "targetA"; }
 function targetWeight(item) { const preferred = numberFrom(item[activeTargetKey()]); const fallback = numberFrom(item.targetWeight); return preferred || fallback || 0; }
 function targetGap(item) { const target = targetWeight(item); return target ? target - numberFrom(item.weight) : 0; }
@@ -184,9 +191,13 @@ function targetMeter(item, className = "holding-target") {
   return `<span class="${className} ${status.tone}" style="--target-fill:${fill.toFixed(0)}%"><strong>${weight.toFixed(1)} <small>/ ${targetLabel}</small></strong><i><b></b></i><em>${status.label}</em></span>`;
 }
 function indicatorTrend(item) { return cleanSignal(item.totalTrend || item.signal || "Trend n/a"); }
+function hasValidRsi(value) {
+  const rsi = numberFrom(value);
+  return Number.isFinite(rsi) && rsi > 0 && rsi <= 100;
+}
 function rsiTone(value) {
   const rsi = numberFrom(value);
-  if (!Number.isFinite(rsi) || rsi <= 0) return "neutral";
+  if (!hasValidRsi(rsi)) return "neutral";
   if (rsi > 70) return "overbought";
   if (rsi < 30) return "oversold";
   if (rsi < 50) return "watch";
@@ -194,7 +205,7 @@ function rsiTone(value) {
 }
 function rsiValue(value) {
   const rsi = numberFrom(value);
-  return `<span class="rsi-value ${rsiTone(rsi)}">${rsi.toFixed(1)}</span>`;
+  return `<span class="rsi-value ${rsiTone(rsi)}">${hasValidRsi(rsi) ? rsi.toFixed(1) : "--"}</span>`;
 }
 function rsiPair(item) { return `${rsiValue(item.rsi7)} <span class="rsi-separator">/</span> ${rsiValue(item.rsi14)}`; }
 function indicatorCell(item) { return `<span class="indicator-cell compact"><strong>${rsiPair(item)}</strong></span>`; }
@@ -237,7 +248,7 @@ function excelDateToJs(serial) { if (serial instanceof Date) return serial; if (
 function pathFromPoints(points) { return points.map((point, index) => `${index ? "L" : "M"}${point[0].toFixed(2)} ${point[1].toFixed(2)}`).join(" "); }
 function drawSparkline(svg, values) { if (!values.length) return; const width = 260, height = 60, min = Math.min(...values), max = Math.max(...values), span = max - min || 1; const points = values.map((value, index) => [4 + (index / Math.max(values.length - 1, 1)) * (width - 8), 8 + (1 - ((value - min) / span)) * (height - 16)]); svg.innerHTML = `<path d="${pathFromPoints(points)}" fill="none" stroke="currentColor" stroke-width="3"/><path d="${pathFromPoints(points)} L${width - 4} ${height} L4 ${height} Z" fill="currentColor" opacity=".12" stroke="none"/>`; }
 function renderSparklines() { const nav = completeNavRows().map(row => numberFrom(row[2])).filter(value => value > 0); document.querySelectorAll("[data-spark]").forEach(svg => drawSparkline(svg, nav)); }
-function renderKpis() { const profit = signedCurrencyFromThb(kpis.profit), totalReturn = plusText(kpis.totalReturn, percentText), dailyProfit = signedCurrencyFromThb(kpis.dailyProfit), dailyChange = plusText(kpis.dailyChange, percentText); setText("portfolioValue", formatCurrencyFromThb(kpis.portfolioValue)); setText("investedValue", formatCurrencyFromThb(kpis.invested)); setText("profitLabel", `${profit} (${totalReturn})`); setText("dailyProfitLabel", dailyProfit); setText("dailyChangeLabel", dailyChange); setText("performanceNumber", benchmarkPercent(benchmarkCompare.portfolio)); setText("irrLabel", percentText(kpis.irr)); setText("volatilityLabel", percentText(kpis.volatility)); setText("sharpeLabel", decimalText(kpis.sharpe)); setText("drawdownLabel", percentText(kpis.maxDrawdown)); setText("spyBenchmark", plusText(kpis.benchmarkSpy, percentText)); setText("qqqBenchmark", plusText(kpis.benchmarkQqq, percentText)); setText("cashValue", `Cash ${formatCurrencyFromThb(kpis.cash)}`); setText("tableTotalValue", formatCurrencyFromThb(kpis.portfolioValue)); setText("tableDayProfit", dailyProfit); setText("tableDayChange", dailyChange); setSignedTone("tableDayReturn", kpis.dailyChange); setText("tableTotalProfit", profit); setText("tableTotalReturn", totalReturn); setSignedTone("tableTotalGain", kpis.totalReturn); setText("tableMode", kpis.marketMode); setText("sideMode", kpis.marketMode); setText("sideModeHint", kpis.marketMode.includes("A") ? "Risk on" : "Risk control"); ["profitLabel", "dailyProfitLabel", "dailyChangeLabel", "performanceNumber", "spyBenchmark", "qqqBenchmark", "drawdownLabel"].forEach(id => { const el = document.getElementById(id); if (el) setSignedTone(id, el.textContent); }); }
+function renderKpis() { const profit = signedCurrencyFromThb(kpis.profit), totalReturn = plusText(kpis.totalReturn, percentText), dailyProfit = signedCurrencyFromThb(kpis.dailyProfit), dailyChange = plusText(kpis.dailyChange, percentText), spyBenchmark = kpis.benchmarkSpy ? plusText(kpis.benchmarkSpy, percentText) : "Not verified", qqqBenchmark = kpis.benchmarkQqq ? plusText(kpis.benchmarkQqq, percentText) : "Not verified"; setText("portfolioValue", formatCurrencyFromThb(kpis.portfolioValue)); setText("investedValue", formatCurrencyFromThb(kpis.invested)); setText("profitLabel", `${profit} (${totalReturn})`); setText("dailyProfitLabel", dailyProfit); setText("dailyChangeLabel", dailyChange); setText("performanceNumber", plusText(kpis.totalReturn, percentText)); setText("performanceMethod", "Total return (cost basis)"); setText("irrLabel", percentText(kpis.irr)); setText("volatilityLabel", percentText(kpis.volatility)); setText("sharpeLabel", decimalText(kpis.sharpe)); setText("drawdownLabel", percentText(kpis.maxDrawdown)); setText("spyBenchmark", spyBenchmark); setText("qqqBenchmark", qqqBenchmark); setText("cashValue", `Cash ${formatCurrencyFromThb(kpis.cash)}`); setText("tableTotalValue", formatCurrencyFromThb(kpis.portfolioValue)); setText("tableDayProfit", dailyProfit); setText("tableDayChange", dailyChange); setSignedTone("tableDayReturn", kpis.dailyChange); setText("tableTotalProfit", profit); setText("tableTotalReturn", totalReturn); setSignedTone("tableTotalGain", kpis.totalReturn); setText("tableMode", kpis.marketMode); setText("sideMode", kpis.marketMode); setText("sideModeHint", kpis.marketMode.includes("A") ? "Risk on" : "Risk control"); ["profitLabel", "dailyProfitLabel", "dailyChangeLabel", "performanceNumber", "drawdownLabel"].forEach(id => { const el = document.getElementById(id); if (el) setSignedTone(id, el.textContent); }); }
 function navDateMs(row) { const date = sheetDate(row[0]); return Number.isNaN(date.getTime()) ? 0 : date.getTime(); }
 function completeNavRows() {
   const rows = navRows.filter(row => numberFrom(row[2]) > 0).sort((a, b) => navDateMs(a) - navDateMs(b)).map(row => [...row]);
@@ -313,10 +324,11 @@ function renderNavChart() {
   const yAxis = yTicks.map(tick => `<g><line class="chart-grid" x1="${padding.left}" x2="${width - padding.right}" y1="${tick.y.toFixed(1)}" y2="${tick.y.toFixed(1)}"/><text class="axis-text y-axis-text" x="${padding.left - 10}" y="${(tick.y + 4).toFixed(1)}" text-anchor="end">${monthlyAmount(tick.value)}</text></g>`).join("");
   const area = `${pathFromPoints(navPoints)} L${navPoints.at(-1)[0]} ${height - padding.bottom} L${navPoints[0][0]} ${height - padding.bottom} Z`;
   const end = numberFrom(rows.at(-1)[2]);
-  const displayReturn = performancePeriod === "ALL" ? benchmarkPercent(benchmarkCompare.portfolio) : periodReturnText();
+  const displayReturn = plusText(kpis.totalReturn, percentText);
   setText("performanceNumber", displayReturn);
+  setText("performanceMethod", "Total return (cost basis)");
   setText("performanceInvestedLabel", "Invested capital");
-  setText("performanceRangeLabel", `${periodRangeText(rows)} | Cost basis ${formatCurrencyFromThb(kpis.invested)}`);
+  setText("performanceRangeLabel", `${periodRangeText(rows)} | Value ${formatCurrencyFromThb(end)} | Invested ${formatCurrencyFromThb(kpis.invested)}`);
   setSignedTone("performanceNumber", displayReturn);
   svg.innerHTML = `<defs><linearGradient id="navGradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#25e05d" stop-opacity=".22"/><stop offset="1" stop-color="#25e05d" stop-opacity="0"/></linearGradient></defs>${yAxis}<path class="area-fill" d="${area}"/><path class="invested-line" d="${pathFromPoints(investedPoints)}"/><path class="nav-line" d="${pathFromPoints(navPoints)}"/><circle cx="${navPoints.at(-1)[0]}" cy="${navPoints.at(-1)[1]}" r="5" fill="#25e05d" stroke="#071017" stroke-width="3"/><text class="axis-text" x="${padding.left}" y="${height - 14}">${performancePeriod}</text><text class="axis-text" text-anchor="end" x="${width - padding.right}" y="${height - 14}">${formatCurrencyFromThb(end)}</text>`;
 }
@@ -362,12 +374,19 @@ function interpolatePortfolioAnchor(anchors, date) {
   }
   return anchors.at(-1).value;
 }
+function benchmarkPlanDate() {
+  const date = validSheetDate(benchmarkPlanStart);
+  return date || new Date("2026-09-02T00:00:00");
+}
 function benchmarkRangeDays() {
   return { "1M": 31, "3M": 92, "6M": 183 }[benchmarkRangePeriod] || 0;
 }
 function filterBenchmarkSeriesByRange(series, options = {}) {
   const days = benchmarkRangeDays();
-  const ranged = !days || series.length < 2 ? series : series.filter(point => point.date.getTime() >= series.at(-1).date.getTime() - days * 86400000);
+  const planStart = benchmarkPlanDate();
+  const ranged = benchmarkRangePeriod === "PLAN"
+    ? series.filter(point => point.date >= planStart)
+    : !days || series.length < 2 ? series : series.filter(point => point.date.getTime() >= series.at(-1).date.getTime() - days * 86400000);
   const filtered = ranged.length >= 2 ? ranged : series.slice(-2);
   if (!options.rebase || filtered.length < 2) return filtered;
   const base = filtered[0];
@@ -376,7 +395,7 @@ function filterBenchmarkSeriesByRange(series, options = {}) {
 }
 function benchmarkRangeText(series) {
   if (!series.length) return "Live sheet history";
-  const prefix = benchmarkRangePeriod === "ALL" ? "All" : benchmarkRangePeriod;
+  const prefix = benchmarkRangePeriod === "ALL" ? "All" : benchmarkRangePeriod === "PLAN" ? "Since plan" : benchmarkRangePeriod;
   const start = benchmarkDateLabel(series[0].date);
   const end = benchmarkDateLabel(series.at(-1).date);
   return `${prefix} ${start} - ${end}`;
@@ -398,11 +417,19 @@ function benchmarkSeries() {
     const date = sheetDate(row[0]);
     const fallbackDaily = numberFrom(row[3]);
     fallbackPortfolioFactor *= 1 + fallbackDaily;
-    const portfolio = anchors.length > 1 ? interpolatePortfolioAnchor(anchors, date) : (fallbackPortfolioFactor - 1) * 100;
+    const lastAnchor = anchors.at(-1);
+    const priorPortfolio = series.at(-1)?.portfolio || 0;
+    // Audited weekly returns own historical performance. Extend only beyond their latest week with the live daily NAV return.
+    const portfolio = anchors.length > 1 && date <= lastAnchor.date
+      ? interpolatePortfolioAnchor(anchors, date)
+      : anchors.length > 1
+        ? ((1 + priorPortfolio / 100) * (1 + fallbackDaily) - 1) * 100
+        : (fallbackPortfolioFactor - 1) * 100;
     const previousPortfolio = series.at(-1)?.portfolio || 0;
     const portfolioDaily = series.length ? ((1 + portfolio / 100) / (1 + previousPortfolio / 100) - 1) * 100 : 0;
     series.push({ date, portfolio, spy: (spyPrice / firstSpy - 1) * 100, qqq: (qqqPrice / firstQqq - 1) * 100, portfolioDaily, spyDaily: series.length ? (spyPrice / (series.at(-1).spyPrice || spyPrice) - 1) * 100 : 0, qqqDaily: series.length ? (qqqPrice / (series.at(-1).qqqPrice || qqqPrice) - 1) * 100 : 0, spyPrice, qqqPrice });
   });
+  if (!performanceVerified) return series;
   const rawPortfolio = series.at(-1)?.portfolio || 0, rawSpy = series.at(-1)?.spy || 0, rawQqq = series.at(-1)?.qqq || 0;
   const portfolioScale = rawPortfolio ? benchmarkCompare.portfolio / rawPortfolio : 1, spyScale = rawSpy ? benchmarkCompare.spyReturn / rawSpy : 1, qqqScale = rawQqq ? benchmarkCompare.qqqReturn / rawQqq : 1;
   return series.map(point => ({ ...point, portfolio: point.portfolio * portfolioScale, spy: point.spy * spyScale, qqq: point.qqq * qqqScale }));
@@ -447,7 +474,12 @@ function cashflowScaleDomain(values) {
   if (max - min < step * 3) { min = Math.max(0, min - step); max += step; }
   return { min, max, step };
 }
-function cashflowAxis(value) { return `$${Math.round(value).toLocaleString("en-US")}`; }
+function cashflowAxis(value) {
+  const amount = currencyMode === "USD" ? numberFrom(value) : numberFrom(value) * fxRate();
+  const prefix = currencyMode === "USD" ? "$" : "THB ";
+  return `${prefix}${Math.round(amount).toLocaleString("en-US")}`;
+}
+function cashflowValue(value) { return formatCurrencyFromUsd(value); }
 function benchmarkPercent(value) { const amount = numberFrom(value); return `${amount > 0 ? "+" : ""}${amount.toFixed(2)}%`; }
 function benchmarkValueLabel(value) { const amount = numberFrom(value); return `${amount > 0 ? "+" : ""}${amount.toFixed(2)}%`; }
 function parseBenchmarkCompare(rows, portfolioReturn) {
@@ -474,19 +506,24 @@ function parseCashflowBenchmark(rows) {
   cashflowBenchmark = { ...current, invested: invested ? invested.portfolio : 0 };
 }
 function cashflowDollar(value) { return `$${numberFrom(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
+function cashflowInvestedBaseline() {
+  return benchmarkRangePeriod === "PLAN" ? cashflowPurchases.filter(purchase => purchase.date >= benchmarkPlanDate()).reduce((sum, purchase) => sum + purchase.amount, 0) : cashflowBenchmark.invested;
+}
 function renderBenchmarkComparisonSummary(mode = benchmarkComparisonMode, values = null) {
   const summary = document.getElementById("cashflowComparisonSummary");
   if (!summary) return;
   const isCashflow = mode === "cashflow";
+  summary.classList.toggle("mode-value", isCashflow);
+  summary.classList.toggle("mode-performance", !isCashflow);
   const data = values || (isCashflow ? cashflowBenchmark : { portfolio: benchmarkCompare.portfolio, spy: benchmarkCompare.spyReturn, qqq: benchmarkCompare.qqqReturn });
   const portfolio = numberFrom(data.portfolio);
   if (!Number.isFinite(portfolio)) { summary.hidden = true; return; }
   const visibleBenchmarks = isCashflow ? { spy: true, qqq: true } : benchmarkVisible;
-  const baseline = isCashflow ? cashflowBenchmark.invested : 0;
+  const baseline = isCashflow ? cashflowInvestedBaseline() : 0;
   if (isCashflow && !(baseline > 0)) { summary.hidden = true; return; }
-  const valueLabel = value => isCashflow ? cashflowDollar(value) : benchmarkPercent(value);
-  const returnLabel = value => isCashflow ? benchmarkPercent((value / baseline - 1) * 100) : "TWR";
-  const diffLabel = difference => isCashflow ? `${cashflowDollar(Math.abs(difference))} (${(Math.abs(difference) / baseline * 100).toFixed(2)}%)` : `${Math.abs(difference).toFixed(2)}%`;
+  const valueLabel = value => isCashflow ? cashflowValue(value) : benchmarkPercent(value);
+  const returnLabel = value => isCashflow ? benchmarkPercent((value / baseline - 1) * 100) : performanceVerified ? "TWR" : "Historical only";
+  const diffLabel = difference => isCashflow ? `${cashflowValue(Math.abs(difference))} (${(Math.abs(difference) / baseline * 100).toFixed(2)}%)` : `${Math.abs(difference).toFixed(2)}%`;
   const comparison = (label, key) => {
     const value = numberFrom(data[key]);
     if (!visibleBenchmarks[key] || !Number.isFinite(value)) return "";
@@ -494,17 +531,80 @@ function renderBenchmarkComparisonSummary(mode = benchmarkComparisonMode, values
     const tone = difference >= 0 ? "positive" : "negative";
     return `<div class="cashflow-summary-item ${key}"><span>${label}</span><strong>${valueLabel(value)}</strong><small>${returnLabel(value)}</small><em class="${tone}">${difference >= 0 ? "Ahead" : "Behind"} ${diffLabel(difference)}</em></div>`;
   };
-  summary.innerHTML = `<div class="cashflow-summary-item portfolio"><span>Portfolio</span><strong>${valueLabel(portfolio)}</strong><small>${returnLabel(portfolio)}</small><em>${isCashflow ? "Actual value" : "Portfolio TWR"}</em></div>${comparison("S&P 500", "spy")}${comparison("NASDAQ", "qqq")}`;
+  const metric = (label, value, tone = "") => `<div class="cashflow-summary-item metric"><span>${label}</span><strong class="${tone}">${value}</strong><small>Portfolio metric</small></div>`;
+  const portfolioItem = `<div class="cashflow-summary-item portfolio"><span>Portfolio</span><strong>${valueLabel(portfolio)}</strong><small>${returnLabel(portfolio)}</small><em>${isCashflow ? "Actual value" : performanceVerified ? "Portfolio TWR" : "Awaiting reconciliation"}</em></div>`;
+  if (isCashflow) {
+    const investedItem = `<div class="cashflow-summary-item invested"><span>Invested capital</span><strong>${cashflowValue(baseline)}</strong><small>Same Buy dates</small><em>Cost basis</em></div>`;
+    summary.innerHTML = `${portfolioItem}${investedItem}${comparison("S&P 500", "spy")}${comparison("NASDAQ", "qqq")}`;
+  } else {
+    summary.innerHTML = `${portfolioItem}${comparison("S&P 500", "spy")}${comparison("NASDAQ", "qqq")}${metric("IRR", percentText(kpis.irr), signedClass(kpis.irr))}${metric("Volatility", percentText(kpis.volatility))}${metric("Sharpe Ratio", decimalText(kpis.sharpe))}${metric("Max Drawdown", percentText(kpis.maxDrawdown), "negative")}`;
+  }
   summary.hidden = false;
+}
+function bindBenchmarkHover(svg, series, options) {
+  const readout = document.getElementById("benchmarkChartReadout");
+  if (!svg || !readout || !series?.length) return;
+  const keys = options.keys || ["portfolio", "spy", "qqq"];
+  const visible = options.visible || { portfolio: true, spy: true, qqq: true };
+  const format = options.format || benchmarkPercent;
+  const namespace = "http://www.w3.org/2000/svg";
+  let hover = svg.querySelector(".benchmark-hover");
+  if (!hover) {
+    hover = document.createElementNS(namespace, "g");
+    hover.setAttribute("class", "benchmark-hover");
+    hover.setAttribute("hidden", "");
+    const line = document.createElementNS(namespace, "line");
+    line.setAttribute("class", "benchmark-crosshair");
+    line.setAttribute("y1", String(options.top));
+    line.setAttribute("y2", String(options.bottom));
+    hover.append(line);
+    keys.forEach(key => {
+      const dot = document.createElementNS(namespace, "circle");
+      dot.setAttribute("class", `benchmark-hover-dot ${key}`);
+      dot.dataset.benchmarkHover = key;
+      dot.setAttribute("r", "4");
+      hover.append(dot);
+    });
+    svg.append(hover);
+  }
+  const render = index => {
+    const point = series[Math.max(0, Math.min(series.length - 1, index))];
+    const values = keys.filter(key => visible[key] !== false).map(key => {
+      const label = key === "portfolio" ? "Portfolio" : key === "spy" ? "S&P 500" : "NASDAQ";
+      return `<span class="${key}">${label} <strong>${format(point[key])}</strong></span>`;
+    }).join("");
+    const difference = point.portfolio - point.spy;
+    const relation = difference >= 0 ? `Portfolio leads S&P 500 ${format(Math.abs(difference))}` : `S&P 500 leads portfolio ${format(Math.abs(difference))}`;
+    readout.innerHTML = `<span class="benchmark-readout-date">${benchmarkDateLabel(point.date)}</span><div class="benchmark-readout-values">${values}</div><b class="${difference >= 0 ? "positive" : "negative"}">${relation}</b>`;
+    const pointX = options.x(index);
+    const line = hover.querySelector(".benchmark-crosshair");
+    if (line) ["x1", "x2"].forEach(attribute => line.setAttribute(attribute, pointX.toFixed(1)));
+    hover.querySelectorAll("[data-benchmark-hover]").forEach(dot => {
+      const key = dot.dataset.benchmarkHover;
+      dot.hidden = visible[key] === false;
+      dot.setAttribute("cx", pointX.toFixed(1));
+      dot.setAttribute("cy", options.y(point[key]).toFixed(1));
+    });
+    hover.hidden = false;
+  };
+  svg.onpointermove = event => {
+    const rect = svg.getBoundingClientRect();
+    const svgX = (event.clientX - rect.left) / Math.max(rect.width, 1) * options.width;
+    const ratio = (svgX - options.left) / Math.max(options.right - options.left, 1);
+    render(Math.round(Math.max(0, Math.min(1, ratio)) * (series.length - 1)));
+  };
+  svg.onpointerleave = () => { hover.hidden = true; };
+  render(series.length - 1);
 }
 function cashflowLineSeries() {
   const base = benchmarkSeries();
-  if (base.length < 2 || !cashflowPurchases.length) return [];
+  const purchases = benchmarkRangePeriod === "PLAN" ? cashflowPurchases.filter(purchase => purchase.date >= benchmarkPlanDate()) : cashflowPurchases;
+  if (base.length < 2 || !purchases.length) return [];
   const lots = [];
   let purchaseIndex = 0;
   const raw = base.map(point => {
-    while (purchaseIndex < cashflowPurchases.length && cashflowPurchases[purchaseIndex].date <= point.date) {
-      lots.push({ ...cashflowPurchases[purchaseIndex], portfolioBase: point.portfolio });
+    while (purchaseIndex < purchases.length && purchases[purchaseIndex].date <= point.date) {
+      lots.push({ ...purchases[purchaseIndex], portfolioBase: point.portfolio });
       purchaseIndex += 1;
     }
     const portfolio = lots.reduce((sum, lot) => sum + lot.amount * (1 + point.portfolio / 100) / Math.max(.01, 1 + lot.portfolioBase / 100), 0);
@@ -514,6 +614,7 @@ function cashflowLineSeries() {
   }).filter(point => point.portfolio > 0 && point.spy > 0 && point.qqq > 0);
   const last = raw.at(-1);
   if (!last) return [];
+  if (benchmarkRangePeriod === "PLAN") return filterBenchmarkSeriesByRange(raw);
   const scale = { portfolio: cashflowBenchmark.portfolio / last.portfolio, spy: cashflowBenchmark.spy / last.spy, qqq: cashflowBenchmark.qqq / last.qqq };
   return filterBenchmarkSeriesByRange(raw.map(point => ({ ...point, portfolio: point.portfolio * scale.portfolio, spy: point.spy * scale.spy, qqq: point.qqq * scale.qqq })));
 }
@@ -522,16 +623,28 @@ function renderCashflowBenchmarkChart() {
   const series = cashflowLineSeries();
   if (!svg) return;
   if (series.length < 2) { svg.innerHTML = '<text class="benchmark-empty" x="450" y="126" text-anchor="middle">Waiting for cash-flow comparison from the live sheet</text>'; return; }
-  const width = 900, height = 252, padding = { top: 20, right: 142, bottom: 38, left: 68 }, values = series.flatMap(point => [point.portfolio, point.spy, point.qqq]), domain = cashflowScaleDomain(values);
+  const width = 900, height = 252, padding = { top: 20, right: 160, bottom: 38, left: 78 }, values = series.flatMap(point => [point.portfolio, point.spy, point.qqq]), domain = cashflowScaleDomain(values);
   const plotWidth = width - padding.left - padding.right, plotHeight = height - padding.top - padding.bottom;
   const x = index => padding.left + index / Math.max(series.length - 1, 1) * plotWidth, y = value => padding.top + (1 - (value - domain.min) / Math.max(domain.max - domain.min, .01)) * plotHeight;
   const ticks = benchmarkTicks(domain), grid = ticks.map(value => `<g><line class="benchmark-grid" x1="${padding.left}" x2="${width - padding.right}" y1="${y(value).toFixed(1)}" y2="${y(value).toFixed(1)}"/><text class="benchmark-axis" x="${padding.left - 12}" y="${(y(value) + 4).toFixed(1)}" text-anchor="end">${cashflowAxis(value)}</text></g>`).join(""), marks = Array.from({ length: 6 }, (_, index) => Math.round(index * (series.length - 1) / 5)), dates = marks.map(index => `<text class="benchmark-axis benchmark-date" x="${x(index).toFixed(1)}" y="${height - 11}" text-anchor="middle">${benchmarkDateLabel(series[index].date)}</text>`).join("");
   const points = key => series.map((point, index) => [x(index), y(point[key])]);
   const portfolioPoints = points("portfolio"), spyPoints = points("spy"), qqqPoints = points("qqq");
+  const latest = series.at(-1), endX = width - padding.right + 10;
+  const labels = [
+    { key: "portfolio", name: "Portfolio", y: y(latest.portfolio), value: latest.portfolio },
+    { key: "spy", name: "S&P 500", y: y(latest.spy), value: latest.spy },
+    { key: "qqq", name: "NASDAQ", y: y(latest.qqq), value: latest.qqq }
+  ].sort((left, right) => left.y - right.y);
+  labels.forEach((label, index) => { label.labelY = Math.max(padding.top + 8, label.y, index ? labels[index - 1].labelY + 18 : padding.top + 8); });
+  for (let index = labels.length - 1; index >= 0; index -= 1) {
+    const ceiling = index === labels.length - 1 ? height - padding.bottom - 8 : labels[index + 1].labelY - 18;
+    labels[index].labelY = Math.min(labels[index].labelY, ceiling);
+  }
+  const endLabels = labels.map(label => `<path class="benchmark-label-leader ${label.key}" d="M ${width - padding.right + 3} ${label.y.toFixed(1)} L ${endX - 3} ${(label.labelY - 3).toFixed(1)}"/><text class="benchmark-end-label ${label.key}" x="${endX}" y="${label.labelY.toFixed(1)}">${label.name} ${cashflowValue(label.value)}</text>`).join("");
   svg.setAttribute("viewBox", "0 0 900 252");
   renderBenchmarkComparisonSummary("cashflow", series.at(-1));
-  svg.innerHTML = `${grid}<path class="benchmark-line portfolio" d="${pathFromPoints(portfolioPoints)}"/><path class="benchmark-line spy" d="${pathFromPoints(spyPoints)}"/><path class="benchmark-line qqq" d="${pathFromPoints(qqqPoints)}"/>${[ ["portfolio", portfolioPoints], ["spy", spyPoints], ["qqq", qqqPoints] ].map(([key, points]) => `<circle class="benchmark-end ${key}" cx="${points.at(-1)[0]}" cy="${points.at(-1)[1]}" r="3"/>`).join("")}${dates}`;
-  setText("benchmarkRangeLabel", cashflowBenchmark.invested > 0 ? `${benchmarkRangeText(series)} / ${cashflowDollar(cashflowBenchmark.invested)} invested` : benchmarkRangeText(series));
+  svg.innerHTML = `${grid}<path class="benchmark-line portfolio" d="${pathFromPoints(portfolioPoints)}"/><path class="benchmark-line spy" d="${pathFromPoints(spyPoints)}"/><path class="benchmark-line qqq" d="${pathFromPoints(qqqPoints)}"/>${[ ["portfolio", portfolioPoints], ["spy", spyPoints], ["qqq", qqqPoints] ].map(([key, points]) => `<circle class="benchmark-end ${key}" cx="${points.at(-1)[0]}" cy="${points.at(-1)[1]}" r="3"/>`).join("")}${endLabels}${dates}`;
+  setText("benchmarkRangeLabel", cashflowInvestedBaseline() > 0 ? `${benchmarkRangeText(series)} / ${cashflowValue(cashflowInvestedBaseline())} invested` : benchmarkRangeText(series));
 }
 function benchmarkBucketLabel(bucket, period) {
   if (bucket.label) return bucket.label;
@@ -551,15 +664,35 @@ function benchmarkReturnBuckets(series, period) {
   const actualInterval = period === "weekly" || period === "monthly" ? period : "";
   const actualBuckets = actualPortfolioReturns.filter(row => row.interval === actualInterval);
   if (actualBuckets.length) {
-    const qqqFactors = new Map();
+    const bucketLabel = date => period === "weekly" ? `W${isoWeekNumber(date)}` : date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+    const groups = new Map();
     series.forEach(point => {
-      const key = benchmarkReturnBucketKey(period === "weekly" ? `W${isoWeekNumber(point.date)}` : point.date.toLocaleDateString("en-US", { month: "short", year: "2-digit" }));
-      qqqFactors.set(key, (qqqFactors.get(key) || 1) * (1 + point.qqqDaily / 100));
+      const label = bucketLabel(point.date);
+      const key = benchmarkReturnBucketKey(label);
+      const group = groups.get(key) || { date: point.date, label, portfolioFactor: 1, spyFactor: 1, qqqFactor: 1 };
+      group.date = point.date;
+      group.portfolioFactor *= 1 + point.portfolioDaily / 100;
+      group.spyFactor *= 1 + point.spyDaily / 100;
+      group.qqqFactor *= 1 + point.qqqDaily / 100;
+      groups.set(key, group);
     });
-    return actualBuckets.map((row, index) => {
+    const audited = new Map(actualBuckets.map(row => {
       const label = period === "weekly" ? `W${row.period.replace(/\D/g, "")}` : row.period;
-      return { date: new Date(2026, 0, index + 1), label, portfolioDaily: row.portfolioReturn, spyDaily: row.spyReturn, qqqDaily: ((qqqFactors.get(benchmarkReturnBucketKey(label)) || 1) - 1) * 100 };
-    }).filter(row => qqqFactors.has(benchmarkReturnBucketKey(row.label)));
+      return [benchmarkReturnBucketKey(label), row];
+    }));
+    const latestAudited = Math.max(...actualBuckets.map(row => Number(String(row.period).replace(/\D/g, ""))).filter(Number.isFinite));
+    return [...groups.values()]
+      .filter(group => audited.has(benchmarkReturnBucketKey(group.label)) || (period === "weekly" && isoWeekNumber(group.date) > latestAudited))
+      .map(group => {
+        const source = audited.get(benchmarkReturnBucketKey(group.label));
+        return {
+          date: group.date,
+          label: group.label,
+          portfolioDaily: source ? source.portfolioReturn : (group.portfolioFactor - 1) * 100,
+          spyDaily: source ? source.spyReturn : (group.spyFactor - 1) * 100,
+          qqqDaily: (group.qqqFactor - 1) * 100
+        };
+      });
   }
   if (period === "daily") return series.slice(-45).map(point => ({ ...point }));
   const groups = new Map();
@@ -574,13 +707,23 @@ function benchmarkReturnBuckets(series, period) {
   const performanceSvg = document.getElementById("benchmarkPerformanceChart"), returnsSvg = document.getElementById("benchmarkReturnsChart");
   if (!performanceSvg || !returnsSvg) return;
   const isCashflow = benchmarkComparisonMode === "cashflow";
+  const provisionalPerformance = !performanceVerified && !isCashflow;
   const cashflowSummary = document.getElementById("cashflowComparisonSummary");
   if (cashflowSummary) cashflowSummary.hidden = false;
   const title = document.getElementById("benchmarkTitle");
-  if (title) title.innerHTML = isCashflow ? 'Portfolio value vs benchmarks <span class="benchmark-method">(same Buy dates)</span>' : 'Returns vs benchmarks <span class="benchmark-method">(Time-weighted return (TWR))</span>';
-  document.querySelectorAll("[data-benchmark-mode]").forEach(button => { const active = button.dataset.benchmarkMode === benchmarkComparisonMode; button.classList.toggle("active", active); button.setAttribute("aria-pressed", String(active)); });
+  const subtitle = document.getElementById("benchmarkSubtitle");
+  const footnote = document.getElementById("benchmarkFootnote");
+  const valueModeLabel = document.getElementById("benchmarkValueModeLabel");
+  if (title) title.innerHTML = isCashflow ? 'Portfolio value vs benchmarks <span class="benchmark-method">(same Buy dates)</span>' : provisionalPerformance ? 'Returns vs benchmarks <span class="benchmark-method">(history awaiting reconciliation)</span>' : 'Returns vs benchmarks <span class="benchmark-method">(TWR)</span>';
+  if (subtitle) subtitle.textContent = isCashflow ? "What the same deposits would be worth in the portfolio, S&P 500, or NASDAQ." : provisionalPerformance ? "Historical return series is available to review, but it is not a confirmed performance figure yet." : "Compare portfolio performance without deposits or withdrawals distorting the result.";
+  if (footnote) { const planText = benchmarkRangePeriod === "PLAN"; footnote.textContent = provisionalPerformance ? "Use Value (THB) for the confirmed comparison based on the same Buy dates." : planText ? (isCashflow ? "Value mode reviews Buy amounts from " + benchmarkDateLabel(benchmarkPlanDate()) + " onward." : "Performance is reset at " + benchmarkDateLabel(benchmarkPlanDate()) + " to review the current plan.") : isCashflow ? "Value mode applies each recorded Buy amount on the same date to the portfolio, SPY, and QQQ." : "Returns are time-weighted (TWR), so deposits and withdrawals do not distort performance."; }
+  if (valueModeLabel) valueModeLabel.textContent = `Value (${currencyMode})`;
+  document.querySelectorAll("[data-benchmark-mode]").forEach(button => { const isPerformance = button.dataset.benchmarkMode === "twr"; const active = button.dataset.benchmarkMode === benchmarkComparisonMode; button.classList.toggle("active", active); button.disabled = false; button.title = isPerformance && !performanceVerified ? "Historical performance is available for review but awaits reconciliation" : ""; button.setAttribute("aria-pressed", String(active)); });
   document.querySelectorAll("[data-benchmark-range]").forEach(button => { const active = button.dataset.benchmarkRange === benchmarkRangePeriod; button.classList.toggle("active", active); button.setAttribute("aria-pressed", String(active)); });
+  const planInput = document.getElementById("benchmarkPlanStart");
+  if (planInput && planInput.value !== benchmarkPlanStart) planInput.value = benchmarkPlanStart;
   document.querySelectorAll("#benchmark [data-benchmark-toggle]").forEach(button => { button.disabled = isCashflow; button.classList.toggle("disabled", isCashflow); });
+  performanceSvg.setAttribute("aria-label", isCashflow ? "Portfolio value compared with matching investments in S and P 500 and NASDAQ" : provisionalPerformance ? "Provisional portfolio return history awaiting reconciliation" : "Portfolio time-weighted return compared with S and P 500 and NASDAQ");
   if (isCashflow) renderCashflowBenchmarkChart();
   const series = filterBenchmarkSeriesByRange(benchmarkSeries(), { rebase: true });
   if (series.length < 2) { const message = '<text class="benchmark-empty" x="450" y="126" text-anchor="middle">Waiting for benchmark history from the live sheet</text>'; if (!isCashflow) performanceSvg.innerHTML = message; returnsSvg.innerHTML = message.replace('126', '115'); return; }
@@ -590,25 +733,39 @@ function benchmarkReturnBuckets(series, period) {
   const spyVisible = benchmarkVisible.spy, qqqVisible = benchmarkVisible.qqq;
   document.querySelectorAll("[data-benchmark-toggle]").forEach(button => { const visible = benchmarkVisible[button.dataset.benchmarkToggle]; button.classList.toggle("active", visible); button.setAttribute("aria-pressed", String(visible)); });
   const grid = ticks.map(value => `<g><line class="benchmark-grid" x1="${padding.left}" x2="${width - padding.right}" y1="${y(value).toFixed(1)}" y2="${y(value).toFixed(1)}"/><text class="benchmark-axis" x="${padding.left - 12}" y="${(y(value) + 4).toFixed(1)}" text-anchor="end">${benchmarkAxis(value)}</text></g>`).join(""), marks = Array.from({ length: 6 }, (_, index) => Math.round(index * (series.length - 1) / 5)), dates = marks.map(index => `<text class="benchmark-axis benchmark-date" x="${x(index).toFixed(1)}" y="${height - 11}" text-anchor="middle">${benchmarkDateLabel(series[index].date)}</text>`).join(""), zero = y(0), endX = width - padding.right + 10, latest = series.at(-1), spyLabelY = Math.min(height - padding.bottom - 8, y(latest.spy) + 14), portfolioLabelY = Math.max(padding.top + 12, y(latest.portfolio) - 8);
-  if (!isCashflow) { renderBenchmarkComparisonSummary("twr", series.at(-1)); setText("benchmarkRangeLabel", benchmarkRangeText(series)); performanceSvg.setAttribute("viewBox", "0 0 900 252"); performanceSvg.innerHTML = `<defs><linearGradient id="portfolioReturnFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#27b8f6" stop-opacity=".24"/><stop offset="1" stop-color="#27b8f6" stop-opacity="0"/></linearGradient></defs>${grid}<path class="benchmark-area" d="${pathFromPoints(portfolioPoints)} L${portfolioPoints.at(-1)[0].toFixed(1)} ${zero.toFixed(1)} L${portfolioPoints[0][0].toFixed(1)} ${zero.toFixed(1)} Z"/><path class="benchmark-line portfolio" d="${pathFromPoints(portfolioPoints)}"/>${spyVisible ? `<path class="benchmark-line spy" d="${pathFromPoints(spyPoints)}"/><circle class="benchmark-end spy" cx="${spyPoints.at(-1)[0]}" cy="${spyPoints.at(-1)[1]}" r="3"/><text class="benchmark-end-label spy" x="${endX}" y="${spyLabelY.toFixed(1)}">S&amp;P 500 ${benchmarkPercent(latest.spy)}</text>` : ""}${qqqVisible ? `<path class="benchmark-line qqq" d="${pathFromPoints(qqqPoints)}"/><circle class="benchmark-end qqq" cx="${qqqPoints.at(-1)[0]}" cy="${qqqPoints.at(-1)[1]}" r="3"/><text class="benchmark-end-label qqq" x="${endX}" y="${(y(latest.qqq) + 4).toFixed(1)}">NASDAQ ${benchmarkPercent(latest.qqq)}</text>` : ""}<circle class="benchmark-end portfolio" cx="${portfolioPoints.at(-1)[0]}" cy="${portfolioPoints.at(-1)[1]}" r="3"/><text class="benchmark-end-label portfolio" x="${endX}" y="${portfolioLabelY.toFixed(1)}">Portfolio ${benchmarkPercent(latest.portfolio)}</text>${dates}`; }
-  const buckets = benchmarkReturnBuckets(series, benchmarkReturnPeriod), returnsHeight = 230, returnsPadding = { top: 18, right: 30, bottom: 38, left: 62 }, actualBenchmarkBuckets = benchmarkReturnPeriod === "weekly" || benchmarkReturnPeriod === "monthly", qqqReturnsVisible = qqqVisible, returnDomain = benchmarkScaleDomain(buckets.flatMap(point => [point.portfolioDaily, ...(spyVisible ? [point.spyDaily] : []), ...(qqqReturnsVisible ? [point.qqqDaily] : [])]), 10);
+  if (!isCashflow) { renderBenchmarkComparisonSummary("twr", series.at(-1)); setText("benchmarkRangeLabel", benchmarkRangeText(series)); performanceSvg.setAttribute("viewBox", "0 0 900 252"); performanceSvg.innerHTML = `${grid}<line class="benchmark-zero" x1="${padding.left}" x2="${width - padding.right}" y1="${zero.toFixed(1)}" y2="${zero.toFixed(1)}"/><path class="benchmark-line portfolio" d="${pathFromPoints(portfolioPoints)}"/>${spyVisible ? `<path class="benchmark-line spy" d="${pathFromPoints(spyPoints)}"/><circle class="benchmark-end spy" cx="${spyPoints.at(-1)[0]}" cy="${spyPoints.at(-1)[1]}" r="3"/><text class="benchmark-end-label spy" x="${endX}" y="${spyLabelY.toFixed(1)}">S&amp;P 500 ${benchmarkPercent(latest.spy)}</text>` : ""}${qqqVisible ? `<path class="benchmark-line qqq" d="${pathFromPoints(qqqPoints)}"/><circle class="benchmark-end qqq" cx="${qqqPoints.at(-1)[0]}" cy="${qqqPoints.at(-1)[1]}" r="3"/><text class="benchmark-end-label qqq" x="${endX}" y="${(y(latest.qqq) + 4).toFixed(1)}">NASDAQ ${benchmarkPercent(latest.qqq)}</text>` : ""}<circle class="benchmark-end portfolio" cx="${portfolioPoints.at(-1)[0]}" cy="${portfolioPoints.at(-1)[1]}" r="3"/><text class="benchmark-end-label portfolio" x="${endX}" y="${portfolioLabelY.toFixed(1)}">Portfolio ${benchmarkPercent(latest.portfolio)}</text>${dates}`; bindBenchmarkHover(performanceSvg, series, { x, y, width, left: padding.left, right: width - padding.right, top: padding.top, bottom: height - padding.bottom, keys: ["portfolio", "spy", "qqq"], visible: { portfolio: true, spy: spyVisible, qqq: qqqVisible }, format: benchmarkPercent }); }
+  const intervalLabel = benchmarkReturnPeriod.charAt(0).toUpperCase() + benchmarkReturnPeriod.slice(1);
+  setText("benchmarkReturnsTitle", `Recent ${benchmarkReturnPeriod} returns`);
+  document.getElementById("benchmarkReturnsLegend")?.setAttribute("aria-label", `${intervalLabel} returns chart legend`);
+  returnsSvg.setAttribute("aria-label", `${intervalLabel} portfolio, S and P 500, and NASDAQ returns`);
+  const allBuckets = benchmarkReturnBuckets(series, benchmarkReturnPeriod);
+  const returnWindow = benchmarkReturnPeriod === "daily" ? 31 : benchmarkReturnPeriod === "weekly" ? 13 : allBuckets.length;
+  const buckets = allBuckets.slice(-returnWindow);
+  const returnsHeight = 230, returnsPadding = { top: 18, right: 30, bottom: 38, left: 62 }, actualBenchmarkBuckets = benchmarkReturnPeriod === "weekly" || benchmarkReturnPeriod === "monthly", qqqReturnsVisible = qqqVisible, returnDomain = benchmarkScaleDomain(buckets.flatMap(point => [point.portfolioDaily, ...(spyVisible ? [point.spyDaily] : []), ...(qqqReturnsVisible ? [point.qqqDaily] : [])]), 10);
   document.querySelectorAll(".benchmark-returns-card [data-benchmark-toggle=qqq]").forEach(button => { button.hidden = false; });
   const dailyY = value => returnsPadding.top + (1 - (value - returnDomain.min) / Math.max(returnDomain.max - returnDomain.min, .01)) * (returnsHeight - returnsPadding.top - returnsPadding.bottom), dailyZero = dailyY(0), barStep = (width - returnsPadding.left - returnsPadding.right) / Math.max(buckets.length, 1), barWidth = Math.max(3, Math.min(15, barStep * .26));
-  const returnGrid = benchmarkTicks(returnDomain).map(value => `<g><line class="benchmark-grid" x1="${returnsPadding.left}" x2="${width - returnsPadding.right}" y1="${dailyY(value).toFixed(1)}" y2="${dailyY(value).toFixed(1)}"/><text class="benchmark-axis" x="${returnsPadding.left - 12}" y="${(dailyY(value) + 4).toFixed(1)}" text-anchor="end">${benchmarkAxis(value)}</text></g>`).join(""), showValues = benchmarkReturnPeriod !== "daily" && barStep >= 42;
-  const bars = buckets.map((point, index) => { const center = returnsPadding.left + index * barStep + barStep / 2; return [{ key: "portfolio", value: point.portfolioDaily, x: center - barWidth * 1.5 - 1 }, ...(spyVisible ? [{ key: "spy", value: point.spyDaily, x: center - barWidth / 2 }] : []), ...(qqqReturnsVisible ? [{ key: "qqq", value: point.qqqDaily, x: center + barWidth / 2 + 1 }] : [])].map(item => { const itemY = dailyY(item.value), labelY = item.value >= 0 ? Math.max(returnsPadding.top + 11, itemY - 7) : Math.min(returnsHeight - returnsPadding.bottom - 4, itemY + 14), labelX = item.x + barWidth / 2 + (actualBenchmarkBuckets ? (item.key === "portfolio" ? -3 : item.key === "qqq" ? 3 : 0) : 0), labelAnchor = actualBenchmarkBuckets ? (item.key === "portfolio" ? "end" : item.key === "qqq" ? "start" : "middle") : "middle", label = showValues ? `<text class="benchmark-bar-label ${item.value >= 0 ? "positive" : "negative"}" x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="${labelAnchor}">${benchmarkValueLabel(item.value)}</text>` : ""; return `<rect class="benchmark-bar ${item.key}" x="${item.x.toFixed(1)}" y="${Math.min(itemY, dailyZero).toFixed(1)}" width="${barWidth}" height="${Math.max(1, Math.abs(itemY - dailyZero)).toFixed(1)}"/>${label}`; }).join(""); }).join("");
+  const returnGrid = benchmarkTicks(returnDomain).map(value => `<g><line class="benchmark-grid" x1="${returnsPadding.left}" x2="${width - returnsPadding.right}" y1="${dailyY(value).toFixed(1)}" y2="${dailyY(value).toFixed(1)}"/><text class="benchmark-axis" x="${returnsPadding.left - 12}" y="${(dailyY(value) + 4).toFixed(1)}" text-anchor="end">${benchmarkAxis(value)}</text></g>`).join(""), showBucketValues = benchmarkReturnPeriod !== "daily" && barStep >= 42;
+  const bars = buckets.map((point, index) => { const center = returnsPadding.left + index * barStep + barStep / 2; return [{ key: "portfolio", value: point.portfolioDaily, x: center - barWidth * 1.5 - 1 }, ...(spyVisible ? [{ key: "spy", value: point.spyDaily, x: center - barWidth / 2 }] : []), ...(qqqReturnsVisible ? [{ key: "qqq", value: point.qqqDaily, x: center + barWidth / 2 + 1 }] : [])].map(item => { const itemY = dailyY(item.value), labelY = item.value >= 0 ? Math.max(returnsPadding.top + 11, itemY - 7) : Math.min(returnsHeight - returnsPadding.bottom - 4, itemY + 14), labelX = item.x + barWidth / 2 + (actualBenchmarkBuckets ? (item.key === "portfolio" ? -3 : item.key === "qqq" ? 3 : 0) : 0), labelAnchor = actualBenchmarkBuckets ? (item.key === "portfolio" ? "end" : item.key === "qqq" ? "start" : "middle") : "middle", showDailyPortfolioValue = benchmarkReturnPeriod === "daily" && item.key === "portfolio" && index % 2 === 0, label = showBucketValues || showDailyPortfolioValue ? `<text class="benchmark-bar-label ${item.value >= 0 ? "positive" : "negative"}" x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="${labelAnchor}">${benchmarkValueLabel(item.value)}</text>` : ""; return `<rect class="benchmark-bar ${item.key}" x="${item.x.toFixed(1)}" y="${Math.min(itemY, dailyZero).toFixed(1)}" width="${barWidth}" height="${Math.max(1, Math.abs(itemY - dailyZero)).toFixed(1)}"/>${label}`; }).join(""); }).join("");
   const returnMarkCount = Math.min(buckets.length, benchmarkReturnPeriod === "daily" ? 7 : buckets.length), returnLabels = Array.from({ length: returnMarkCount }, (_, index) => Math.round(index * Math.max(buckets.length - 1, 0) / Math.max(returnMarkCount - 1, 1))).map(index => { const center = returnsPadding.left + index * barStep + barStep / 2; return `<text class="benchmark-axis benchmark-date" text-anchor="middle" x="${center.toFixed(1)}" y="${returnsHeight - 10}">${benchmarkBucketLabel(buckets[index], benchmarkReturnPeriod)}</text>`; }).join("");
   returnsSvg.innerHTML = `${returnGrid}${bars}${returnLabels}`;
   const spyDifference = benchmarkCompare.portfolio - benchmarkCompare.spyReturn;
   const qqqDifference = benchmarkCompare.portfolio - benchmarkCompare.qqqReturn;
-  const comparisonText = difference => (difference >= 0 ? "Ahead " : "Behind ") + Math.abs(difference).toFixed(2) + "%";
-  setText("spyBenchmark", benchmarkPercent(benchmarkCompare.spyReturn));
-  setText("spyBenchmarkDelta", comparisonText(spyDifference));
-  setText("qqqBenchmark", benchmarkPercent(benchmarkCompare.qqqReturn));
-  setText("qqqBenchmarkDelta", comparisonText(qqqDifference));
-  setSignedTone("spyBenchmark", benchmarkCompare.spyReturn);
-  setSignedTone("qqqBenchmark", benchmarkCompare.qqqReturn);
-  setSignedTone("spyBenchmarkDelta", spyDifference);
-  setSignedTone("qqqBenchmarkDelta", qqqDifference);
+  const comparisonText = difference => (difference >= 0 ? "Ahead " : "Behind ") + Math.abs(difference).toFixed(2) + "% (cost basis)";
+  if (performanceVerified) {
+    setText("spyBenchmark", benchmarkPercent(benchmarkCompare.spyReturn));
+    setText("spyBenchmarkDelta", comparisonText(spyDifference));
+    setText("qqqBenchmark", benchmarkPercent(benchmarkCompare.qqqReturn));
+    setText("qqqBenchmarkDelta", comparisonText(qqqDifference));
+    setSignedTone("spyBenchmark", benchmarkCompare.spyReturn);
+    setSignedTone("qqqBenchmark", benchmarkCompare.qqqReturn);
+    setSignedTone("spyBenchmarkDelta", spyDifference);
+    setSignedTone("qqqBenchmarkDelta", qqqDifference);
+  } else {
+    setText("spyBenchmark", "Not verified");
+    setText("qqqBenchmark", "Not verified");
+    setText("spyBenchmarkDelta", "Performance history needs reconciliation");
+    setText("qqqBenchmarkDelta", "Performance history needs reconciliation");
+  }
   if (!isCashflow) setText("benchmarkRangeLabel", `${benchmarkDateLabel(series[0].date)} - ${benchmarkDateLabel(series.at(-1).date)}`);
 }
 function polarToCartesian(cx, cy, radius, angle) { const radians = (angle - 90) * Math.PI / 180; return { x: cx + radius * Math.cos(radians), y: cy + radius * Math.sin(radians) }; }
@@ -1040,13 +1197,10 @@ function updateSyncIntegrityUi() {
 }
 function dcaSizing(item) {
   const signal = cleanSignal(item.signal).toUpperCase();
+  if (item.signalSource !== "Final_Action") return { multiplier: 0, source: item.signalSource || "No verified action" };
   if (/WAIT|HOLD|REDUCE|SELL|NO BUY|AVOID/.test(signal)) return { multiplier: 0, source: item.signalSource || "Signal" };
   const explicit = signal.match(/(?:^|\s)(1(?:\.0+)?|0?\.(?:25|5|50|75))\s*X\b/i);
   if (explicit) return { multiplier: Math.min(1, numberFrom(explicit[1])), source: item.signalSource || "Final_Action" };
-  if (/STARTER/.test(signal)) return { multiplier: 0.25, source: "Signal fallback" };
-  if (/SUPER BUY|STRONG BUY|BUY DIP|GOOD PRICE/.test(signal)) return { multiplier: 1, source: "Signal fallback" };
-  if (/ACCUMULATE/.test(signal)) return { multiplier: 0.5, source: "Signal fallback" };
-  if (/BUY|BULLISH|FOLLOW/.test(signal)) return { multiplier: 0.25, source: "Signal fallback" };
   return { multiplier: 0, source: item.signalSource || "Signal" };
 }
 function dcaMultiplier(item) { return dcaSizing(item).multiplier; }
@@ -1099,28 +1253,44 @@ function buildDcaPlan(budgetUsd) {
 }
 
 function renderTodaySignal(best, budgetUsd) {
-  if (!best) return;
+  const details = document.getElementById("todayActionDetails");
+  const reasons = document.getElementById("todayActionReasons");
+  const rank = document.getElementById("todayActionRank");
+  if (!best) {
+    setText("todaySignal", "No action today");
+    setText("todaySignalText", "No eligible buy signal. Keep cash available.");
+    if (rank) rank.textContent = "No candidate";
+    if (details) details.innerHTML = "";
+    if (reasons) reasons.innerHTML = "";
+    return;
+  }
   const gap = targetGap(best);
   const signal = cleanSignal(best.signal);
-  setText("todaySignal", budgetUsd > 0 ? "Sizing Ready" : `${best.ticker} ${best.multiplier}x`);
-  setHtml("todaySignalText", `<span class="signal-summary">${signal}</span><span class="signal-chips"><b>${best.ticker}</b><b>${best.multiplier.toFixed(2)}x</b><b>Score ${best.rankScore.toFixed(0)}</b><b>RSI ${rsiPair(best)}</b><b>${gap > 0 ? `Under +${gap.toFixed(1)}%` : gap < 0 ? `Over ${Math.abs(gap).toFixed(1)}%` : "On target"}</b></span>${dcaReasonMarkup(best)}`);
-}
-function renderSmartDca() {
+  const amount = budgetUsd > 0 && Number(best.amountUsd) > 0 ? formatUsd(best.amountUsd) : `${best.multiplier.toFixed(2)}x size`;
+  const gapText = gap > 0 ? `Under target ${gap.toFixed(1)}%` : gap < 0 ? `Over target ${Math.abs(gap).toFixed(1)}%` : "On target";
+  setText("todaySignal", budgetUsd > 0 ? "Sizing ready" : "Candidate ready");
+  setText("todaySignalText", `${signal} ${best.ticker} - ${amount}`);
+  if (rank) rank.textContent = `Top pick - ${best.ticker}`;
+  if (details) setHtml("todayActionDetails", `<div><span>Buy</span><strong>${best.ticker}</strong></div><div><span>Suggested</span><strong>${amount}</strong></div><div><span>Target gap</span><strong class="${gap >= 0 ? "positive" : "negative"}">${gapText}</strong></div>`);
+  if (reasons) setHtml("todayActionReasons", `<span>Why it ranks first</span>${dcaReasonMarkup(best)}`);
+}function renderSmartDca() {
   const input = document.getElementById("dcaBudgetInput");
   const budget = parseBudgetInput(input?.value || "");
   const plan = buildDcaPlan(budget.usd);
   const rows = budget.usd > 0 ? plan.picks.filter(item => item.amountUsd > 0) : plan.picks;
-  const ruleNote = `<span class="dca-rule-note">Signal order: Final_Action first, then Signal, then EMA_Signal. Ranking uses target gap, priority and RSI.</span>`;
+  const ruleNote = `<span class="dca-rule-note">Only an explicit Final_Action such as BUY 0.25x to 1.00x can create an order. Target gap, priority and RSI rank approved actions.</span>`;
   setHtml("dcaBudgetSummary", budget.usd > 0
     ? `${ruleNote}<span class="dca-summary-title">Final_Action sizing: allocate ${formatUsd(plan.usedUsd)} from ${formatUsd(budget.usd)} and keep ${formatUsd(plan.leftoverUsd)} in cash.</span><span class="dca-figures"><b>Budget ${formatUsd(budget.usd)}</b><b>Allocate ${formatUsd(plan.usedUsd)}</b><b>Cash left ${formatUsd(plan.leftoverUsd)}</b><b>Min ${formatUsd(MIN_ORDER_USD)}</b></span>`
     : `${ruleNote}<span class="dca-empty-hint">Enter USD. Sizing follows explicit BUY 0.25x / 0.50x / 0.75x / 1.00x from the sheet when available.</span>`);
   setHtml("smartDcaList", rows.map((item, index) => `<div class="mini-row dca-plan-row"><span>${index + 1}. <strong>${item.ticker}</strong><small class="dca-action-line">${cleanSignal(item.signal)} <b>Score ${item.rankScore.toFixed(0)}</b></small>${dcaReasonMarkup(item)}${item.belowMin ? `<small class="dca-minimum-warning">Below DIME minimum</small>` : ""}</span><strong>${budget.usd > 0 ? formatUsd(item.amountUsd) : `${item.multiplier.toFixed(2)}x`}<small>${item.multiplier.toFixed(2)}x weight</small></strong></div>`).join("") || `<div class="empty">No eligible Final_Action today. Keep cash.</div>`);
   renderTodaySignal(rows[0], budget.usd);
+  renderRebalancePlanner(budget.usd, plan);
 }
 function holdingValueUsd(item) { const direct = numberFrom(item.valueUsd); return direct > 0 ? direct : numberFrom(item.value) / Math.max(fxRate(), 1); }
-function buildRebalancePlan(budgetUsd) {
+function buildRebalancePlan(budgetUsd, approvedTickers = []) {
   const budget = Math.max(0, numberFrom(budgetUsd));
-  const eligible = holdings.filter(item => item.ticker && item.ticker !== "CASH" && targetWeight(item) > 0);
+  const approved = new Set(approvedTickers.map(ticker => String(ticker).toUpperCase()));
+  const eligible = holdings.filter(item => item.ticker && item.ticker !== "CASH" && approved.has(String(item.ticker).toUpperCase()) && targetWeight(item) > 0);
   const totalValue = eligible.reduce((sum, item) => sum + holdingValueUsd(item), 0);
   const targets = eligible.map(item => ({ ...item, currentUsd: holdingValueUsd(item), deficitUsd: Math.max(0, (totalValue + budget) * targetWeight(item) / 100 - holdingValueUsd(item)) })).filter(item => item.deficitUsd > .01);
   const totalDeficit = targets.reduce((sum, item) => sum + item.deficitUsd, 0);
@@ -1128,14 +1298,23 @@ function buildRebalancePlan(budgetUsd) {
   const allocated = picks.reduce((sum, item) => sum + item.amountUsd, 0);
   return { budget, totalDeficit, picks, allocated, cash: Math.max(0, budget - allocated) };
 }
-function renderRebalancePlanner() {
-  const input = document.getElementById("rebalanceBudgetInput");
-  const budget = numberFrom(input?.value || 0);
-  const plan = buildRebalancePlan(budget);
+function renderRebalancePlanner(sharedBudget, signalPlan = buildDcaPlan(sharedBudget)) {
+  const input = document.getElementById("dcaBudgetInput");
+  const budget = Number.isFinite(sharedBudget) ? sharedBudget : parseBudgetInput(input?.value || "").usd;
+  const approvedTickers = signalPlan.picks.filter(item => item.multiplier > 0).map(item => item.ticker);
+  const plan = buildRebalancePlan(budget, approvedTickers);
+  setText("rebalanceBudgetLabel", formatUsd(plan.budget));
+  if (!approvedTickers.length) {
+    setHtml("rebalanceSummary", "No eligible <strong>Final_Action</strong> today. Target gaps remain visible in Portfolio drift, but no purchase allocation is proposed.");
+    setHtml("rebalanceList", `<div class="empty">No eligible buy action today. Keep the budget in cash.</div>`);
+    return;
+  }
   setHtml("rebalanceSummary", budget > 0
     ? `MODE target: allocate <strong>${formatUsd(plan.allocated)}</strong> of ${formatUsd(plan.budget)} to reduce underweight positions. No sell orders are suggested.`
     : `Enter a USD budget to see purchases that move the portfolio toward ${kpis.marketMode} targets.`);
-  setHtml("rebalanceList", plan.picks.slice(0, 4).map(item => `<div class="rebalance-row"><span><strong>${item.ticker}</strong><small>${targetStatus(item).label} ${Math.max(0, targetGap(item)).toFixed(1)}% &middot; target ${targetWeight(item).toFixed(1)}%</small></span><strong>${formatUsd(item.amountUsd)}<small>${(item.amountUsd / Math.max(plan.budget, 1) * 100).toFixed(0)}% of budget</small></strong></div>`).join("") || `<div class="empty">No underweight target positions available for this budget.</div>`);
+  const deployedPercent = plan.budget > 0 ? Math.min(100, plan.allocated / plan.budget * 100) : 0;
+  const allocationOverview = budget > 0 ? `<div class="allocation-overview"><div><span>Allocation progress</span><strong>${deployedPercent.toFixed(0)}% deployed</strong></div><div class="allocation-progress" aria-label="${deployedPercent.toFixed(0)} percent of budget allocated"><i style="width:${deployedPercent.toFixed(1)}%"></i></div><small>${formatUsd(plan.allocated)} allocated · ${formatUsd(plan.cash)} left in cash</small></div>` : "";
+  setHtml("rebalanceList", allocationOverview + (plan.picks.slice(0, 4).map(item => `<div class="rebalance-row"><span><strong>${item.ticker}</strong><small>${targetStatus(item).label} ${Math.max(0, targetGap(item)).toFixed(1)}% &middot; target ${targetWeight(item).toFixed(1)}%</small></span><strong>${formatUsd(item.amountUsd)}<small>${(item.amountUsd / Math.max(plan.budget, 1) * 100).toFixed(0)}% of budget</small></strong></div>`).join("") || `<div class="empty">No underweight target positions available for this budget.</div>`));
 }
 function healthActionItems(activeHoldings, cashWeight) {
   const actions = [];
@@ -1175,6 +1354,9 @@ function renderHealth() {
   const cashBuffer = Math.max(6.5, Math.min(9, 7 + cashWeight / 2));
   const score = (diversification + riskControl + momentum + cashBuffer) / 4;
   setText("healthScore", score.toFixed(1));
+  const scoreLabel = score >= 8.5 ? "Strong" : score >= 7 ? "Balanced" : "Needs review";
+  setText("healthScoreLabel", scoreLabel);
+  setHtml("healthScoreSummary", `<span>${scoreLabel} portfolio setup</span><strong>${activeHoldings.length} active holdings</strong><small>${kpis.marketMode} - ${cashWeight.toFixed(1)}% cash</small>`);
   const ring = document.querySelector(".health-ring");
   if (ring) ring.style.setProperty("--health-fill", `${Math.round(score * 10)}%`);
   const metrics = [
@@ -1346,39 +1528,37 @@ function renderInterestWatchlist() {
   const knownTickers = [...new Set([...signalUniverse, ...holdings].map(item => normalizeTickerInput(item.ticker)).filter(Boolean))].sort();
   if (options) options.innerHTML = knownTickers.map(ticker => `<option value="${ticker}"></option>`).join("");
   setText("watchlistCount", `${tickers.length} tickers`);
-  setText("watchlistStatus", tickers.length ? `${tickers.length} interested stocks` : "Add stocks you want to follow");
+  setText("watchlistStatus", tickers.length ? `${tickers.length} stocks` : "Add stocks");
   list.innerHTML = tickers.map(saved => {
     const baseItem = watchlistDataSource(saved.ticker);
     const item = { ...baseItem, ...saved, held: baseItem.held, inSheet: baseItem.inSheet || saved.source === "sheet" };
-    const sheetPrice = alertPriceUsd(item);
-    const manualPrice = numberFrom(saved.price);
-    const price = sheetPrice > 0 ? sheetPrice : manualPrice;
+    const price = alertPriceUsd(item) > 0 ? alertPriceUsd(item) : numberFrom(saved.price);
     const day = numberFrom(item.dayChangePercent);
     const signal = cleanSignal(item.signal || "No sheet signal");
-    const trend = indicatorTrend(item);
-    const hasRsi = numberFrom(item.rsi7) > 0 || numberFrom(item.rsi14) > 0;
-    const hasSheetData = !!item.signal || price > 0 || hasRsi;
-    const savedReason = saved.reason === "From signal sheet" && !hasSheetData ? "Starter watchlist" : saved.reason;
+    const hasRsi = hasValidRsi(item.rsi7) && hasValidRsi(item.rsi14);
     const profile = watchlistProfiles[item.ticker] || {};
     const name = profile.name || item.name || "Research idea";
     const theme = profile.theme || item.layer || "Watchlist";
-    const priceText = price > 0 ? formatUsd(price) : "Lookup ready";
-    const dayText = price > 0 ? `${plusText(day, percentText)} today` : "Open links for live quote";
-    const savedTarget = numberFrom(saved.target);
-    const low52 = numberFrom(saved.low52);
-    const high52 = numberFrom(saved.high52);
-    const sweetSpot = numberFrom(saved.sweetSpot);
-    const nearestSupport = numberFrom(saved.nearestSupport);
+    const priceText = price > 0 ? formatUsd(price) : "Waiting for quote";
+    const dayText = price > 0 ? (Math.abs(day) < 0.005 ? "No intraday move" : `${plusText(day, percentText)} today`) : "Waiting for live quote";
+    const savedTarget = numberFrom(saved.target), low52 = numberFrom(saved.low52), high52 = numberFrom(saved.high52), sweetSpot = numberFrom(saved.sweetSpot), nearestSupport = numberFrom(saved.nearestSupport);
     const rangePos = watchlistRangePosition(price, low52, high52);
     const opportunityData = watchlistOpportunity(price, savedTarget, sweetSpot, low52, high52);
     const opportunity = `<span class="watchlist-opportunity ${opportunityData.tone}">${opportunityData.label}</span>`;
     const interest = Math.max(0, Math.min(5, Math.round(numberFrom(saved.interest))));
-    const details = [["Price", price > 0 ? formatUsd(price) : "Not set"], ["52W low/high", low52 > 0 && high52 > 0 ? `${formatUsd(low52)} / ${formatUsd(high52)}` : "Not set"], ["Target price", savedTarget > 0 ? formatUsd(savedTarget) : "Not set"], ["Nearest support (20D)", nearestSupport > 0 ? formatUsd(nearestSupport) : "Not set"], ["Sweet spot", sweetSpot > 0 ? formatUsd(sweetSpot) : "Not set"]].map(([label, value]) => `<span><small>${label}</small><b>${value}</b></span>`).join("");
-    const footer = `<div class="watchlist-row-actions">${opportunity}${watchlistInterestRating(item.ticker, interest)}<div class="watchlist-link-row">${watchlistLinksHtml(item.ticker)}</div></div>`;
-    return `<article class="watchlist-stock-row ${signedClass(day)}" data-watchlist-ticker="${item.ticker}" data-watchlist-price="${price}" data-watchlist-sweet="${sweetSpot > 0 && price > 0 && price <= sweetSpot * 1.03}" data-watchlist-support="${/support|52w low/i.test(trend) || (rangePos != null && rangePos <= 25)}" data-watchlist-interest="${interest}" data-watchlist-rank="${opportunityData.tone === "positive" ? 0 : opportunityData.tone === "watch" ? 1 : opportunityData.tone === "neutral" ? 2 : 3}"><div class="watchlist-stock-main">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="watchlist-type-chip">${assetKind(item.ticker)}</b></strong><small>${name}</small><em>${item.held ? "Already in portfolio" : savedReason || "Watching"} &middot; ${theme}</em></span></div><div class="watchlist-stock-body"><div class="watchlist-stock-meta"><span><b>${priceText}</b><small>${dayText}</small></span><span><b>${signal}</b><small>${trend}</small></span><span class="watchlist-rsi-meta"><small>RSI 7 / 14 (${indicatorTimeframe})</small><b>${hasRsi ? `${rsiValue(item.rsi7)}<span class="rsi-separator">/</span>${rsiValue(item.rsi14)}` : "n/a"}</b></span></div><div class="watchlist-detail-grid">${details}</div>${saved.note ? `<div class="watchlist-note">${escapeHtml(saved.note)}</div>` : ""}${rangePos != null ? `<div class="watchlist-range" style="--watch-range:${rangePos.toFixed(0)}%"><span><b></b></span><small>52W range ${rangePos.toFixed(0)}%</small></div>` : ""}${footer}</div></article>`;
+    const kind = assetKind(item.ticker) === "ETF" ? "etf" : "stock";
+    const missing = price <= 0 || !hasRsi;
+    const details = [["Price", price > 0 ? formatUsd(price) : "Waiting for data"], ["Sheet signal", signal], ["52W low/high", low52 > 0 && high52 > 0 ? `${formatUsd(low52)} / ${formatUsd(high52)}` : "Waiting for data"], ["Target price", savedTarget > 0 ? formatUsd(savedTarget) : "Not set"], ["Nearest support (20D)", nearestSupport > 0 ? formatUsd(nearestSupport) : "Not set"], ["Sweet spot", sweetSpot > 0 ? formatUsd(sweetSpot) : "Not set"]].map(([label, value]) => `<span><small>${label}</small><b>${value}</b></span>`).join("");
+    const range = rangePos != null ? `<div class="watchlist-range" style="--watch-range:${rangePos.toFixed(0)}%"><span><b></b></span><small>Price position in 52W range: ${rangePos.toFixed(0)}%</small></div>` : "";
+    return `<article class="watchlist-stock-row ${signedClass(day)}" data-watchlist-ticker="${item.ticker}" data-watchlist-price="${price}" data-watchlist-sweet="${sweetSpot > 0 && price > 0 && price <= sweetSpot * 1.03}" data-watchlist-support="${rangePos != null && rangePos <= 25}" data-watchlist-interest="${interest}" data-watchlist-kind="${kind}" data-watchlist-theme="${escapeHtml(theme.toLowerCase())}" data-watchlist-missing="${missing}" data-watchlist-rank="${opportunityData.tone === "positive" ? 0 : opportunityData.tone === "watch" ? 1 : opportunityData.tone === "neutral" ? 2 : 3}"><div class="watchlist-stock-main">${tickerLogo(item.ticker)}<span><strong>${item.ticker}<b class="watchlist-type-chip">${assetKind(item.ticker)}</b></strong><small>${name}</small><em>${item.held ? "Already in portfolio" : saved.reason || "Watching"} &middot; ${theme}</em></span></div><div class="watchlist-stock-body"><div class="watchlist-stock-meta"><span><b>${priceText}</b><small>${dayText}</small></span><span class="watchlist-primary-status" title="Sheet signal: ${escapeHtml(signal)}">${opportunity}</span><span class="watchlist-rsi-meta"><small>RSI 7 / 14 (${indicatorTimeframe})</small><b>${hasRsi ? `${rsiValue(item.rsi7)}<span class="rsi-separator">/</span>${rsiValue(item.rsi14)}` : "Waiting for data"}</b></span></div><div class="watchlist-expanded-content"><div class="watchlist-detail-grid">${details}</div>${saved.note ? `<div class="watchlist-note">${escapeHtml(saved.note)}</div>` : ""}${range}<div class="watchlist-link-row">${watchlistLinksHtml(item.ticker)}</div></div><div class="watchlist-row-actions">${watchlistInterestRating(item.ticker, interest)}<button class="watchlist-details-toggle" type="button" data-watchlist-details="${item.ticker}" aria-expanded="false">Details</button></div></div></article>`;
   }).join("") || `<div class="empty">Add tickers you are interested in. If the ticker exists in Looker_Signals or holdings, live data will show here.</div>`;
-  const suggestions = document.getElementById("watchlistSuggestions");
-  if (suggestions) suggestions.innerHTML = watchlistSignalCandidates().map(item => `<button type="button" data-add-watch="${item.ticker}">${item.ticker}<small>${cleanSignal(item.signal)}</small></button>`).join("") || `<span class="empty-inline">No new signal candidates outside the current portfolio.</span>`;
+  const rows = [...list.querySelectorAll(".watchlist-stock-row")];
+  const themes = [...new Set(rows.map(row => row.dataset.watchlistTheme).filter(Boolean))].sort();
+  const themeSelect = document.getElementById("watchlistTheme");
+  if (themeSelect) { themeSelect.innerHTML = `<option value="all">All themes</option>${themes.map(themeName => `<option value="${escapeHtml(themeName)}">${escapeHtml(themeName.replace(/\b\w/g, letter => letter.toUpperCase()))}</option>`).join("")}`; if (!themes.includes(watchlistTheme)) watchlistTheme = "all"; themeSelect.value = watchlistTheme; }
+  setText("watchlistReadyCount", rows.filter(row => Number(row.dataset.watchlistRank) <= 1).length);
+  setText("watchlistSupportCount", rows.filter(row => row.dataset.watchlistSupport === "true").length);
+  setText("watchlistHighInterestCount", rows.filter(row => Number(row.dataset.watchlistInterest) === 0).length);
   renderSweetSpotAlerts(tickers);
   refreshWatchlistView();
 }
@@ -1389,7 +1569,12 @@ function refreshWatchlistView() {
   rows.forEach(row => {
     const isSweet = row.dataset.watchlistSweet === "true";
     const isSupport = row.dataset.watchlistSupport === "true";
-    row.hidden = watchlistFilter === "sweet" ? !isSweet : watchlistFilter === "support" ? !isSupport : false;
+    const isEtf = row.dataset.watchlistKind === "etf";
+    const isStock = row.dataset.watchlistKind === "stock";
+    const isHighInterest = Number(row.dataset.watchlistInterest) >= 4;
+    const isMissing = row.dataset.watchlistMissing === "true";
+    const matchesFilter = watchlistFilter === "sweet" ? isSweet : watchlistFilter === "support" ? isSupport : watchlistFilter === "etf" ? isEtf : watchlistFilter === "stock" ? isStock : watchlistFilter === "high-interest" ? isHighInterest : watchlistFilter === "missing" ? isMissing : true;
+    row.hidden = !matchesFilter || !(watchlistTheme === "all" || row.dataset.watchlistTheme === watchlistTheme);
   });
   rows.sort((left, right) => {
     if (watchlistSort === "interest") return Number(right.dataset.watchlistInterest) - Number(left.dataset.watchlistInterest) || Number(left.dataset.watchlistRank) - Number(right.dataset.watchlistRank) || left.dataset.watchlistTicker.localeCompare(right.dataset.watchlistTicker);
@@ -1398,16 +1583,13 @@ function refreshWatchlistView() {
     return Number(left.dataset.watchlistRank) - Number(right.dataset.watchlistRank) || Number(left.dataset.watchlistPrice) - Number(right.dataset.watchlistPrice) || left.dataset.watchlistTicker.localeCompare(right.dataset.watchlistTicker);
   }).forEach(row => list.appendChild(row));
   const visible = rows.filter(row => !row.hidden);
-  setText("watchlistCount", visible.length === rows.length ? visible.length + " tickers" : visible.length + " of " + rows.length + " tickers");
-  document.querySelectorAll("[data-watchlist-filter]").forEach(button => {
-    const active = button.dataset.watchlistFilter === watchlistFilter;
-    button.classList.toggle("active", active);
-    button.setAttribute("aria-pressed", String(active));
-  });
+  setText("watchlistCount", visible.length === rows.length ? `${visible.length} tickers` : `${visible.length} of ${rows.length} tickers`);
+  document.querySelectorAll("[data-watchlist-filter]").forEach(button => { const active = button.dataset.watchlistFilter === watchlistFilter; button.classList.toggle("active", active); button.setAttribute("aria-pressed", String(active)); });
+  document.querySelectorAll("[data-watchlist-density]").forEach(button => { const active = button.dataset.watchlistDensity === watchlistDensity; button.classList.toggle("active", active); button.setAttribute("aria-pressed", String(active)); });
+  list.classList.toggle("is-detail", watchlistDensity === "detail");
   const sortSelect = document.getElementById("watchlistSort");
   if (sortSelect) sortSelect.value = watchlistSort;
-}
-function renderSweetSpotAlerts(tickers) {
+}function renderSweetSpotAlerts(tickers) {
   const list = document.getElementById("watchlistSweetSpotAlerts");
   if (!list) return;
   const alerts = tickers.map(saved => {
@@ -1455,8 +1637,20 @@ function goalPath(points, maxValue, width, height, padding) {
   const y = point => padding.top + (1 - point.value / Math.max(maxValue, 1)) * (height - padding.top - padding.bottom);
   return points.map((point, index) => `${index ? "L" : "M"}${x(point).toFixed(1)} ${y(point).toFixed(1)}`).join(" ");
 }
+function goalMonthlyDcaRequired(startValue, targetValue, annualReturn, months) {
+  if (targetValue <= startValue) return 0;
+  let low = 0, high = Math.max(1000, (targetValue - startValue) / Math.max(months, 1) * 4);
+  while (projectGoalSeries(startValue, high, annualReturn, months).at(-1).value < targetValue && high < 10000000) high *= 2;
+  for (let index = 0; index < 48; index += 1) {
+    const mid = (low + high) / 2;
+    if (projectGoalSeries(startValue, mid, annualReturn, months).at(-1).value >= targetValue) high = mid;
+    else low = mid;
+  }
+  return Math.ceil(high / 100) * 100;
+}
 function renderGoal() {
   const startValue = numberFrom(kpis.portfolioValue);
+  const targetValue = Math.max(0, numberFrom(document.getElementById("goalTarget")?.value || 1000000));
   const monthlyDca = Math.max(0, numberFrom(document.getElementById("goalMonthlyDca")?.value || 3500));
   const annualReturn = numberFrom(document.getElementById("goalAnnualReturn")?.value || 12);
   const months = Math.max(1, Math.min(480, numberFrom(document.getElementById("goalMonths")?.value || 120)));
@@ -1476,13 +1670,18 @@ function renderGoal() {
   const stressReturn = realReturn + returnShift;
   const stressEnd = projectGoalSeries(startValue, monthlyDca, stressReturn, months).at(-1).value;
   const nominalStressReturn = annualReturn + returnShift;
+  const reachMonth = targetValue > 0 ? safe.find(point => point.value >= targetValue)?.month : 0;
+  const requiredMonthlyDca = targetValue > 0 ? goalMonthlyDcaRequired(startValue, targetValue, realReturn, months) : 0;
+  const targetProgress = targetValue > 0 ? Math.min(100, startValue / targetValue * 100) : 0;
   setHtml("goalReturnShiftLabel", `Stress return <small>${annualReturn.toFixed(1)}% -> ${nominalStressReturn.toFixed(1)}%</small>`);
+  setText("goalReturnAssumption", `${annualReturn.toFixed(1)}% nominal - ${GOAL_INFLATION_RATE.toFixed(1)}% inflation = ${realReturn.toFixed(1)}% real`);
   setHtml("goalBaseValue", `Current portfolio <strong>${formatThb(startValue)}</strong>`);
   setText("goalBearValue", shortThb(endBear));
   setText("goalSafeValue", shortThb(endSafe));
   setText("goalBullValue", shortThb(endBull));
   setText("goalPrincipalValue", formatThb(principal));
   setText("goalProfitValue", formatThb(estimatedProfit));
+  setHtml("goalTargetSummary", `<div><span>Goal</span><strong>${formatThb(targetValue)}</strong><small>${targetProgress.toFixed(1)}% funded today</small></div><div><span>Safe plan</span><strong>${reachMonth != null ? monthAxisLabel(reachMonth) : "After horizon"}</strong><small>${reachMonth != null ? `Target reached in ${reachMonth} months` : `Does not reach target within ${monthAxisLabel(months)}`}</small></div><div><span>DCA needed</span><strong>${formatThb(requiredMonthlyDca)} / mo</strong><small>To reach the goal by ${monthAxisLabel(months)}</small></div>`);
   setHtml("goalWhatIf", `<div class="goal-whatif-head"><span>What-if at ${monthAxisLabel(months)}</span><small>Adjust the inputs on the left</small></div><div class="goal-whatif-grid"><div><span>Base plan</span><strong>${shortThb(endSafe)}</strong><small>${realReturn.toFixed(1)}% real return</small></div><div><span>+${extraDcaPercent.toFixed(0)}% DCA</span><strong>${shortThb(boostEnd)}</strong><small class="positive">${signedCurrencyFromThb(boostEnd - endSafe)} vs base</small></div><div><span>${annualReturn.toFixed(1)}% -> ${nominalStressReturn.toFixed(1)}%</span><strong>${shortThb(stressEnd)}</strong><small class="${stressEnd >= endSafe ? "positive" : "negative"}">${signedCurrencyFromThb(stressEnd - endSafe)} vs base</small></div></div>`);
   const svg = document.getElementById("goalChart");
   if (!svg) return;
@@ -1523,15 +1722,15 @@ function applyLiveData(datasets) {
   kpis = {
     ...kpis,
     portfolioValue: moneyText(kpiValue(kpiRows, "Portfolio Value THB", kpis.portfolioValue)),
-    invested: moneyText(kpiValue(kpiRows, "Total Invested THB", kpis.invested)),
-    profit: moneyText(kpiValue(kpiRows, "Total Profit THB", kpis.profit)),
-    totalReturn: percentText(kpiValue(kpiRows, "Total Return %", kpis.totalReturn)),
+    invested: moneyText(kpiAny(kpiRows, ["Current Cost Basis THB", "Total Invested THB"], kpis.invested)),
+    profit: moneyText(kpiAny(kpiRows, ["Unrealized Profit THB", "Total Profit THB"], kpis.profit)),
+    totalReturn: percentText(kpiAny(kpiRows, ["Dashboard ROI (Cost Basis) %", "ROI (Cost Basis) %", "Total Return %"], kpis.totalReturn)),
     irr: percentText(kpiValue(kpiRows, "IRR", kpis.irr)),
     volatility: percentText(kpiAny(kpiRows, ["Volatility (Daily)", "Daily Volatility", "Volatility"], kpis.volatility)),
     sharpe: kpiAny(kpiRows, ["Sharpe Ratio", "Sharpe"], kpis.sharpe),
     maxDrawdown: percentText(kpiAny(kpiRows, ["Max Drawdown", "Maximum Drawdown"], kpis.maxDrawdown)),
-    benchmarkSpy: percentText(kpiAny(kpiRows, ["vs S&P500", "SPY", "S&P500"], kpis.benchmarkSpy)),
-    benchmarkQqq: percentText(kpiAny(kpiRows, ["vs NASDAQ", "QQQ", "NASDAQ"], kpis.benchmarkQqq)),
+    benchmarkSpy: kpiAny(kpiRows, ["vs S&P500", "SPY", "S&P500"], ""),
+    benchmarkQqq: kpiAny(kpiRows, ["vs NASDAQ", "QQQ", "NASDAQ"], ""),
     vix: kpiAny(kpiRows, "VIX", kpis.vix),
     greedFear: kpiAny(kpiRows, ["Greed & Fear", "Fear & Greed", "Fear Greed"], kpis.greedFear),
     sp500Trend: kpiAny(kpiRows, ["S&P500 Trend", "S&P 500 Trend", "SP500 Trend"], kpis.sp500Trend),
@@ -1542,7 +1741,9 @@ function applyLiveData(datasets) {
     marketMode: kpiValue(kpiRows, "Market Mode", kpis.marketMode)
   };
 
-  benchmarkCompare = parseBenchmarkCompare(datasets.compare || [], kpis.totalReturn);
+  performanceVerified = /^verified$/i.test(kpiValue(kpiRows, "Performance Data Status", ""));
+  benchmarkCompare = performanceVerified ? parseBenchmarkCompare(datasets.compare || [], kpis.totalReturn) : { portfolio: 0, spyReturn: 0, spyVsPort: 0, qqqReturn: 0, qqqVsPort: 0 };
+  if (!performanceVerified) benchmarkComparisonMode = "cashflow";
   parseCashflowBenchmark(datasets.cashflowCompare || []);
 
   holdings = rowsToObjects(datasets.holdings).map(row => ({
@@ -1610,7 +1811,7 @@ function enrichHoldingsFromSheet(rows) {
     };
   });
 }
-function renderAll() { renderKpis(); renderSparklines(); renderNavChart(); renderAllocation(); renderBenchmarkCharts(); renderDriftChart(); renderMonthly(); renderHoldings(activeFilter); renderMobileSummary(); renderSignals(); renderSmartDca(); renderRebalancePlanner(); renderHealth(); renderAlerts(); renderInterestWatchlist(); renderGoal(); }
+function renderAll() { renderKpis(); renderSparklines(); renderNavChart(); renderAllocation(); renderBenchmarkCharts(); renderDriftChart(); renderMonthly(); renderHoldings(activeFilter); renderMobileSummary(); renderSignals(); renderSmartDca(); renderHealth(); renderAlerts(); renderInterestWatchlist(); renderGoal(); }
 async function loadLiveData() {
   if (liveDataLoading) return;
   liveDataLoading = true;
@@ -1749,6 +1950,7 @@ function bindInteractions() {
   document.querySelectorAll("[data-benchmark-toggle]").forEach(button => button.addEventListener("click", () => { const key = button.dataset.benchmarkToggle; benchmarkVisible[key] = !benchmarkVisible[key]; renderBenchmarkCharts(); }));
   document.querySelectorAll("[data-benchmark-mode]").forEach(button => button.addEventListener("click", () => { benchmarkComparisonMode = button.dataset.benchmarkMode === "cashflow" ? "cashflow" : "twr"; renderBenchmarkCharts(); }));
   document.querySelectorAll("[data-benchmark-range]").forEach(button => button.addEventListener("click", () => { benchmarkRangePeriod = button.dataset.benchmarkRange || "ALL"; renderBenchmarkCharts(); }));
+  document.getElementById("benchmarkPlanStart")?.addEventListener("change", event => { const value = event.target.value; if (!validSheetDate(value)) return; benchmarkPlanStart = value; benchmarkRangePeriod = "PLAN"; renderBenchmarkCharts(); });
   document.querySelector(".benchmark-return-tabs")?.addEventListener("click", event => {
     const button = event.target.closest("[data-benchmark-period]");
     if (!button) return;
@@ -1778,8 +1980,7 @@ function bindInteractions() {
   document.getElementById("themeToggle")?.addEventListener("click", () => setTheme(document.body.dataset.theme === "light" ? "dark" : "light"));
   document.getElementById("currencyToggle")?.addEventListener("click", () => setCurrencyMode(currencyMode === "THB" ? "USD" : "THB"));
   document.getElementById("dcaBudgetInput")?.addEventListener("input", renderSmartDca);
-  document.getElementById("rebalanceBudgetInput")?.addEventListener("input", renderRebalancePlanner);
-  ["goalMonthlyDca", "goalAnnualReturn", "goalMonths", "goalExtraDca", "goalReturnShift"].forEach(id => document.getElementById(id)?.addEventListener("input", renderGoal));
+  ["goalTarget", "goalMonthlyDca", "goalAnnualReturn", "goalMonths", "goalExtraDca", "goalReturnShift"].forEach(id => document.getElementById(id)?.addEventListener("input", renderGoal));
   document.getElementById("priceAlertForm")?.addEventListener("submit", event => {
     event.preventDefault();
     const ticker = document.getElementById("priceAlertTicker")?.value;
@@ -1823,10 +2024,9 @@ function bindInteractions() {
     watchlistFilter = button.dataset.watchlistFilter || "all";
     refreshWatchlistView();
   });
-  document.getElementById("watchlistSort")?.addEventListener("change", event => {
-    watchlistSort = event.target.value || "interest";
-    refreshWatchlistView();
-  });
+  document.getElementById("watchlistSort")?.addEventListener("change", event => { watchlistSort = event.target.value || "interest"; refreshWatchlistView(); });
+  document.getElementById("watchlistTheme")?.addEventListener("change", event => { watchlistTheme = event.target.value || "all"; refreshWatchlistView(); });
+  document.querySelectorAll("[data-watchlist-density]").forEach(button => button.addEventListener("click", () => { watchlistDensity = button.dataset.watchlistDensity || "compact"; refreshWatchlistView(); }));
   document.getElementById("watchlistItems")?.addEventListener("click", event => {
     const starButton = event.target.closest("[data-watchlist-star]");
     if (starButton) {
@@ -1837,6 +2037,8 @@ function bindInteractions() {
       renderInterestWatchlist();
       return;
     }
+    const detailsButton = event.target.closest("[data-watchlist-details]");
+    if (detailsButton) { const row = detailsButton.closest(".watchlist-stock-row"); const expanded = row?.classList.toggle("is-expanded"); detailsButton.setAttribute("aria-expanded", String(expanded)); detailsButton.textContent = expanded ? "Hide details" : "Details"; return; }
     const button = event.target.closest("[data-remove-watch]");
     if (!button) return;
     saveInterestWatchlist(readInterestWatchlist().filter(item => item.ticker !== button.dataset.removeWatch));
@@ -1862,13 +2064,14 @@ function bindInteractions() {
     const routes = {
       goal: "./goal.html",
       history: "./history.html?v=20260829-watchlist-page",
-      watchlist: "./watchlist.html"
+      watchlist: "./watchlist.html",
+       dca: "./dca.html"
     };
     window.location.href = routes[page] || "./index.html";
   }));
   document.querySelectorAll("[data-jump]").forEach(button => button.addEventListener("click", () => {
     const target = button.dataset.jump || "overview";
-    if (document.body.classList.contains("goal-page")) {
+    if (document.body.classList.contains("goal-page") || document.body.classList.contains("dca-page")) {
       window.location.href = target === "overview" ? "./index.html" : `./index.html#${target}`;
       return;
     }
@@ -1882,7 +2085,9 @@ initTheme();
 initCurrency();
 renderAll();
 bindInteractions();
-if (!document.body.classList.contains("goal-page")) {
+if (document.body.classList.contains("dca-page")) {
+  setActiveNavigation("dca");
+} else if (!document.body.classList.contains("goal-page")) {
   const initialTarget = ["portfolio", "analysis", "dca", "alerts"].includes(window.location.hash.slice(1)) ? window.location.hash.slice(1) : "overview";
   setAppView(initialTarget === "portfolio" ? "portfolio" : "overview", initialTarget, false);
 }

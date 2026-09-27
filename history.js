@@ -155,10 +155,23 @@ function renderMonthlyInsight(rows) {
   ].map(item => '<div class="history-mini"><span>' + item[0] + '</span><strong>' + item[1] + '</strong></div>').join("");
 }
 
+function activeHoldingTickers() {
+  const balances = new Map();
+  trades.forEach(item => {
+    if ((item.type !== "Buy" && item.type !== "Sell") || !item.shares) return;
+    const delta = item.type === "Buy" ? item.shares : -item.shares;
+    balances.set(item.ticker, (balances.get(item.ticker) || 0) + delta);
+  });
+  return new Set([...balances].filter(([, shares]) => shares > 0.0000001).map(([ticker]) => ticker));
+}
 function renderAssetSpend(rows) {
   const container = document.getElementById("historyAssetSpend");
+  const scope = document.getElementById("historySpendScope")?.value || "current";
+  const title = document.getElementById("historySpendTitle");
+  if (title) title.textContent = scope === "current" ? "Current holdings cost" : "Lifetime purchase cost";
   if (!container) return;
-  const groups = Object.values(rows.filter(item => item.type === "Buy").reduce((map, item) => {
+  const heldTickers = activeHoldingTickers();
+  const groups = Object.values(rows.filter(item => item.type === "Buy" && (scope === "all" || heldTickers.has(item.ticker))).reduce((map, item) => {
     map[item.ticker] = map[item.ticker] || { ticker: item.ticker, totalThb: 0, totalUsd: 0, shares: 0, count: 0 };
     map[item.ticker].totalThb += item.totalThb;
     map[item.ticker].totalUsd += item.totalUsd;
@@ -225,6 +238,7 @@ function resetAndRender() { page = 1; render(); }
 document.getElementById("historyMonthFilter").addEventListener("change", () => { activeRange = "all"; resetAndRender(); });
 document.getElementById("historyTickerFilter").addEventListener("change", resetAndRender);
 document.getElementById("historyTypeFilter").addEventListener("change", resetAndRender);
+document.getElementById("historySpendScope")?.addEventListener("change", render);
 document.getElementById("historyClearFilters").addEventListener("click", () => { ["historyMonthFilter", "historyTickerFilter", "historyTypeFilter"].forEach(id => document.getElementById(id).value = "All"); activeRange = "all"; resetAndRender(); });
 document.getElementById("historyPrevious").addEventListener("click", () => { page--; render(); window.scrollTo({ top: 0, behavior: "smooth" }); });
 document.getElementById("historyNext").addEventListener("click", () => { page++; render(); window.scrollTo({ top: 0, behavior: "smooth" }); });
