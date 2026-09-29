@@ -5714,3 +5714,54 @@ body.dca-page #dca .section-head h2 {
     font-size: 20px;
   }
 }
+
+/* Desktop dashboard polish: keep headline values and allocation labels in frame. */
+@media (min-width: 1025px) {
+  .hero-card {
+    min-height: 178px;
+    padding: 18px 18px 52px;
+  }
+
+  .hero-card strong {
+    font-size: clamp(28px, 2.7vw, 36px);
+  }
+
+  .hero-card .positive {
+    margin-top: 6px;
+    font-size: 16px;
+  }
+
+  .sparkline {
+    width: 34%;
+    height: 34px;
+    bottom: 10px;
+  }
+
+  #dailyProfitLabel,
+  #investedValue {
+    font-size: clamp(15px, 1.35vw, 22px);
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 1025px) and (max-width: 1280px) {
+  .topbar {
+    grid-template-columns: minmax(180px, 1fr) auto minmax(360px, 1.2fr);
+    gap: 12px;
+    padding-inline: 18px;
+  }
+
+  .top-actions { gap: 8px; }
+  .search-box { min-width: 140px; flex: 1 1 140px; }
+  .risk-card span { font-size: 11px; text-transform: none; }
+}
+
+@media (min-width: 1181px) {
+  .allocation-card { grid-column: span 5; }
+  .performance-card { grid-column: span 7; }
+
+  .allocation-body {
+    grid-template-columns: minmax(0, 1.15fr) minmax(145px, .85fr);
+    gap: 14px;
+  }
+}
