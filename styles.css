@@ -889,11 +889,11 @@ body[data-theme="light"] .filter-tabs button {
 }
 .monthly-label {
   fill: var(--soft);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 550;
 }
 .monthly-year {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 550;
 }
 
@@ -2896,25 +2896,51 @@ body[data-theme="light"] .health-method-panel {
 .monthly-invested-line {
   fill: none;
   stroke: #38bdf8;
-  stroke-width: 2;
+  stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.monthly-cumulative-area {
+  fill: url(#monthlyCumulativeFill);
+  stroke: none;
+}
+
+.monthly-bar {
+  fill: #25e05d;
+  stroke: rgba(200, 255, 218, .72);
+  stroke-width: 1;
+}
+
+.monthly-bar-group:hover .monthly-bar {
+  fill: #4bf17a;
+}
+
+.monthly-axis {
+  fill: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.monthly-axis-title {
+  fill: var(--soft);
+  font-size: 9px;
+  font-weight: 450;
+  letter-spacing: 0;
+  stroke: none;
+}
+
+@media (max-width: 680px) {
+  .monthly-axis-title {
+    font-size: 11px;
+  }
 }
 
 .monthly-invested-dot {
   fill: #38bdf8;
   stroke: #071017;
   stroke-width: 2;
-}
-
-.monthly-invested-end {
-  fill: #bae6fd;
-  stroke: #081017;
-  stroke-width: 3px;
-  paint-order: stroke;
-  font-size: 12px;
-  font-weight: 500;
-  text-anchor: end;
 }
 
 .monthly-legend {
@@ -5668,6 +5694,42 @@ body[data-view="portfolio"] #analysis.dashboard-grid > .holdings-card {
     margin-bottom: 10px;
   }
 }
+/* Planning methods and chart reading surfaces. */
+.dca-mode-tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; margin-bottom: 24px; overflow: hidden; }
+.dca-mode-tabs button { padding: 11px 18px; border: 0; border-radius: 0; background: transparent; color: var(--muted); font: inherit; font-size: 14px; cursor: pointer; }
+.dca-mode-tabs button.active { color: var(--text); background: rgba(56, 189, 248, .12); box-shadow: inset 0 -2px 0 #38bdf8; }
+.dca-mode-tabs button:focus-visible, .chart-viewport:focus-visible { outline: 2px solid #38bdf8; outline-offset: 3px; }
+.action-next-step { margin: 16px 0 12px; font-size: 13px; line-height: 1.6; color: var(--muted); }
+.action-plan-link { color: #79d1f2; font-size: 14px; text-underline-offset: 4px; }
+.no-tactical-buy #todaySignal { color: var(--text); }
+.no-tactical-buy .gem { background: #687888; }
+.benchmark-unverified { color: #e9c77a; }
+.benchmark-chart-readout[hidden] { display: none; }
+.chart-viewport { min-width: 0; width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+.chart-viewport svg { display: block; width: 100%; height: auto; min-height: 0; aspect-ratio: auto; }
+.cashflow-summary-item { min-width: 0; }
+.cashflow-summary-item strong { font-variant-numeric: tabular-nums; }
+@media (max-width: 700px) {
+  #benchmark .benchmark-controls { display: grid; width: 100%; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; justify-content: stretch; }
+  #benchmark .benchmark-view-control, #benchmark .benchmark-period-control { grid-column: 1 / -1; width: 100%; max-width: none; justify-self: stretch; }
+  #benchmark .benchmark-mode-tabs, #benchmark .benchmark-range-tabs { display: flex; width: 100%; max-width: none; }
+  #benchmark .benchmark-mode-tabs button, #benchmark .benchmark-range-tabs button { flex: 1; min-width: 0; min-height: 42px; padding: 8px; font-size: 12px; }
+  #benchmark .benchmark-plan-control { grid-column: 1; width: 100%; min-width: 0; }
+  #benchmark .benchmark-plan-control input { width: 100%; min-width: 0; max-width: 100%; }
+  #benchmark .drift-mode { grid-column: 1 / -1; width: auto; max-width: none; white-space: normal; text-overflow: clip; }
+  .chart-viewport #navChart { min-width: 600px; height: auto; min-height: 0; }
+  #benchmark .chart-viewport .benchmark-chart, .chart-viewport #benchmarkReturnsChart { width: 760px; max-width: none; min-width: 760px; height: auto; min-height: 0; margin: 0; touch-action: auto; }
+  #benchmark .chart-viewport .benchmark-axis, #benchmark .chart-viewport .benchmark-end-label, .chart-viewport #benchmarkReturnsChart .benchmark-axis { font-size: 13px; stroke: none; font-weight: 500; }
+  .cashflow-comparison-summary.mode-value, .cashflow-comparison-summary.mode-performance { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .cashflow-summary-item { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; padding: 12px; }
+  #benchmark .cashflow-summary-item strong { font-size: 16px; white-space: normal; overflow-wrap: anywhere; }
+  .cashflow-summary-item span, .cashflow-summary-item small, .cashflow-summary-item em { font-size: 11px; white-space: normal; overflow-wrap: anywhere; }
+  .dca-mode-tabs { display: flex; width: 100%; }
+  .dca-mode-tabs button { flex: 1; padding-inline: 10px; }
+  .dca-figures { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+  .dca-figures b { white-space: normal; }
+}
+
 /* Dedicated DCA workspace. */
 body:not(.dca-page) #dca {
   display: none;

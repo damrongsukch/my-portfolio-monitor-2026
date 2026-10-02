@@ -522,19 +522,19 @@ function renderBenchmarkComparisonSummary(mode = benchmarkComparisonMode, values
   const baseline = isCashflow ? cashflowInvestedBaseline() : 0;
   if (isCashflow && !(baseline > 0)) { summary.hidden = true; return; }
   const valueLabel = value => isCashflow ? cashflowValue(value) : benchmarkPercent(value);
-  const returnLabel = value => isCashflow ? benchmarkPercent((value / baseline - 1) * 100) : performanceVerified ? "TWR" : "Historical only";
+  const returnLabel = value => isCashflow ? benchmarkPercent((value / baseline - 1) * 100) : performanceVerified ? "TWR" : "Unverified history";
   const diffLabel = difference => isCashflow ? `${cashflowValue(Math.abs(difference))} (${(Math.abs(difference) / baseline * 100).toFixed(2)}%)` : `${Math.abs(difference).toFixed(2)}%`;
   const comparison = (label, key) => {
     const value = numberFrom(data[key]);
     if (!visibleBenchmarks[key] || !Number.isFinite(value)) return "";
     const difference = portfolio - value;
     const tone = difference >= 0 ? "positive" : "negative";
-    return `<div class="cashflow-summary-item ${key}"><span>${label}</span><strong>${valueLabel(value)}</strong><small>${returnLabel(value)}</small><em class="${tone}">${difference >= 0 ? "Ahead" : "Behind"} ${diffLabel(difference)}</em></div>`;
+    return `<div class="cashflow-summary-item ${key}"><span>${label}</span><strong>${valueLabel(value)}</strong><small>${returnLabel(value)}</small><em class="${!isCashflow && !performanceVerified ? "" : tone}">${!isCashflow && !performanceVerified ? "Comparison not verified" : (difference >= 0 ? "Ahead " : "Behind ") + diffLabel(difference)}</em></div>`;
   };
   const metric = (label, value, tone = "") => `<div class="cashflow-summary-item metric"><span>${label}</span><strong class="${tone}">${value}</strong><small>Portfolio metric</small></div>`;
   const portfolioItem = `<div class="cashflow-summary-item portfolio"><span>Portfolio</span><strong>${valueLabel(portfolio)}</strong><small>${returnLabel(portfolio)}</small><em>${isCashflow ? "Actual value" : performanceVerified ? "Portfolio TWR" : "Awaiting reconciliation"}</em></div>`;
   if (isCashflow) {
-    const investedItem = `<div class="cashflow-summary-item invested"><span>Invested capital</span><strong>${cashflowValue(baseline)}</strong><small>Same Buy dates</small><em>Cost basis</em></div>`;
+    const investedItem = `<div class="cashflow-summary-item invested"><span>Comparison baseline</span><strong>${cashflowValue(baseline)}</strong><small>Recorded Buy dates</small><em>Purchase-based simulation</em></div>`;
     summary.innerHTML = `${portfolioItem}${investedItem}${comparison("S&P 500", "spy")}${comparison("NASDAQ", "qqq")}`;
   } else {
     summary.innerHTML = `${portfolioItem}${comparison("S&P 500", "spy")}${comparison("NASDAQ", "qqq")}${metric("IRR", percentText(kpis.irr), signedClass(kpis.irr))}${metric("Volatility", percentText(kpis.volatility))}${metric("Sharpe Ratio", decimalText(kpis.sharpe))}${metric("Max Drawdown", percentText(kpis.maxDrawdown), "negative")}`;
@@ -574,8 +574,9 @@ function bindBenchmarkHover(svg, series, options) {
       return `<span class="${key}">${label} <strong>${format(point[key])}</strong></span>`;
     }).join("");
     const difference = point.portfolio - point.spy;
-    const relation = difference >= 0 ? `Portfolio leads S&P 500 ${format(Math.abs(difference))}` : `S&P 500 leads portfolio ${format(Math.abs(difference))}`;
-    readout.innerHTML = `<span class="benchmark-readout-date">${benchmarkDateLabel(point.date)}</span><div class="benchmark-readout-values">${values}</div><b class="${difference >= 0 ? "positive" : "negative"}">${relation}</b>`;
+    const provisional = benchmarkComparisonMode === "twr" && !performanceVerified;
+    const relation = provisional ? "Unverified history" : difference >= 0 ? `Portfolio leads S&P 500 ${format(Math.abs(difference))}` : `S&P 500 leads portfolio ${format(Math.abs(difference))}`;
+    readout.innerHTML = `<span class="benchmark-readout-date">${benchmarkDateLabel(point.date)}</span><div class="benchmark-readout-values">${values}</div><b class="${provisional ? "" : difference >= 0 ? "positive" : "negative"}">${relation}</b>`;
     const pointX = options.x(index);
     const line = hover.querySelector(".benchmark-crosshair");
     if (line) ["x1", "x2"].forEach(attribute => line.setAttribute(attribute, pointX.toFixed(1)));
@@ -708,6 +709,15 @@ function benchmarkReturnBuckets(series, period) {
   if (!performanceSvg || !returnsSvg) return;
   const isCashflow = benchmarkComparisonMode === "cashflow";
   const provisionalPerformance = !performanceVerified && !isCashflow;
+  const chartReadout = document.getElementById("benchmarkChartReadout");
+  if (chartReadout) {
+    chartReadout.hidden = isCashflow;
+    if (isCashflow) chartReadout.innerHTML = "";
+  }
+  if (isCashflow) {
+    performanceSvg.onpointermove = null;
+    performanceSvg.onpointerleave = null;
+  }
   const cashflowSummary = document.getElementById("cashflowComparisonSummary");
   if (cashflowSummary) cashflowSummary.hidden = false;
   const title = document.getElementById("benchmarkTitle");
@@ -715,8 +725,8 @@ function benchmarkReturnBuckets(series, period) {
   const footnote = document.getElementById("benchmarkFootnote");
   const valueModeLabel = document.getElementById("benchmarkValueModeLabel");
   if (title) title.innerHTML = isCashflow ? 'Portfolio value vs benchmarks <span class="benchmark-method">(same Buy dates)</span>' : provisionalPerformance ? 'Returns vs benchmarks <span class="benchmark-method">(history awaiting reconciliation)</span>' : 'Returns vs benchmarks <span class="benchmark-method">(TWR)</span>';
-  if (subtitle) subtitle.textContent = isCashflow ? "What the same deposits would be worth in the portfolio, S&P 500, or NASDAQ." : provisionalPerformance ? "Historical return series is available to review, but it is not a confirmed performance figure yet." : "Compare portfolio performance without deposits or withdrawals distorting the result.";
-  if (footnote) { const planText = benchmarkRangePeriod === "PLAN"; footnote.textContent = provisionalPerformance ? "Use Value (THB) for the confirmed comparison based on the same Buy dates." : planText ? (isCashflow ? "Value mode reviews Buy amounts from " + benchmarkDateLabel(benchmarkPlanDate()) + " onward." : "Performance is reset at " + benchmarkDateLabel(benchmarkPlanDate()) + " to review the current plan.") : isCashflow ? "Value mode applies each recorded Buy amount on the same date to the portfolio, SPY, and QQQ." : "Returns are time-weighted (TWR), so deposits and withdrawals do not distort performance."; }
+  if (subtitle) subtitle.textContent = isCashflow ? "Purchase-based simulation using recorded Buy dates, not actual deposits or verified TWR." : provisionalPerformance ? "Unverified history: do not use these figures to judge whether the portfolio beats the market." : "Compare portfolio performance without deposits or withdrawals distorting the result.";
+  if (footnote) { footnote.classList.toggle("benchmark-unverified", !performanceVerified); const planText = benchmarkRangePeriod === "PLAN"; footnote.textContent = provisionalPerformance ? "Awaiting NAV, cash-flow and FX reconciliation. Historical figures are provisional." : planText ? (isCashflow ? "Simulation uses recorded Buy amounts from " + benchmarkDateLabel(benchmarkPlanDate()) + " onward; fees, dividends and actual FX may differ." : "Performance is reset at " + benchmarkDateLabel(benchmarkPlanDate()) + " to review the current plan.") : isCashflow ? "Illustrative comparison using recorded purchases. Fees, dividends and actual FX may differ; this is not verified performance." : "Returns are time-weighted (TWR), so deposits and withdrawals do not distort performance."; }
   if (valueModeLabel) valueModeLabel.textContent = `Value (${currencyMode})`;
   document.querySelectorAll("[data-benchmark-mode]").forEach(button => { const isPerformance = button.dataset.benchmarkMode === "twr"; const active = button.dataset.benchmarkMode === benchmarkComparisonMode; button.classList.toggle("active", active); button.disabled = false; button.title = isPerformance && !performanceVerified ? "Historical performance is available for review but awaits reconciliation" : ""; button.setAttribute("aria-pressed", String(active)); });
   document.querySelectorAll("[data-benchmark-range]").forEach(button => { const active = button.dataset.benchmarkRange === benchmarkRangePeriod; button.classList.toggle("active", active); button.setAttribute("aria-pressed", String(active)); });
@@ -810,6 +820,10 @@ function monthKey(date) { return `${date.getFullYear()}-${String(date.getMonth()
 function monthLabel(key) { const [year, month] = key.split("-").map(Number); return new Date(year, month - 1, 1).toLocaleDateString("en-US", { month: "short", year: "2-digit" }).replace(" ", " '"); }
 function addMonths(date, offset) { return new Date(date.getFullYear(), date.getMonth() + offset, 1); }
 function monthlyAmount(value) { return Math.round(numberFrom(value)).toLocaleString("en-US"); }
+function compactMonthlyAmount(value) {
+  const amount = numberFrom(value);
+  return amount >= 10000 ? `${(amount / 1000).toFixed(0)}k` : amount >= 1000 ? `${(amount / 1000).toFixed(1).replace(/\.0$/, "")}k` : monthlyAmount(amount);
+}
 function renderMonthlySummary() {
   const activeMonths = monthly.filter(item => numberFrom(item.value) > 0);
   const total = monthly.reduce((sum, item) => sum + numberFrom(item.value), 0);
@@ -820,7 +834,7 @@ function renderMonthlySummary() {
     <div class="monthly-summary-item"><span>Start</span><strong>${startLabel}</strong></div>
     <div class="monthly-summary-item primary"><span>Avg buy</span><strong>THB ${monthlyAmount(average)}</strong></div>
     <div class="monthly-summary-item"><span>Active months</span><strong>${activeMonths.length}</strong></div>
-    <div class="monthly-summary-item"><span>Buy total</span><strong>THB ${monthlyAmount(total)}</strong></div>
+    <div class="monthly-summary-item" title="Gross purchases in the displayed 12 months, before sales; not current cost basis"><span>Gross buys · 12M</span><strong>THB ${monthlyAmount(total)}</strong></div>
   `);
 }
 function buildMonthlyPurchases(tradeRows, nav, monthlyRows) {
@@ -852,46 +866,63 @@ function buildMonthlyPurchases(tradeRows, nav, monthlyRows) {
   }
   const latest = [...grouped.keys()].sort().at(-1);
   const end = latest ? new Date(Number(latest.slice(0, 4)), Number(latest.slice(5, 7)) - 1, 1) : new Date();
-  return Array.from({ length: 12 }, (_, index) => {
+  const history = Array.from({ length: 12 }, (_, index) => {
     const key = monthKey(addMonths(end, index - 11));
     return { label: monthLabel(key), value: grouped.get(key) || 0 };
   });
+  return history;
 }
 function renderMonthly() {
   const svg = document.getElementById("monthlyChart");
   if (!svg || !monthly.length) return;
   renderMonthlySummary();
   const isCompact = window.matchMedia("(max-width: 680px)").matches;
-  const width = isCompact ? 640 : 960;
-  const height = isCompact ? 300 : 340;
+  const width = isCompact ? 360 : 960;
+  const height = isCompact ? 320 : 360;
   const padding = isCompact
-    ? { top: 34, right: 30, bottom: 54, left: 22 }
-    : { top: 36, right: 54, bottom: 58, left: 32 };
-  const monthlyTotal = monthly.reduce((sum, item) => sum + numberFrom(item.value), 0);
+    ? { top: 48, right: 62, bottom: 62, left: 58 }
+    : { top: 48, right: 76, bottom: 64, left: 68 };
+  const plotW = width - padding.left - padding.right;
+  const plotH = height - padding.top - padding.bottom;
+  const monthlyMax = Math.max(...monthly.map(item => numberFrom(item.value)), 1);
+  const monthlyScaleMax = Math.ceil(monthlyMax / 1000) * 1000 || 1000;
   let runningCapital = 0;
   const investedSeries = monthly.map(item => {
     runningCapital += numberFrom(item.value);
     return runningCapital;
   });
-  const max = Math.max(...monthly.map(item => item.value), ...investedSeries, 1);
-  const plotH = height - padding.top - padding.bottom;
-  const gap = (width - padding.left - padding.right) / monthly.length;
-  const barW = Math.min(isCompact ? 30 : 38, gap * .52);
-  const pointFor = (value, index) => [
-    padding.left + index * gap + gap / 2,
-    padding.top + (1 - numberFrom(value) / max) * plotH
-  ];
-  const investedPoints = investedSeries.map(pointFor);
+  const cumulativeMax = Math.max(...investedSeries, 1);
+  const gap = plotW / monthly.length;
+  const barW = Math.min(isCompact ? 25 : 48, gap * .52);
+  const baseline = padding.top + plotH;
+  const xFor = index => padding.left + index * gap + gap / 2;
+  const yForMonthly = value => padding.top + (1 - numberFrom(value) / monthlyScaleMax) * plotH;
+  const yForCumulative = value => padding.top + (1 - numberFrom(value) / cumulativeMax) * plotH;
+  const investedPoints = investedSeries.map((value, index) => [xFor(index), yForCumulative(value)]);
   const bars = monthly.map((item, index) => {
-    const x = padding.left + index * gap + gap / 2 - barW / 2;
-    const h = item.value > 0 ? Math.max(4, (item.value / max) * plotH) : 2;
-    const y = padding.top + plotH - h;
-    const labelX = x + barW / 2;
-    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" fill="#25e05d" opacity="${item.value > 0 ? "1" : ".2"}" rx="5"/><text class="axis-text monthly-value" x="${labelX.toFixed(1)}" y="${(y - 8).toFixed(1)}">${monthlyAmount(item.value)}</text><text class="muted-text monthly-label" x="${labelX.toFixed(1)}" y="${height - 25}">${item.label.split(" ")[0]}</text><text class="muted-text monthly-year" x="${labelX.toFixed(1)}" y="${height - 10}">${item.label.split(" ")[1] || ""}</text>`;
+    const labelX = xFor(index);
+    const x = labelX - barW / 2;
+    const y = yForMonthly(item.value);
+    const h = Math.max(item.value > 0 ? 4 : 1.5, baseline - y);
+    const title = `${item.label}: THB ${monthlyAmount(item.value)} bought; THB ${monthlyAmount(investedSeries[index])} cumulative`;
+    const amountLabel = item.value > 0 ? `<text class="axis-text monthly-value" x="${labelX.toFixed(1)}" y="${(y - 9).toFixed(1)}">${compactMonthlyAmount(item.value)}</text>` : "";
+    const showMonth = !isCompact || index === 0 || index === monthly.length - 1 || (index % 2 === 0 && index < monthly.length - 2);
+    const showYear = !isCompact || index === 0 || index === monthly.length - 1;
+    const monthText = showMonth ? `<text class="muted-text monthly-label" x="${labelX.toFixed(1)}" y="${height - (showYear ? 28 : 18)}">${item.label.split(" ")[0]}</text>` : "";
+    const yearText = showYear ? `<text class="muted-text monthly-year" x="${labelX.toFixed(1)}" y="${height - 12}">${item.label.split(" ")[1] || ""}</text>` : "";
+    return `<g class="monthly-bar-group"><title>${title}</title><rect class="monthly-bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="5"/>${amountLabel}${monthText}${yearText}</g>`;
+  }).join("");
+  const grid = [0, 0.5, 1].map(ratio => {
+    const y = padding.top + (1 - ratio) * plotH;
+    return `<g><line class="chart-grid" x1="${padding.left}" x2="${width - padding.right}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"/><text class="axis-text monthly-axis" x="${padding.left - 9}" y="${(y + 4).toFixed(1)}" text-anchor="end">${compactMonthlyAmount(monthlyScaleMax * ratio)}</text><text class="axis-text monthly-axis" x="${width - padding.right + 10}" y="${(y + 4).toFixed(1)}">${compactMonthlyAmount(cumulativeMax * ratio)}</text></g>`;
   }).join("");
   const lastPoint = investedPoints.at(-1);
+  const area = `M${investedPoints[0][0].toFixed(1)} ${baseline.toFixed(1)} L${investedPoints.map(point => `${point[0].toFixed(1)} ${point[1].toFixed(1)}`).join(" L")} L${lastPoint[0].toFixed(1)} ${baseline.toFixed(1)} Z`;
+  const line = pathFromPoints(investedPoints);
+  const cumulativeLabel = isCompact ? compactMonthlyAmount(investedSeries.at(-1)) : `THB ${monthlyAmount(investedSeries.at(-1))}`;
+  const axisTitles = `<text class="monthly-axis-title" x="${padding.left}" y="18">MONTHLY BUYS</text><text class="monthly-axis-title" x="${width - padding.right}" y="18" text-anchor="end">CUMULATIVE · ${cumulativeLabel}</text>`;
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-  svg.innerHTML = `${bars}<path class="monthly-invested-line" d="${pathFromPoints(investedPoints)}"/><circle class="monthly-invested-dot" cx="${lastPoint[0].toFixed(1)}" cy="${lastPoint[1].toFixed(1)}" r="4"/><text class="monthly-invested-end" x="${(lastPoint[0] - 12).toFixed(1)}" y="${Math.max(18, lastPoint[1] - 14).toFixed(1)}">THB ${monthlyAmount(investedSeries.at(-1))}</text>`;
+  svg.innerHTML = `<defs><linearGradient id="monthlyCumulativeFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#38bdf8" stop-opacity=".18"/><stop offset="1" stop-color="#38bdf8" stop-opacity="0"/></linearGradient></defs>${axisTitles}${grid}${bars}<path class="monthly-cumulative-area" d="${area}"/><path class="monthly-invested-line" d="${line}"/><circle class="monthly-invested-dot" cx="${lastPoint[0].toFixed(1)}" cy="${lastPoint[1].toFixed(1)}" r="4"/>`;
 }
 function signalMeta(signal) {
   const text = cleanSignal(signal);
@@ -1200,7 +1231,7 @@ function dcaSizing(item) {
   if (item.signalSource !== "Final_Action") return { multiplier: 0, source: item.signalSource || "No verified action" };
   if (/WAIT|HOLD|REDUCE|SELL|NO BUY|AVOID/.test(signal)) return { multiplier: 0, source: item.signalSource || "Signal" };
   const explicit = signal.match(/(?:^|\s)(1(?:\.0+)?|0?\.(?:25|5|50|75))\s*X\b/i);
-  if (explicit) return { multiplier: Math.min(1, numberFrom(explicit[1])), source: item.signalSource || "Final_Action" };
+  if (explicit && /\bBUY\b/.test(signal)) return { multiplier: Math.min(1, numberFrom(explicit[1])), source: item.signalSource || "Final_Action" };
   return { multiplier: 0, source: item.signalSource || "Signal" };
 }
 function dcaMultiplier(item) { return dcaSizing(item).multiplier; }
@@ -1234,7 +1265,7 @@ function dcaReasonMarkup(item) {
 
 function buildDcaPlan(budgetUsd) {
   const fx = fxRate();
-  const candidates = signalBoard.filter(item => item.ticker && item.ticker !== "CASH").map(item => ({ ...item, multiplier: dcaMultiplier(item), smartDcaUsd: numberFrom(item.smartDcaUsd) || Infinity, targetGap: targetGap(item), rankScore: dcaRankScore(item) })).filter(item => item.multiplier > 0).sort((a, b) => b.rankScore - a.rankScore || numberFrom(a.priority || 99) - numberFrom(b.priority || 99)).slice(0, 3);
+  const candidates = signalBoard.filter(item => item.ticker && item.ticker !== "CASH" && targetWeight(item) > 0 && holdings.some(holding => holding.ticker === item.ticker && holdingValueUsd(holding) > 0)).map(item => ({ ...item, multiplier: dcaMultiplier(item), smartDcaUsd: numberFrom(item.smartDcaUsd) || Infinity, targetGap: targetGap(item), rankScore: dcaRankScore(item) })).filter(item => item.multiplier > 0).sort((a, b) => b.rankScore - a.rankScore || numberFrom(a.priority || 99) - numberFrom(b.priority || 99)).slice(0, 3);
   const picks = candidates.map(item => ({ ...item, amountUsd: 0 }));
   const requestedUsd = Math.max(0, Number(budgetUsd || 0));
   let remaining = requestedUsd;
@@ -1253,15 +1284,17 @@ function buildDcaPlan(budgetUsd) {
 }
 
 function renderTodaySignal(best, budgetUsd) {
+  document.querySelector(".signal-card")?.classList.toggle("no-tactical-buy", !best);
   const details = document.getElementById("todayActionDetails");
   const reasons = document.getElementById("todayActionReasons");
   const rank = document.getElementById("todayActionRank");
   if (!best) {
-    setText("todaySignal", "No action today");
-    setText("todaySignalText", "No eligible buy signal. Keep cash available.");
-    if (rank) rank.textContent = "No candidate";
-    if (details) details.innerHTML = "";
-    if (reasons) reasons.innerHTML = "";
+    const underweight = holdings.filter(item => item.ticker !== "CASH" && holdingValueUsd(item) > 0 && targetWeight(item) > 0 && targetGap(item) > 0).sort((a, b) => targetGap(b) - targetGap(a))[0];
+    setText("todaySignal", "No tactical buy");
+    setText("todaySignalText", "No explicit BUY sizing in Final_Action for a portfolio holding.");
+    if (rank) rank.textContent = "Tactical signal";
+    if (details) details.innerHTML = underweight ? `<div><span>Below target</span><strong>${underweight.ticker}</strong></div><div><span>Target gap</span><strong>${targetGap(underweight).toFixed(1)}%</strong></div>` : "";
+    if (reasons) reasons.innerHTML = `<p class="action-next-step">${underweight ? "Regular DCA can still reduce the target gap using a new-money budget." : "No underweight holdings with an active target."}</p><a class="action-plan-link" href="dca.html">Review DCA plan &rarr;</a>`;
     return;
   }
   const gap = targetGap(best);
@@ -1273,25 +1306,48 @@ function renderTodaySignal(best, budgetUsd) {
   if (rank) rank.textContent = `Top pick - ${best.ticker}`;
   if (details) setHtml("todayActionDetails", `<div><span>Buy</span><strong>${best.ticker}</strong></div><div><span>Suggested</span><strong>${amount}</strong></div><div><span>Target gap</span><strong class="${gap >= 0 ? "positive" : "negative"}">${gapText}</strong></div>`);
   if (reasons) setHtml("todayActionReasons", `<span>Why it ranks first</span>${dcaReasonMarkup(best)}`);
-}function renderSmartDca() {
+}
+let dcaPlanMode = "regular";
+function buildRegularDcaPlan(budgetUsd) {
+  const budget = Math.max(0, numberFrom(budgetUsd));
+  const totalValue = holdings.reduce((sum, item) => sum + holdingValueUsd(item), 0);
+  const candidates = holdings.filter(item => item.ticker && item.ticker !== "CASH" && holdingValueUsd(item) > 0 && targetWeight(item) > 0 && targetGap(item) > 0)
+    .map(item => ({ ...item, deficitUsd: Math.max(0, (totalValue + budget) * targetWeight(item) / 100 - holdingValueUsd(item)) }))
+    .filter(item => item.deficitUsd >= MIN_ORDER_USD).sort((a, b) => b.deficitUsd - a.deficitUsd).slice(0, 3);
+  const totalDeficit = candidates.reduce((sum, item) => sum + item.deficitUsd, 0);
+  const deploy = Math.min(budget, totalDeficit);
+  // Round down per order so a simulated plan never spends more than its budget.
+  const picks = candidates.map(item => ({ ...item, amountUsd: Math.floor((totalDeficit ? deploy * item.deficitUsd / totalDeficit : 0) * 100) / 100 }))
+    .filter(item => item.amountUsd >= MIN_ORDER_USD);
+  const usedUsd = Math.round(picks.reduce((sum, item) => sum + item.amountUsd, 0) * 100) / 100;
+  return { picks, usedUsd, leftoverUsd: Math.round((budget - usedUsd) * 100) / 100 };
+}
+function renderSmartDca() {
   const input = document.getElementById("dcaBudgetInput");
   const budget = parseBudgetInput(input?.value || "");
-  const plan = buildDcaPlan(budget.usd);
+  const tacticalPlan = buildDcaPlan(budget.usd);
+  const regular = dcaPlanMode === "regular";
+  const plan = regular ? buildRegularDcaPlan(budget.usd) : tacticalPlan;
   const rows = budget.usd > 0 ? plan.picks.filter(item => item.amountUsd > 0) : plan.picks;
-  const ruleNote = `<span class="dca-rule-note">Only an explicit Final_Action such as BUY 0.25x to 1.00x can create an order. Target gap, priority and RSI rank approved actions.</span>`;
+  const ruleNote = `<span class="dca-rule-note">${regular ? "New-money simulation toward active portfolio targets. No market-timing signal required; existing holdings only." : "Tactical sizing requires an explicit BUY 0.25x to 1.00x in Final_Action. No Watchlist stocks."}</span>`;
   setHtml("dcaBudgetSummary", budget.usd > 0
-    ? `${ruleNote}<span class="dca-summary-title">Final_Action sizing: allocate ${formatUsd(plan.usedUsd)} from ${formatUsd(budget.usd)} and keep ${formatUsd(plan.leftoverUsd)} in cash.</span><span class="dca-figures"><b>Budget ${formatUsd(budget.usd)}</b><b>Allocate ${formatUsd(plan.usedUsd)}</b><b>Cash left ${formatUsd(plan.leftoverUsd)}</b><b>Min ${formatUsd(MIN_ORDER_USD)}</b></span>`
-    : `${ruleNote}<span class="dca-empty-hint">Enter USD. Sizing follows explicit BUY 0.25x / 0.50x / 0.75x / 1.00x from the sheet when available.</span>`);
-  setHtml("smartDcaList", rows.map((item, index) => `<div class="mini-row dca-plan-row"><span>${index + 1}. <strong>${item.ticker}</strong><small class="dca-action-line">${cleanSignal(item.signal)} <b>Score ${item.rankScore.toFixed(0)}</b></small>${dcaReasonMarkup(item)}${item.belowMin ? `<small class="dca-minimum-warning">Below DIME minimum</small>` : ""}</span><strong>${budget.usd > 0 ? formatUsd(item.amountUsd) : `${item.multiplier.toFixed(2)}x`}<small>${item.multiplier.toFixed(2)}x weight</small></strong></div>`).join("") || `<div class="empty">No eligible Final_Action today. Keep cash.</div>`);
-  renderTodaySignal(rows[0], budget.usd);
-  renderRebalancePlanner(budget.usd, plan);
+    ? `${ruleNote}<span class="dca-summary-title">Simulated allocation ${formatUsd(plan.usedUsd)}; unallocated ${formatUsd(plan.leftoverUsd)}. No orders are placed.</span><span class="dca-figures"><b>Budget ${formatUsd(budget.usd)}</b><b>Allocate ${formatUsd(plan.usedUsd)}</b><b>Cash left ${formatUsd(plan.leftoverUsd)}</b><b>Min ${formatUsd(MIN_ORDER_USD)}</b></span>`
+    : `${ruleNote}<span class="dca-empty-hint">${regular ? "Enter a new-money budget in USD to allocate toward active target gaps." : "Enter USD to size approved BUY 0.25x / 0.50x / 0.75x / 1.00x actions."}</span>`);
+  setHtml("smartDcaList", rows.map((item, index) => regular
+    ? `<div class="mini-row dca-plan-row"><span>${index + 1}. <strong>${item.ticker}</strong><small class="dca-action-line">Under target ${targetGap(item).toFixed(1)}%</small><small>Current ${numberFrom(item.weight).toFixed(1)}% / target ${targetWeight(item).toFixed(1)}%</small></span><strong>${formatUsd(item.amountUsd)}<small>Regular DCA</small></strong></div>`
+    : `<div class="mini-row dca-plan-row"><span>${index + 1}. <strong>${item.ticker}</strong><small class="dca-action-line">${cleanSignal(item.signal)} <b>Score ${item.rankScore.toFixed(0)}</b></small>${dcaReasonMarkup(item)}${item.belowMin ? `<small class="dca-minimum-warning">Below DIME minimum</small>` : ""}</span><strong>${budget.usd > 0 ? formatUsd(item.amountUsd) : `${item.multiplier.toFixed(2)}x`}<small>${item.multiplier.toFixed(2)}x weight</small></strong></div>`).join("") || `<div class="empty">${regular ? "No allocation: check the budget, minimum order and active target gaps." : "No explicit tactical BUY. Regular DCA remains available."}</div>`);
+  document.querySelectorAll("[data-dca-mode]").forEach(button => { const active = button.dataset.dcaMode === dcaPlanMode; button.classList.toggle("active", active); button.setAttribute("aria-pressed", String(active)); });
+  renderTodaySignal(budget.usd > 0 ? tacticalPlan.picks.find(item => item.amountUsd > 0) : tacticalPlan.picks[0], budget.usd);
+  setText("rebalanceBudgetLabel", formatUsd(plan.usedUsd));
+  setText("rebalanceSummary", regular ? "Top 3 target deficits, measured against the whole portfolio plus this new-money budget. Each allocation stays within its target deficit." : "Same tactical allocations as the ranked list. Sheet sizing and caps apply.");
+  setHtml("rebalanceList", plan.picks.filter(item => item.amountUsd > 0).map(item => `<div class="rebalance-row"><span><strong>${item.ticker}</strong><small>${regular ? "Target gap" : "Approved sizing"} · ${targetWeight(item).toFixed(1)}% target</small></span><strong>${formatUsd(item.amountUsd)}<small>${(item.amountUsd / Math.max(budget.usd, 1) * 100).toFixed(0)}% of budget</small></strong></div>`).join("") || '<div class="empty">Budget remains unallocated.</div>');
 }
 function holdingValueUsd(item) { const direct = numberFrom(item.valueUsd); return direct > 0 ? direct : numberFrom(item.value) / Math.max(fxRate(), 1); }
 function buildRebalancePlan(budgetUsd, approvedTickers = []) {
   const budget = Math.max(0, numberFrom(budgetUsd));
   const approved = new Set(approvedTickers.map(ticker => String(ticker).toUpperCase()));
   const eligible = holdings.filter(item => item.ticker && item.ticker !== "CASH" && approved.has(String(item.ticker).toUpperCase()) && targetWeight(item) > 0);
-  const totalValue = eligible.reduce((sum, item) => sum + holdingValueUsd(item), 0);
+  const totalValue = holdings.reduce((sum, item) => sum + holdingValueUsd(item), 0);
   const targets = eligible.map(item => ({ ...item, currentUsd: holdingValueUsd(item), deficitUsd: Math.max(0, (totalValue + budget) * targetWeight(item) / 100 - holdingValueUsd(item)) })).filter(item => item.deficitUsd > .01);
   const totalDeficit = targets.reduce((sum, item) => sum + item.deficitUsd, 0);
   const picks = targets.map(item => ({ ...item, amountUsd: totalDeficit ? Math.min(item.deficitUsd, budget * item.deficitUsd / totalDeficit) : 0 })).filter(item => item.amountUsd > .01).sort((a, b) => b.amountUsd - a.amountUsd);
@@ -1927,7 +1983,11 @@ function setAppView(view, target = "overview", smooth = true) {
 }
 function jumpToAlerts() { const card = document.querySelector(".alerts-card"); setAppView("overview", "alerts"); if (card) { card.classList.add("flash-focus"); window.setTimeout(() => card.classList.remove("flash-focus"), 1200); } }
 function bindInteractions() {
+  document.querySelectorAll("[data-dca-mode]").forEach(button => button.addEventListener("click", () => { dcaPlanMode = button.dataset.dcaMode; renderSmartDca(); }));
   const search = document.getElementById("holdingSearch");
+  const monthlyLayout = window.matchMedia("(max-width: 680px)");
+  if (monthlyLayout.addEventListener) monthlyLayout.addEventListener("change", renderMonthly);
+  else monthlyLayout.addListener(renderMonthly);
   document.querySelector(".holdings-card thead")?.addEventListener("click", event => {
     const button = event.target.closest("[data-sort]");
     if (!button) return;

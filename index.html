@@ -10,7 +10,7 @@
   <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg?v=20260702b">
   <link rel="shortcut icon" href="./assets/favicon.ico?v=20260702b">
   <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png?v=20260702b">
-  <link rel="stylesheet" href="./styles.css?v=20260929-v1-polish-2">
+  <link rel="stylesheet" href="./styles.css?v=20261002-dca-clarity">
 </head>
 <body data-theme="dark" data-view="overview">
   <div class="app-shell">
@@ -123,7 +123,7 @@
             <svg class="sparkline" viewBox="0 0 260 60" data-spark="nav" aria-hidden="true"></svg>
           </article>
           <article class="card stat-card">
-            <span>Total Invested</span>
+              <span title="Cost basis of current holdings; not gross purchases over time">Current cost basis</span>
             <strong id="investedValue">THB 0.00</strong>
             <small id="cashValue">Cash THB 0.00</small>
           </article>
@@ -195,7 +195,7 @@
               <span><i class="invested"></i><span id="performanceInvestedLabel">Invested capital</span></span>
             </div>
             <small class="performance-range" id="performanceRangeLabel">Loading performance range...</small>
-            <svg id="navChart" class="line-chart" viewBox="0 0 740 300" role="img" aria-label="Portfolio value history chart"></svg>
+            <div class="chart-viewport" tabindex="0" aria-label="Portfolio value chart, horizontally scrollable on small screens"><svg id="navChart" class="line-chart" viewBox="0 0 740 300" role="img" aria-label="Portfolio value history chart"></svg></div>
             <div class="benchmark-strip" aria-label="Benchmark reference using the portfolio cost-basis return"><small class="benchmark-strip-method">Reference only: compared with the portfolio cost-basis return, not TWR.</small>
               <div>
                 <span id="spyBenchmarkLabel">S&amp;P 500 (SPY)</span>
@@ -293,7 +293,7 @@
               </div>
             </div>
             <div class="benchmark-legend" aria-label="Benchmark chart legend"><span><i class="portfolio"></i>Portfolio</span><button class="benchmark-toggle active" type="button" data-benchmark-toggle="spy" aria-pressed="true"><i class="spy"></i>S&amp;P 500 (SPY)</button><button class="benchmark-toggle active" type="button" data-benchmark-toggle="qqq" aria-pressed="true"><i class="qqq"></i>NASDAQ (QQQ)</button></div>
-            <svg id="benchmarkPerformanceChart" class="benchmark-chart" viewBox="0 0 900 252" role="img" aria-label="Portfolio time-weighted return compared with S and P 500 and NASDAQ"></svg>
+            <div class="chart-viewport" tabindex="0" aria-label="Benchmark chart, horizontally scrollable on small screens"><svg id="benchmarkPerformanceChart" class="benchmark-chart" viewBox="0 0 900 252" role="img" aria-label="Portfolio time-weighted return compared with S and P 500 and NASDAQ"></svg></div>
             <div id="benchmarkChartReadout" class="benchmark-chart-readout" aria-live="polite"></div>
             <div id="cashflowComparisonSummary" class="cashflow-comparison-summary mode-performance" hidden aria-live="polite"></div>
             <p id="benchmarkFootnote" class="benchmark-footnote">Returns are time-weighted (TWR), so deposits and withdrawals do not distort performance.</p>
@@ -314,7 +314,7 @@
               </div>
             </div>
             <div id="benchmarkReturnsLegend" class="benchmark-legend" aria-label="Weekly returns chart legend"><span><i class="portfolio"></i>Portfolio</span><button class="benchmark-toggle active" type="button" data-benchmark-toggle="spy" aria-pressed="true"><i class="spy"></i>S&amp;P 500 (SPY)</button><button class="benchmark-toggle active" type="button" data-benchmark-toggle="qqq" aria-pressed="true"><i class="qqq"></i>NASDAQ (QQQ)</button></div>
-            <svg id="benchmarkReturnsChart" class="benchmark-chart benchmark-returns-chart" viewBox="0 0 900 230" role="img" aria-label="Weekly portfolio, S and P 500, and NASDAQ returns"></svg>
+            <div class="chart-viewport" tabindex="0" aria-label="Returns chart, horizontally scrollable on small screens"><svg id="benchmarkReturnsChart" class="benchmark-chart benchmark-returns-chart" viewBox="0 0 900 230" role="img" aria-label="Weekly portfolio, S and P 500, and NASDAQ returns"></svg></div>
           </article>
 
           <article class="card dca-card" id="dca">
@@ -324,10 +324,11 @@
                 <h2>Today's buy plan</h2>
               </div>
             </div>
+            <div class="dca-mode-tabs" aria-label="DCA planning method"><button type="button" class="active" data-dca-mode="regular" aria-pressed="true">Regular DCA</button><button type="button" data-dca-mode="tactical" aria-pressed="false">Tactical signals</button></div>
             <div class="dca-plan-grid">
               <div class="dca-budget-panel">
                 <div class="dca-simulator">
-                  <label for="dcaBudgetInput">Budget today</label>
+                  <label for="dcaBudgetInput">New-money budget (USD)</label>
                   <div class="dca-input-row">
                     <input id="dcaBudgetInput" type="text" inputmode="decimal" value="50" aria-describedby="dcaBudgetSummary">
                     <button id="useCashButton" type="button">Cash</button>
@@ -485,6 +486,6 @@
     <button data-page="history" type="button"><svg viewBox="0 0 24 24"><path d="M8 3v4M16 3v4M4 10h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/><path d="M8 14h3m2 0h3M8 17h3"/></svg><span>History</span></button>
   </nav>
 
-  <script src="./script.js?v=20260927-performance-view"></script>
+  <script src="./script.js?v=20261002-dca-clarity"></script>
 </body>
 </html>
